@@ -12,7 +12,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   Select,
@@ -24,7 +23,8 @@ import {
 import { useProfiles, useUpdateProfile, useUpdateUserRole, type ProfileWithRole } from '@/hooks/useProfiles';
 import { useMatters } from '@/hooks/useMatters';
 import { useAssignments, useCreateAssignment, useDeleteAssignment } from '@/hooks/useAssignments';
-import { Plus, Pencil, Users, UserPlus, Trash2, Search, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Plus, Pencil, Users, UserPlus, Trash2, Search, Loader2, Key } from 'lucide-react';
 import { toast } from 'sonner';
 import type { UserRole } from '@/types';
 
@@ -44,6 +44,14 @@ export default function Collaborators() {
   // Assignment form state
   const [assignMatterId, setAssignMatterId] = useState('');
   const [assignStartDate, setAssignStartDate] = useState(() => new Date().toISOString().split('T')[0]);
+
+  // Password reset state
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [passwordUserId, setPasswordUserId] = useState<string>('');
+  const [passwordUserName, setPasswordUserName] = useState<string>('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   // Hooks for data
   const { data: profiles = [], isLoading: profilesLoading } = useProfiles();
@@ -183,6 +191,49 @@ export default function Collaborators() {
     } catch (error) {
       toast.error('Erreur lors de la suppression');
       console.error(error);
+    }
+  };
+
+  const openPasswordDialog = (userId: string, userName: string) => {
+    setPasswordUserId(userId);
+    setPasswordUserName(userName);
+    setNewPassword('');
+    setConfirmPassword('');
+    setIsPasswordDialogOpen(true);
+  };
+
+  const handleResetPassword = async () => {
+    if (!newPassword || !confirmPassword) {
+      toast.error('Veuillez remplir les deux champs');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error('Les mots de passe ne correspondent pas');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error('Le mot de passe doit contenir au moins 6 caractères');
+      return;
+    }
+
+    setIsResettingPassword(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-reset-password', {
+        body: { userId: passwordUserId, newPassword },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success(`Mot de passe modifié pour ${passwordUserName}`);
+      setIsPasswordDialogOpen(false);
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      toast.error(error.message || 'Erreur lors de la modification du mot de passe');
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -377,6 +428,56 @@ export default function Collaborators() {
         </DialogContent>
       </Dialog>
 
+      {/* Password Reset Dialog - Sysadmin only */}
+      {role === 'sysadmin' && (
+        <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle>Modifier le mot de passe</DialogTitle>
+              <DialogDescription>
+                Définissez un nouveau mot de passe pour {passwordUserName}.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="newPassword">Nouveau mot de passe</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  placeholder="Au moins 6 caractères"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="Répétez le mot de passe"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsPasswordDialogOpen(false)}>
+                Annuler
+              </Button>
+              <Button 
+                onClick={handleResetPassword}
+                disabled={isResettingPassword || !newPassword || !confirmPassword}
+              >
+                {isResettingPassword && (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                )}
+                Modifier
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
       {/* Users List */}
       <div className="space-y-4">
         {filteredUsers.length === 0 ? (
@@ -432,6 +533,16 @@ export default function Collaborators() {
                       >
                         <Pencil className="w-4 h-4" />
                       </Button>
+                      {role === 'sysadmin' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openPasswordDialog(u.id, u.name)}
+                          title="Modifier le mot de passe"
+                        >
+                          <Key className="w-4 h-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
