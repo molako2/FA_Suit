@@ -1,12 +1,11 @@
 // CSV Export utilities for FlowAssist
 
-import type { TimesheetEntry, Invoice, CreditNote, KPIByUser, KPIByMatter } from '@/types';
-import { getMatters, getClients, getUsers, getInvoices } from './storage';
+import type { TimesheetEntry, Invoice, CreditNote, KPIByUser, KPIByMatter, Matter, Client, User } from '@/types';
 
 function escapeCSV(value: string | number | boolean | undefined | null): string {
   if (value === null || value === undefined) return '';
   const str = String(value);
-  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes(';')) {
     return `"${str.replace(/"/g, '""')}"`;
   }
   return str;
@@ -33,13 +32,15 @@ function downloadCSV(content: string, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-// Export Timesheet entries
-export function exportTimesheetCSV(entries: TimesheetEntry[], filename?: string): void {
-  const matters = getMatters();
-  const clients = getClients();
-  const users = getUsers();
-  const invoices = getInvoices();
-
+// Export Timesheet entries - now accepts data as parameters
+export function exportTimesheetCSV(
+  entries: TimesheetEntry[],
+  matters: Matter[],
+  clients: Client[],
+  users: User[],
+  invoices: Invoice[],
+  filename?: string
+): void {
   const headers = [
     'Date',
     'Collaborateur Email',
@@ -118,11 +119,8 @@ export function exportKPIByMatterCSV(data: KPIByMatter[], periodFrom: string, pe
   downloadCSV(toCSV(headers, rows), `kpi_par_dossier_${periodFrom}_${periodTo}.csv`);
 }
 
-// Export Invoices
-export function exportInvoicesCSV(invoices: Invoice[]): void {
-  const matters = getMatters();
-  const clients = getClients();
-
+// Export Invoices - now accepts matters and clients as parameters
+export function exportInvoicesCSV(invoices: Invoice[], matters: Matter[], clients: Client[]): void {
   const headers = [
     'N° Facture',
     'Date Émission',
@@ -165,10 +163,8 @@ export function exportInvoicesCSV(invoices: Invoice[]): void {
   downloadCSV(toCSV(headers, rows), `factures_${new Date().toISOString().split('T')[0]}.csv`);
 }
 
-// Export Credit Notes
-export function exportCreditNotesCSV(creditNotes: CreditNote[]): void {
-  const invoices = getInvoices();
-
+// Export Credit Notes - now accepts invoices as parameter
+export function exportCreditNotesCSV(creditNotes: CreditNote[], invoices: Invoice[]): void {
   const headers = [
     'N° Avoir',
     'Date Émission',

@@ -376,7 +376,30 @@ export default function Invoices() {
       totalTtcCents: inv.total_ttc_cents,
       createdAt: inv.created_at,
     }));
-    exportInvoicesCSV(exportData);
+    
+    const mappedMatters = matters.map(m => ({
+      id: m.id,
+      code: m.code,
+      label: m.label,
+      clientId: m.client_id,
+      status: m.status as 'open' | 'closed',
+      rateCents: m.rate_cents,
+      vatRate: m.vat_rate as 0 | 20,
+      createdAt: m.created_at,
+    }));
+    
+    const mappedClients = clients.map(c => ({
+      id: c.id,
+      code: c.code,
+      name: c.name,
+      address: c.address,
+      billingEmail: c.billing_email,
+      vatNumber: c.vat_number,
+      active: c.active,
+      createdAt: c.created_at,
+    }));
+    
+    exportInvoicesCSV(exportData, mappedMatters, mappedClients);
     toast.success('Export CSV téléchargé');
   };
 

@@ -29,31 +29,45 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { getCreditNotes, getInvoices, getMatters, getClients, formatCents, getCabinetSettings } from '@/lib/storage';
-import { createCreditNote } from '@/lib/invoicing';
+import { useCreditNotes, useCreateCreditNote } from '@/hooks/useCreditNotes';
+import { useInvoices, useUpdateInvoice } from '@/hooks/useInvoices';
+import { useMatters } from '@/hooks/useMatters';
+import { useClients } from '@/hooks/useClients';
+import { useCabinetSettings, useIncrementCreditSeq } from '@/hooks/useCabinetSettings';
+import { useCreateAuditLog } from '@/hooks/useAuditLog';
 import { printCreditNotePDF } from '@/lib/pdf';
 import { exportCreditNotesCSV } from '@/lib/exports';
-import { FileMinus2, Plus, Download, Printer } from 'lucide-react';
+import { FileMinus2, Plus, Download, Printer, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
+// Format cents to MAD
+function formatCents(cents: number): string {
+  return (cents / 100).toFixed(2).replace('.', ',') + ' MAD';
+}
+
 export default function CreditNotes() {
-  const { role } = useAuth();
-  const [creditNotes, setCreditNotes] = useState(getCreditNotes);
-  const invoices = getInvoices();
-  const matters = getMatters();
-  const clients = getClients();
-  const settings = getCabinetSettings();
+  const { role, user } = useAuth();
+  const { data: creditNotes = [], isLoading: creditNotesLoading } = useCreditNotes();
+  const { data: invoices = [], isLoading: invoicesLoading } = useInvoices();
+  const { data: matters = [], isLoading: mattersLoading } = useMatters();
+  const { data: clients = [], isLoading: clientsLoading } = useClients();
+  const { data: settings, isLoading: settingsLoading } = useCabinetSettings();
+
+  const createCreditNote = useCreateCreditNote();
+  const updateInvoice = useUpdateInvoice();
+  const incrementCreditSeq = useIncrementCreditSeq();
+  const createAuditLog = useCreateAuditLog();
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState('');
   const [reason, setReason] = useState('');
   const [isPartial, setIsPartial] = useState(false);
   const [partialAmount, setPartialAmount] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
   const canEdit = role === 'owner' || role === 'assistant' || role === 'sysadmin';
-
-  const refreshCreditNotes = () => setCreditNotes(getCreditNotes());
+  const isLoading = creditNotesLoading || invoicesLoading || mattersLoading || clientsLoading || settingsLoading;
 
   // Only issued invoices can have credit notes
   const eligibleInvoices = invoices.filter(i => i.status === 'issued');
@@ -65,7 +79,7 @@ export default function CreditNotes() {
 
   const getSelectedInvoice = () => invoices.find(i => i.id === selectedInvoiceId);
 
-  const handleCreateCreditNote = () => {
+  const handleCreateCreditNote = async () => {
     if (!selectedInvoiceId) {
       toast.error('Veuillez sélectionner une facture');
       return;
@@ -86,19 +100,73 @@ export default function CreditNotes() {
     }
 
     const selectedInvoice = getSelectedInvoice();
-    if (isPartial && partialAmountCents && selectedInvoice && partialAmountCents > selectedInvoice.totalTtcCents) {
+    if (isPartial && partialAmountCents && selectedInvoice && partialAmountCents > selectedInvoice.total_ttc_cents) {
       toast.error('Le montant ne peut pas dépasser le total de la facture');
       return;
     }
 
-    const result = createCreditNote(selectedInvoiceId, reason.trim(), partialAmountCents);
-    if (result) {
-      toast.success(`Avoir ${result.number} créé avec succès`);
+    if (!selectedInvoice) {
+      toast.error('Facture non trouvée');
+      return;
+    }
+
+    setIsCreating(true);
+
+    try {
+      // Get credit note number
+      const creditNoteNumber = await incrementCreditSeq.mutateAsync();
+
+      // Calculate credit note amounts
+      let totalHtCents: number;
+      let totalVatCents: number;
+      let totalTtcCents: number;
+
+      if (partialAmountCents !== undefined) {
+        // Partial: proportional calculation
+        const ratio = partialAmountCents / selectedInvoice.total_ttc_cents;
+        totalHtCents = Math.round(selectedInvoice.total_ht_cents * ratio);
+        totalVatCents = Math.round(selectedInvoice.total_vat_cents * ratio);
+        totalTtcCents = partialAmountCents;
+      } else {
+        // Total credit note
+        totalHtCents = selectedInvoice.total_ht_cents;
+        totalVatCents = selectedInvoice.total_vat_cents;
+        totalTtcCents = selectedInvoice.total_ttc_cents;
+
+        // Mark invoice as cancelled
+        await updateInvoice.mutateAsync({
+          id: selectedInvoice.id,
+          status: 'cancelled',
+        });
+      }
+
+      // Create credit note
+      await createCreditNote.mutateAsync({
+        number: creditNoteNumber,
+        invoice_id: selectedInvoiceId,
+        issue_date: new Date().toISOString().split('T')[0],
+        reason: reason.trim(),
+        total_ht_cents: totalHtCents,
+        total_vat_cents: totalVatCents,
+        total_ttc_cents: totalTtcCents,
+      });
+
+      // Audit log
+      createAuditLog.mutate({
+        action: 'create_credit_note',
+        entity_type: 'credit_note',
+        entity_id: creditNoteNumber,
+        details: { invoiceId: selectedInvoiceId, reason: reason.trim() },
+      });
+
+      toast.success(`Avoir ${creditNoteNumber} créé avec succès`);
       setIsCreateDialogOpen(false);
       resetForm();
-      refreshCreditNotes();
-    } else {
+    } catch (error) {
       toast.error('Erreur lors de la création de l\'avoir');
+      console.error(error);
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -111,22 +179,153 @@ export default function CreditNotes() {
 
   const handlePrintPDF = (creditNoteId: string) => {
     const creditNote = creditNotes.find(cn => cn.id === creditNoteId);
-    if (!creditNote) return;
+    if (!creditNote || !settings) return;
 
-    const invoice = invoices.find(i => i.id === creditNote.invoiceId);
+    const invoice = invoices.find(i => i.id === creditNote.invoice_id);
     if (!invoice) return;
 
-    const matter = matters.find(m => m.id === invoice.matterId);
-    const client = clients.find(c => c.id === invoice.clientId);
+    const matter = matters.find(m => m.id === invoice.matter_id);
+    const client = matter ? clients.find(c => c.id === matter.client_id) : null;
     if (!matter || !client) return;
 
-    printCreditNotePDF({ creditNote, invoice, settings, client, matter });
+    // Map to expected format
+    const mappedLines = invoice.lines.map(l => ({
+      id: l.id,
+      invoiceId: invoice.id,
+      label: l.label,
+      minutes: l.minutes,
+      rateCents: l.rate_cents,
+      vatRate: (l.vat_rate as 0 | 20),
+      amountHtCents: l.amount_ht_cents,
+      vatCents: l.vat_cents,
+      amountTtcCents: l.amount_ttc_cents,
+    }));
+
+    printCreditNotePDF({
+      creditNote: {
+        id: creditNote.id,
+        number: creditNote.number,
+        year: new Date(creditNote.issue_date).getFullYear(),
+        invoiceId: creditNote.invoice_id,
+        issueDate: creditNote.issue_date,
+        status: 'issued',
+        totalHtCents: creditNote.total_ht_cents,
+        totalVatCents: creditNote.total_vat_cents,
+        totalTtcCents: creditNote.total_ttc_cents,
+        reason: creditNote.reason,
+        createdAt: creditNote.created_at,
+      },
+      invoice: {
+        id: invoice.id,
+        number: invoice.number,
+        year: new Date(invoice.period_from).getFullYear(),
+        matterId: invoice.matter_id,
+        clientId: matter.client_id,
+        periodFrom: invoice.period_from,
+        periodTo: invoice.period_to,
+        status: invoice.status,
+        issueDate: invoice.issue_date,
+        totalHtCents: invoice.total_ht_cents,
+        totalVatCents: invoice.total_vat_cents,
+        totalTtcCents: invoice.total_ttc_cents,
+        lines: mappedLines,
+        createdAt: invoice.created_at,
+      },
+      settings: {
+        id: settings.id,
+        name: settings.name,
+        address: settings.address,
+        iban: settings.iban,
+        mentions: settings.mentions,
+        rateCabinetCents: settings.rate_cabinet_cents,
+        vatDefault: (settings.vat_default as 0 | 20),
+        invoiceSeqYear: settings.invoice_seq_year,
+        invoiceSeqNext: settings.invoice_seq_next,
+        creditSeqYear: settings.credit_seq_year,
+        creditSeqNext: settings.credit_seq_next,
+      },
+      client: {
+        id: client.id,
+        code: client.code,
+        name: client.name,
+        address: client.address,
+        billingEmail: client.billing_email,
+        vatNumber: client.vat_number,
+        active: client.active,
+        createdAt: client.created_at,
+      },
+      matter: {
+        id: matter.id,
+        code: matter.code,
+        label: matter.label,
+        clientId: matter.client_id,
+        status: matter.status as 'open' | 'closed',
+        rateCents: matter.rate_cents,
+        vatRate: (matter.vat_rate as 0 | 20),
+        createdAt: matter.created_at,
+      },
+    });
   };
 
   const handleExportCSV = () => {
-    exportCreditNotesCSV(creditNotes);
+    // Map credit notes to expected format
+    const mappedCreditNotes = creditNotes.map(cn => ({
+      id: cn.id,
+      number: cn.number,
+      year: new Date(cn.issue_date).getFullYear(),
+      invoiceId: cn.invoice_id,
+      issueDate: cn.issue_date,
+      status: 'issued' as const,
+      totalHtCents: cn.total_ht_cents,
+      totalVatCents: cn.total_vat_cents,
+      totalTtcCents: cn.total_ttc_cents,
+      reason: cn.reason,
+      createdAt: cn.created_at,
+    }));
+
+    // Map invoices for export
+    const mappedInvoices = invoices.map(i => {
+      const mappedLines = i.lines.map(l => ({
+        id: l.id,
+        invoiceId: i.id,
+        label: l.label,
+        minutes: l.minutes,
+        rateCents: l.rate_cents,
+        vatRate: (l.vat_rate as 0 | 20),
+        amountHtCents: l.amount_ht_cents,
+        vatCents: l.vat_cents,
+        amountTtcCents: l.amount_ttc_cents,
+      }));
+      
+      return {
+        id: i.id,
+        number: i.number,
+        year: new Date(i.period_from).getFullYear(),
+        matterId: i.matter_id,
+        clientId: '',
+        periodFrom: i.period_from,
+        periodTo: i.period_to,
+        status: i.status,
+        issueDate: i.issue_date,
+        totalHtCents: i.total_ht_cents,
+        totalVatCents: i.total_vat_cents,
+        totalTtcCents: i.total_ttc_cents,
+        lines: mappedLines,
+        createdAt: i.created_at,
+      };
+    });
+
+    exportCreditNotesCSV(mappedCreditNotes, mappedInvoices);
     toast.success('Export CSV téléchargé');
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -162,7 +361,7 @@ export default function CreditNotes() {
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Total crédité</div>
             <div className="text-2xl font-bold text-destructive">
-              -{formatCents(creditNotes.reduce((sum, cn) => sum + cn.totalTtcCents, 0))}
+              -{formatCents(creditNotes.reduce((sum, cn) => sum + cn.total_ttc_cents, 0))}
             </div>
           </CardContent>
         </Card>
@@ -202,19 +401,19 @@ export default function CreditNotes() {
                       <Badge variant="outline">{cn.number}</Badge>
                     </TableCell>
                     <TableCell className="font-medium">
-                      {getInvoiceNumber(cn.invoiceId)}
+                      {getInvoiceNumber(cn.invoice_id)}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {new Date(cn.issueDate).toLocaleDateString('fr-FR')}
+                      {new Date(cn.issue_date).toLocaleDateString('fr-FR')}
                     </TableCell>
                     <TableCell className="text-right">
-                      -{formatCents(cn.totalHtCents)}
+                      -{formatCents(cn.total_ht_cents)}
                     </TableCell>
                     <TableCell className="text-right">
-                      -{formatCents(cn.totalVatCents)}
+                      -{formatCents(cn.total_vat_cents)}
                     </TableCell>
                     <TableCell className="text-right font-medium text-destructive">
-                      -{formatCents(cn.totalTtcCents)}
+                      -{formatCents(cn.total_ttc_cents)}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
                       {cn.reason || '—'}
@@ -255,10 +454,10 @@ export default function CreditNotes() {
                     </SelectItem>
                   ) : (
                     eligibleInvoices.map((invoice) => {
-                      const matter = matters.find(m => m.id === invoice.matterId);
+                      const matter = matters.find(m => m.id === invoice.matter_id);
                       return (
                         <SelectItem key={invoice.id} value={invoice.id}>
-                          {invoice.number} - {matter?.code} ({formatCents(invoice.totalTtcCents)})
+                          {invoice.number} - {matter?.code} ({formatCents(invoice.total_ttc_cents)})
                         </SelectItem>
                       );
                     })
@@ -272,7 +471,7 @@ export default function CreditNotes() {
                 <CardContent className="p-4 text-sm">
                   <div className="font-medium mb-1">Facture sélectionnée</div>
                   <div className="text-muted-foreground">
-                    Total TTC: {formatCents(getSelectedInvoice()!.totalTtcCents)}
+                    Total TTC: {formatCents(getSelectedInvoice()!.total_ttc_cents)}
                   </div>
                 </CardContent>
               </Card>
@@ -314,7 +513,8 @@ export default function CreditNotes() {
             }}>
               Annuler
             </Button>
-            <Button onClick={handleCreateCreditNote}>
+            <Button onClick={handleCreateCreditNote} disabled={isCreating}>
+              {isCreating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Créer l'avoir
             </Button>
           </DialogFooter>
