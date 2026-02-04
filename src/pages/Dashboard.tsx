@@ -138,11 +138,12 @@ export default function Dashboard() {
       .sort((a, b) => b.billableMinutes - a.billableMinutes);
   }, [entries, matters, clients]);
 
-  // Estimated revenue (using cabinet default rate)
-  const estimatedRevenue = useMemo(() => {
-    const rateCents = settings?.rate_cabinet_cents || 15000;
-    return Math.round((kpiSummary.totalBillableMinutes * rateCents) / 60);
-  }, [kpiSummary.totalBillableMinutes, settings?.rate_cabinet_cents]);
+  // Total invoiced revenue (issued invoices in period)
+  const totalInvoicedRevenue = useMemo(() => {
+    return invoices
+      .filter(inv => inv.status === 'issued' && inv.issue_date && inv.issue_date >= periodFrom && inv.issue_date <= periodTo)
+      .reduce((sum, inv) => sum + inv.total_ht_cents, 0);
+  }, [invoices, periodFrom, periodTo]);
 
   if (role !== 'owner' && role !== 'sysadmin') {
     return (
@@ -224,13 +225,13 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">CA estimé</CardTitle>
+            <CardTitle className="text-sm font-medium">CA facturé</CardTitle>
             <TrendingUp className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCents(estimatedRevenue)}</div>
+            <div className="text-2xl font-bold">{formatCents(totalInvoicedRevenue)}</div>
             <p className="text-xs text-muted-foreground">
-              basé sur le taux cabinet
+              factures émises sur la période
             </p>
           </CardContent>
         </Card>
