@@ -226,6 +226,11 @@ export default function Collaborators() {
           <p className="text-muted-foreground">Gestion des utilisateurs et affectations</p>
         </div>
 
+        <Button onClick={() => openUserDialog()}>
+          <Plus className="w-4 h-4 mr-2" />
+          Nouvel utilisateur
+        </Button>
+
         <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
