@@ -5,7 +5,6 @@ import {
   Clock,
   LayoutDashboard,
   Users,
-  Briefcase,
   FileText,
   FileMinus2,
   Settings,
@@ -96,12 +95,13 @@ const roleColors = {
 };
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, logout, switchRole } = useAuth();
+  const { user, profile, role, signOut } = useAuth();
   const location = useLocation();
 
-  if (!user) return null;
+  if (!user || !role) return null;
 
-  const filteredNavItems = navItems.filter(item => item.roles.includes(user.role));
+  const filteredNavItems = navItems.filter(item => item.roles.includes(role));
+  const displayName = profile?.name || user.email?.split('@')[0] || 'Utilisateur';
 
   return (
     <div className="min-h-screen bg-background">
@@ -145,13 +145,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <Button variant="ghost" className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                   <span className="text-sm font-medium text-primary">
-                    {user.name.split(' ').map(n => n[0]).join('')}
+                    {displayName.split(' ').map(n => n[0]).join('').toUpperCase()}
                   </span>
                 </div>
                 <div className="hidden sm:block text-left">
-                  <p className="text-sm font-medium">{user.name}</p>
-                  <Badge className={cn('text-xs', roleColors[user.role])}>
-                    {roleLabels[user.role]}
+                  <p className="text-sm font-medium">{displayName}</p>
+                  <Badge className={cn('text-xs', roleColors[role])}>
+                    {roleLabels[role]}
                   </Badge>
                 </div>
                 <ChevronDown className="w-4 h-4 text-muted-foreground" />
@@ -160,31 +160,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>
                 <div>
-                  <p className="font-medium">{user.name}</p>
+                  <p className="font-medium">{displayName}</p>
                   <p className="text-xs text-muted-foreground">{user.email}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              
-              {/* Demo: Role Switcher */}
-              <DropdownMenuLabel className="text-xs text-muted-foreground">
-                Démo — Changer de rôle
-              </DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => switchRole('owner')}>
-                <span className="w-2 h-2 rounded-full bg-accent mr-2" />
-                Associé
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => switchRole('assistant')}>
-                <span className="w-2 h-2 rounded-full bg-primary mr-2" />
-                Assistant
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => switchRole('collaborator')}>
-                <span className="w-2 h-2 rounded-full bg-muted-foreground mr-2" />
-                Collaborateur
-              </DropdownMenuItem>
-              
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout} className="text-destructive">
+              <DropdownMenuItem onClick={signOut} className="text-destructive">
                 <LogOut className="w-4 h-4 mr-2" />
                 Déconnexion
               </DropdownMenuItem>
