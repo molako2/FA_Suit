@@ -23,14 +23,14 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
-  getClients,
-  saveClient,
-  generateId,
-  generateCode,
-} from '@/lib/storage';
-import { Plus, Pencil, Building2, Search } from 'lucide-react';
+  useClients,
+  useCreateClient,
+  useUpdateClient,
+  generateClientCode,
+  type Client,
+} from '@/hooks/useClients';
+import { Plus, Pencil, Building2, Search, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Client } from '@/types';
 
 export default function Clients() {
   const { user } = useAuth();
@@ -44,7 +44,11 @@ export default function Clients() {
   const [formBillingEmail, setFormBillingEmail] = useState('');
   const [formVatNumber, setFormVatNumber] = useState('');
 
-  const clients = getClients();
+  // Supabase hooks
+  const { data: clients = [], isLoading } = useClients();
+  const createClient = useCreateClient();
+  const updateClient = useUpdateClient();
+
   const filteredClients = clients.filter(c =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.code.toLowerCase().includes(searchTerm.toLowerCase())
@@ -63,43 +67,71 @@ export default function Clients() {
       setEditingClient(client);
       setFormName(client.name);
       setFormAddress(client.address || '');
-      setFormBillingEmail(client.billingEmail || '');
-      setFormVatNumber(client.vatNumber || '');
+      setFormBillingEmail(client.billing_email || '');
+      setFormVatNumber(client.vat_number || '');
     } else {
       resetForm();
     }
     setIsDialogOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formName.trim()) {
       toast.error('Le nom est obligatoire');
       return;
     }
 
-    const client: Client = {
-      id: editingClient?.id || generateId(),
-      code: editingClient?.code || generateCode('CLI', clients),
-      name: formName.trim(),
-      address: formAddress.trim() || undefined,
-      billingEmail: formBillingEmail.trim() || undefined,
-      vatNumber: formVatNumber.trim() || undefined,
-      active: editingClient?.active ?? true,
-      createdAt: editingClient?.createdAt || new Date().toISOString(),
-    };
-
-    saveClient(client);
-    toast.success(editingClient ? 'Client modifié' : 'Client créé');
-    setIsDialogOpen(false);
-    resetForm();
+    try {
+      if (editingClient) {
+        await updateClient.mutateAsync({
+          id: editingClient.id,
+          name: formName.trim(),
+          address: formAddress.trim() || null,
+          billing_email: formBillingEmail.trim() || null,
+          vat_number: formVatNumber.trim() || null,
+        });
+        toast.success('Client modifié');
+      } else {
+        await createClient.mutateAsync({
+          code: generateClientCode(clients),
+          name: formName.trim(),
+          address: formAddress.trim() || null,
+          billing_email: formBillingEmail.trim() || null,
+          vat_number: formVatNumber.trim() || null,
+          active: true,
+        });
+        toast.success('Client créé');
+      }
+      setIsDialogOpen(false);
+      resetForm();
+    } catch (error) {
+      toast.error('Erreur lors de la sauvegarde');
+      console.error(error);
+    }
   };
 
-  const toggleActive = (client: Client) => {
-    saveClient({ ...client, active: !client.active });
-    toast.success(client.active ? 'Client désactivé' : 'Client activé');
+  const toggleActive = async (client: Client) => {
+    try {
+      await updateClient.mutateAsync({
+        id: client.id,
+        active: !client.active,
+      });
+      toast.success(client.active ? 'Client désactivé' : 'Client activé');
+    } catch (error) {
+      toast.error('Erreur lors de la mise à jour');
+    }
   };
 
   const canEdit = user?.role === 'owner' || user?.role === 'assistant';
+  const isSaving = createClient.isPending || updateClient.isPending;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -172,7 +204,8 @@ export default function Clients() {
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Annuler
                 </Button>
-                <Button onClick={handleSave}>
+                <Button onClick={handleSave} disabled={isSaving}>
+                  {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   {editingClient ? 'Enregistrer' : 'Créer'}
                 </Button>
               </DialogFooter>
@@ -234,7 +267,7 @@ export default function Clients() {
                       {client.address || '—'}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {client.billingEmail || '—'}
+                      {client.billing_email || '—'}
                     </TableCell>
                     <TableCell className="text-center">
                       {client.active ? (
