@@ -22,12 +22,12 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 function AppRoutes() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
 
   // Redirect based on role for root path
   const getHomeRoute = () => {
     if (!user) return <Navigate to="/login" replace />;
-    if (user.role === 'owner') return <Dashboard />;
+    if (role === 'owner') return <Dashboard />;
     return <Navigate to="/timesheet" replace />;
   };
 

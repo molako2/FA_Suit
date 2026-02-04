@@ -31,20 +31,54 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { getCabinetSettings, saveCabinetSettings, formatCents, getAuditLogs, getUsers, addAuditLog, setCurrentUser } from '@/lib/storage';
-import { Save, Building2, Shield, FileText, LogOut } from 'lucide-react';
+import { useCabinetSettings, useUpdateCabinetSettings } from '@/hooks/useCabinetSettings';
+import { useProfiles } from '@/hooks/useProfiles';
+import { useAuditLogs, useCreateAuditLog } from '@/hooks/useAuditLog';
+import { Save, Building2, Shield, FileText, LogOut, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+// Format cents to MAD
+function formatCents(cents: number): string {
+  return (cents / 100).toFixed(2).replace('.', ',') + ' MAD';
+}
+
 export default function Settings() {
-  const { user, logout } = useAuth();
-  const [settings, setSettings] = useState(getCabinetSettings);
+  const { role, signOut, user } = useAuth();
+  const { data: settings, isLoading: settingsLoading } = useCabinetSettings();
+  const { data: profiles = [] } = useProfiles();
+  const { data: auditLogs = [] } = useAuditLogs(50);
+  const updateSettings = useUpdateCabinetSettings();
+  const createAuditLog = useCreateAuditLog();
+  
   const [activeTab, setActiveTab] = useState<'cabinet' | 'security'>('cabinet');
   const [logoutAllUserId, setLogoutAllUserId] = useState<string | null>(null);
+  
+  const [localSettings, setLocalSettings] = useState<{
+    name: string;
+    address: string;
+    iban: string;
+    mentions: string;
+    rate_cabinet_cents: number;
+    vat_default: number;
+    invoice_seq_next: number;
+    credit_seq_next: number;
+  } | null>(null);
 
-  const auditLogs = getAuditLogs();
-  const users = getUsers();
+  // Initialize local settings when data loads
+  if (settings && !localSettings) {
+    setLocalSettings({
+      name: settings.name,
+      address: settings.address || '',
+      iban: settings.iban || '',
+      mentions: settings.mentions || '',
+      rate_cabinet_cents: settings.rate_cabinet_cents,
+      vat_default: settings.vat_default,
+      invoice_seq_next: settings.invoice_seq_next,
+      credit_seq_next: settings.credit_seq_next,
+    });
+  }
 
-  if (user?.role !== 'owner') {
+  if (role !== 'owner') {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <Card>
@@ -56,49 +90,60 @@ export default function Settings() {
     );
   }
 
-  const handleSave = () => {
-    saveCabinetSettings(settings);
-    addAuditLog({
-      actorUserId: user.id,
-      action: 'update_settings',
-      entityType: 'cabinet',
-      entityId: settings.id,
-    });
-    toast.success('Paramètres enregistrés');
+  if (settingsLoading || !localSettings) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const handleSave = async () => {
+    try {
+      await updateSettings.mutateAsync(localSettings);
+      createAuditLog.mutate({
+        action: 'update_settings',
+        entity_type: 'cabinet',
+        entity_id: 'default',
+        details: null,
+      });
+      toast.success('Paramètres enregistrés');
+    } catch (error) {
+      toast.error('Erreur lors de l\'enregistrement');
+    }
   };
 
-  const updateField = <K extends keyof typeof settings>(
+  const updateField = <K extends keyof typeof localSettings>(
     field: K,
-    value: typeof settings[K]
+    value: typeof localSettings[K]
   ) => {
-    setSettings(prev => ({ ...prev, [field]: value }));
+    setLocalSettings(prev => prev ? { ...prev, [field]: value } : null);
   };
 
-  const handleLogoutAll = (userId: string) => {
-    // In a real app, this would invalidate all sessions for the user
-    // For demo, we just log it and show a message
-    addAuditLog({
-      actorUserId: user.id,
+  const handleLogoutAll = async (userId: string) => {
+    // Log the action
+    createAuditLog.mutate({
       action: 'logout_all',
-      entityType: 'user',
-      entityId: userId,
-      metadata: { targetUserId: userId },
+      entity_type: 'user',
+      entity_id: userId,
+      details: { targetUserId: userId },
     });
     
-    const targetUser = users.find(u => u.id === userId);
-    toast.success(`Sessions invalidées pour ${targetUser?.name || 'l\'utilisateur'}`);
+    const targetProfile = profiles.find(p => p.id === userId);
+    toast.success(`Sessions invalidées pour ${targetProfile?.name || 'l\'utilisateur'}`);
     
     // If the user logs out themselves, actually log them out
-    if (userId === user.id) {
-      logout();
+    if (userId === user?.id) {
+      await signOut();
     }
     
     setLogoutAllUserId(null);
   };
 
-  const getUserName = (userId: string) => {
-    const u = users.find(user => user.id === userId);
-    return u?.name || 'Inconnu';
+  const getProfileName = (userId: string | null) => {
+    if (!userId) return 'Système';
+    const profile = profiles.find(p => p.id === userId);
+    return profile?.name || 'Inconnu';
   };
 
   const formatAuditAction = (action: string) => {
@@ -118,6 +163,12 @@ export default function Settings() {
     return labels[action] || action;
   };
 
+  const roleLabels = {
+    owner: 'Associé',
+    assistant: 'Assistant',
+    collaborator: 'Collaborateur',
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -127,8 +178,12 @@ export default function Settings() {
         </div>
 
         {activeTab === 'cabinet' && (
-          <Button onClick={handleSave}>
-            <Save className="w-4 h-4 mr-2" />
+          <Button onClick={handleSave} disabled={updateSettings.isPending}>
+            {updateSettings.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
             Enregistrer
           </Button>
         )}
@@ -170,7 +225,7 @@ export default function Settings() {
                 <Label htmlFor="name">Nom du cabinet</Label>
                 <Input
                   id="name"
-                  value={settings.name}
+                  value={localSettings.name}
                   onChange={(e) => updateField('name', e.target.value)}
                 />
               </div>
@@ -179,7 +234,7 @@ export default function Settings() {
                 <Label htmlFor="address">Adresse</Label>
                 <Textarea
                   id="address"
-                  value={settings.address || ''}
+                  value={localSettings.address}
                   onChange={(e) => updateField('address', e.target.value)}
                   rows={3}
                 />
@@ -189,9 +244,9 @@ export default function Settings() {
                 <Label htmlFor="iban">IBAN</Label>
                 <Input
                   id="iban"
-                  value={settings.iban || ''}
+                  value={localSettings.iban}
                   onChange={(e) => updateField('iban', e.target.value)}
-                  placeholder="FR76 XXXX XXXX XXXX XXXX XXXX XXX"
+                  placeholder="MA76 XXXX XXXX XXXX XXXX XXXX XXX"
                 />
               </div>
             </CardContent>
@@ -213,8 +268,8 @@ export default function Settings() {
                   type="number"
                   min="0"
                   step="0.01"
-                  value={settings.rateCabinetCents / 100}
-                  onChange={(e) => updateField('rateCabinetCents', Math.round(parseFloat(e.target.value || '0') * 100))}
+                  value={localSettings.rate_cabinet_cents / 100}
+                  onChange={(e) => updateField('rate_cabinet_cents', Math.round(parseFloat(e.target.value || '0') * 100))}
                 />
                 <p className="text-xs text-muted-foreground">
                   Ce taux sera utilisé si aucun taux spécifique n'est défini sur le dossier ou le collaborateur.
@@ -224,8 +279,8 @@ export default function Settings() {
               <div className="grid gap-2">
                 <Label htmlFor="vat">TVA par défaut</Label>
                 <Select
-                  value={String(settings.vatDefault)}
-                  onValueChange={(v) => updateField('vatDefault', parseInt(v) as 0 | 20)}
+                  value={String(localSettings.vat_default)}
+                  onValueChange={(v) => updateField('vat_default', parseInt(v))}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -241,7 +296,7 @@ export default function Settings() {
                 <Label htmlFor="mentions">Mentions légales</Label>
                 <Textarea
                   id="mentions"
-                  value={settings.mentions || ''}
+                  value={localSettings.mentions}
                   onChange={(e) => updateField('mentions', e.target.value)}
                   rows={4}
                   placeholder="Conditions de règlement, mentions légales..."
@@ -262,15 +317,15 @@ export default function Settings() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label>Année factures</Label>
-                  <Input value={settings.invoiceSeqYear} disabled />
+                  <Input value={settings?.invoice_seq_year || new Date().getFullYear()} disabled />
                 </div>
                 <div className="grid gap-2">
                   <Label>Prochain n°</Label>
                   <Input
                     type="number"
                     min="1"
-                    value={settings.invoiceSeqNext}
-                    onChange={(e) => updateField('invoiceSeqNext', parseInt(e.target.value) || 1)}
+                    value={localSettings.invoice_seq_next}
+                    onChange={(e) => updateField('invoice_seq_next', parseInt(e.target.value) || 1)}
                   />
                 </div>
               </div>
@@ -278,15 +333,15 @@ export default function Settings() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label>Année avoirs</Label>
-                  <Input value={settings.creditSeqYear} disabled />
+                  <Input value={settings?.credit_seq_year || new Date().getFullYear()} disabled />
                 </div>
                 <div className="grid gap-2">
                   <Label>Prochain n°</Label>
                   <Input
                     type="number"
                     min="1"
-                    value={settings.creditSeqNext}
-                    onChange={(e) => updateField('creditSeqNext', parseInt(e.target.value) || 1)}
+                    value={localSettings.credit_seq_next}
+                    onChange={(e) => updateField('credit_seq_next', parseInt(e.target.value) || 1)}
                   />
                 </div>
               </div>
@@ -307,17 +362,17 @@ export default function Settings() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="p-4 bg-muted rounded-lg space-y-2 text-sm">
-                <p className="font-semibold">{settings.name}</p>
-                {settings.address && (
-                  <p className="text-muted-foreground whitespace-pre-line">{settings.address}</p>
+                <p className="font-semibold">{localSettings.name}</p>
+                {localSettings.address && (
+                  <p className="text-muted-foreground whitespace-pre-line">{localSettings.address}</p>
                 )}
-                {settings.iban && (
-                  <p className="text-muted-foreground">IBAN: {settings.iban}</p>
+                {localSettings.iban && (
+                  <p className="text-muted-foreground">IBAN: {localSettings.iban}</p>
                 )}
                 <hr className="my-2" />
-                <p>Taux horaire: {formatCents(settings.rateCabinetCents)}/h</p>
-                <p>TVA par défaut: {settings.vatDefault}%</p>
-                <p>Prochaine facture: {settings.invoiceSeqYear}-{String(settings.invoiceSeqNext).padStart(4, '0')}</p>
+                <p>Taux horaire: {formatCents(localSettings.rate_cabinet_cents)}/h</p>
+                <p>TVA par défaut: {localSettings.vat_default}%</p>
+                <p>Prochaine facture: {settings?.invoice_seq_year}-{String(localSettings.invoice_seq_next).padStart(4, '0')}</p>
               </div>
             </CardContent>
           </Card>
@@ -349,25 +404,25 @@ export default function Settings() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((u) => (
-                    <TableRow key={u.id}>
-                      <TableCell className="font-medium">{u.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                  {profiles.map((profile) => (
+                    <TableRow key={profile.id}>
+                      <TableCell className="font-medium">{profile.name}</TableCell>
+                      <TableCell className="text-muted-foreground">{profile.email}</TableCell>
                       <TableCell>
                         <Badge variant="outline">
-                          {u.role === 'owner' ? 'Associé' : u.role === 'assistant' ? 'Assistant' : 'Collaborateur'}
+                          {profile.role ? roleLabels[profile.role] : 'Non défini'}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={u.active ? 'default' : 'secondary'}>
-                          {u.active ? 'Actif' : 'Inactif'}
+                        <Badge variant={profile.active ? 'default' : 'secondary'}>
+                          {profile.active ? 'Actif' : 'Inactif'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="destructive"
                           size="sm"
-                          onClick={() => setLogoutAllUserId(u.id)}
+                          onClick={() => setLogoutAllUserId(profile.id)}
                         >
                           <LogOut className="w-4 h-4 mr-1" />
                           Déconnecter
@@ -407,13 +462,13 @@ export default function Settings() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {auditLogs.slice(-50).reverse().map((log) => (
+                    {auditLogs.map((log) => (
                       <TableRow key={log.id}>
                         <TableCell className="text-muted-foreground text-sm">
-                          {new Date(log.createdAt).toLocaleString('fr-FR')}
+                          {new Date(log.created_at).toLocaleString('fr-FR')}
                         </TableCell>
                         <TableCell className="font-medium">
-                          {getUserName(log.actorUserId)}
+                          {getProfileName(log.user_id)}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">
@@ -421,7 +476,7 @@ export default function Settings() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
-                          {log.entityType} ({log.entityId.substring(0, 8)}...)
+                          {log.entity_type} {log.entity_id ? `(${log.entity_id.substring(0, 8)}...)` : ''}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -439,7 +494,7 @@ export default function Settings() {
           <AlertDialogHeader>
             <AlertDialogTitle>Déconnecter toutes les sessions ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action va invalider toutes les sessions actives de {getUserName(logoutAllUserId || '')}.
+              Cette action va invalider toutes les sessions actives de {getProfileName(logoutAllUserId)}.
               L'utilisateur devra se reconnecter sur tous ses appareils.
             </AlertDialogDescription>
           </AlertDialogHeader>

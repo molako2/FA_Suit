@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { user, isLoading } = useAuth();
+  const { user, role, isLoading } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -24,9 +24,9 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  if (allowedRoles && role && !allowedRoles.includes(role)) {
     // Redirect to appropriate home based on role
-    const homeRoute = user.role === 'collaborator' ? '/timesheet' : '/';
+    const homeRoute = role === 'collaborator' ? '/timesheet' : '/';
     return <Navigate to={homeRoute} replace />;
   }
 
