@@ -24,10 +24,12 @@ import { useTimesheetEntries, formatMinutesToHours } from '@/hooks/useTimesheet'
 import { useProfiles } from '@/hooks/useProfiles';
 import { useMatters } from '@/hooks/useMatters';
 import { useClients } from '@/hooks/useClients';
+import { useInvoices } from '@/hooks/useInvoices';
 import { useCabinetSettings } from '@/hooks/useCabinetSettings';
 import { Clock, Users, FolderOpen, TrendingUp, Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TimesheetExport } from '@/components/dashboard/TimesheetExport';
+import { KPIAnalytics } from '@/components/dashboard/KPIAnalytics';
 import type { KPIByUser, KPIByMatter } from '@/types';
 
 // Format cents to MAD
@@ -78,9 +80,10 @@ export default function Dashboard() {
   const { data: profiles = [], isLoading: profilesLoading } = useProfiles();
   const { data: matters = [], isLoading: mattersLoading } = useMatters();
   const { data: clients = [], isLoading: clientsLoading } = useClients();
+  const { data: invoices = [], isLoading: invoicesLoading } = useInvoices();
   const { data: settings, isLoading: settingsLoading } = useCabinetSettings();
 
-  const isLoading = entriesLoading || profilesLoading || mattersLoading || clientsLoading || settingsLoading;
+  const isLoading = entriesLoading || profilesLoading || mattersLoading || clientsLoading || invoicesLoading || settingsLoading;
 
   // Calculate KPIs
   const kpiSummary = useMemo(() => {
@@ -354,6 +357,16 @@ export default function Dashboard() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* KPI Analytics with cross-reference */}
+      <KPIAnalytics
+        entries={entries}
+        profiles={profiles}
+        matters={matters}
+        clients={clients}
+        invoices={invoices}
+        defaultRateCents={settings?.rate_cabinet_cents || 15000}
+      />
 
       {/* Timesheet Export */}
       <TimesheetExport
