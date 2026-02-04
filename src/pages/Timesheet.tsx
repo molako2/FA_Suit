@@ -32,19 +32,19 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
-  getUserTimesheetEntries,
-  getUserAssignedMatters,
-  getMatters,
-  getClients,
-  saveTimesheetEntry,
-  deleteTimesheetEntry,
-  generateId,
+  useTimesheetEntries,
+  useCreateTimesheetEntry,
+  useUpdateTimesheetEntry,
+  useDeleteTimesheetEntry,
   roundMinutes,
   formatMinutesToHours,
-} from '@/lib/storage';
-import { Plus, Pencil, Trash2, Clock, Lock, Calendar } from 'lucide-react';
+  type TimesheetEntry,
+} from '@/hooks/useTimesheet';
+import { useMatters } from '@/hooks/useMatters';
+import { useClients } from '@/hooks/useClients';
+import { useAssignments } from '@/hooks/useAssignments';
+import { Plus, Pencil, Trash2, Clock, Lock, Calendar, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { TimesheetEntry } from '@/types';
 
 export default function Timesheet() {
   const { user } = useAuth();
@@ -64,25 +64,41 @@ export default function Timesheet() {
   const [formDescription, setFormDescription] = useState('');
   const [formBillable, setFormBillable] = useState(true);
 
-  const entries = useMemo(() => {
-    if (!user) return [];
-    return getUserTimesheetEntries(user.id, periodFrom, periodTo);
-  }, [user, periodFrom, periodTo]);
+  // Supabase hooks
+  const { data: entries = [], isLoading: entriesLoading } = useTimesheetEntries(
+    user?.id,
+    periodFrom,
+    periodTo
+  );
+  const { data: allMatters = [], isLoading: mattersLoading } = useMatters();
+  const { data: clients = [], isLoading: clientsLoading } = useClients();
+  const { data: assignments = [], isLoading: assignmentsLoading } = useAssignments();
+  
+  const createEntry = useCreateTimesheetEntry();
+  const updateEntry = useUpdateTimesheetEntry();
+  const deleteEntry = useDeleteTimesheetEntry();
 
+  // Get user's assigned matters
   const assignedMatters = useMemo(() => {
     if (!user) return [];
-    return getUserAssignedMatters(user.id);
-  }, [user]);
-
-  const allMatters = getMatters();
-  const clients = getClients();
+    const today = new Date().toISOString().split('T')[0];
+    const userAssignments = assignments.filter(a => 
+      a.user_id === user.id &&
+      a.start_date <= today &&
+      (!a.end_date || a.end_date >= today)
+    );
+    const assignedMatterIds = new Set(userAssignments.map(a => a.matter_id));
+    return allMatters.filter(m => assignedMatterIds.has(m.id) && m.status === 'open');
+  }, [user, assignments, allMatters]);
 
   // Calculate totals
   const totals = useMemo(() => {
-    const total = entries.reduce((sum, e) => sum + e.minutesRounded, 0);
-    const billable = entries.filter(e => e.billable).reduce((sum, e) => sum + e.minutesRounded, 0);
+    const total = entries.reduce((sum, e) => sum + e.minutes_rounded, 0);
+    const billable = entries.filter(e => e.billable).reduce((sum, e) => sum + e.minutes_rounded, 0);
     return { total, billable };
   }, [entries]);
+
+  const isLoading = entriesLoading || mattersLoading || clientsLoading || assignmentsLoading;
 
   if (!user) return null;
 
@@ -99,8 +115,8 @@ export default function Timesheet() {
     if (entry) {
       setEditingEntry(entry);
       setFormDate(entry.date);
-      setFormMatterId(entry.matterId);
-      setFormDuration(String(entry.minutesRounded));
+      setFormMatterId(entry.matter_id);
+      setFormDuration(String(entry.minutes_rounded));
       setFormDescription(entry.description);
       setFormBillable(entry.billable);
     } else {
@@ -109,7 +125,7 @@ export default function Timesheet() {
     setIsDialogOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formMatterId || !formDuration || !formDescription) {
       toast.error('Veuillez remplir tous les champs obligatoires');
       return;
@@ -123,40 +139,65 @@ export default function Timesheet() {
 
     const roundedMinutes = roundMinutes(durationMinutes);
 
-    const entry: TimesheetEntry = {
-      id: editingEntry?.id || generateId(),
-      userId: user.id,
-      matterId: formMatterId,
-      date: formDate,
-      minutesRounded: roundedMinutes,
-      minutesOriginal: durationMinutes !== roundedMinutes ? durationMinutes : undefined,
-      description: formDescription,
-      billable: formBillable,
-      locked: editingEntry?.locked || false,
-      invoiceId: editingEntry?.invoiceId,
-      createdAt: editingEntry?.createdAt || new Date().toISOString(),
-    };
-
-    saveTimesheetEntry(entry);
-    toast.success(editingEntry ? 'Entrée modifiée' : 'Entrée créée');
-    setIsDialogOpen(false);
-    resetForm();
+    try {
+      if (editingEntry) {
+        await updateEntry.mutateAsync({
+          id: editingEntry.id,
+          matter_id: formMatterId,
+          date: formDate,
+          minutes_rounded: roundedMinutes,
+          description: formDescription,
+          billable: formBillable,
+        });
+        toast.success('Entrée modifiée');
+      } else {
+        await createEntry.mutateAsync({
+          user_id: user.id,
+          matter_id: formMatterId,
+          date: formDate,
+          minutes_rounded: roundedMinutes,
+          description: formDescription,
+          billable: formBillable,
+          locked: false,
+        });
+        toast.success('Entrée créée');
+      }
+      setIsDialogOpen(false);
+      resetForm();
+    } catch (error) {
+      toast.error('Erreur lors de la sauvegarde');
+      console.error(error);
+    }
   };
 
-  const handleDelete = (entry: TimesheetEntry) => {
+  const handleDelete = async (entry: TimesheetEntry) => {
     if (entry.locked) {
       toast.error('Cette entrée est verrouillée (facturée)');
       return;
     }
-    deleteTimesheetEntry(entry.id);
-    toast.success('Entrée supprimée');
+    try {
+      await deleteEntry.mutateAsync(entry.id);
+      toast.success('Entrée supprimée');
+    } catch (error) {
+      toast.error('Erreur lors de la suppression');
+    }
   };
 
   const getMatterLabel = (matterId: string) => {
     const matter = allMatters.find(m => m.id === matterId);
-    const client = clients.find(c => c.id === matter?.clientId);
+    const client = clients.find(c => c.id === matter?.client_id);
     return matter ? `${matter.code} - ${matter.label} (${client?.name || 'N/A'})` : 'Inconnu';
   };
+
+  const isSaving = createEntry.isPending || updateEntry.isPending;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -204,7 +245,7 @@ export default function Timesheet() {
                       </SelectItem>
                     ) : (
                       assignedMatters.map((matter) => {
-                        const client = clients.find(c => c.id === matter.clientId);
+                        const client = clients.find(c => c.id === matter.client_id);
                         return (
                           <SelectItem key={matter.id} value={matter.id}>
                             {matter.code} - {matter.label} ({client?.name || 'N/A'})
@@ -263,7 +304,8 @@ export default function Timesheet() {
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Annuler
               </Button>
-              <Button onClick={handleSave}>
+              <Button onClick={handleSave} disabled={isSaving}>
+                {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 {editingEntry ? 'Enregistrer' : 'Créer'}
               </Button>
             </DialogFooter>
@@ -348,7 +390,7 @@ export default function Timesheet() {
                     </TableCell>
                     <TableCell>
                       <div className="max-w-[200px] truncate">
-                        {getMatterLabel(entry.matterId)}
+                        {getMatterLabel(entry.matter_id)}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -358,7 +400,7 @@ export default function Timesheet() {
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge variant="outline">
-                        {formatMinutesToHours(entry.minutesRounded)}
+                        {formatMinutesToHours(entry.minutes_rounded)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center">
@@ -387,7 +429,7 @@ export default function Timesheet() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDelete(entry)}
-                          disabled={entry.locked}
+                          disabled={entry.locked || deleteEntry.isPending}
                           className="text-destructive hover:text-destructive"
                         >
                           <Trash2 className="w-4 h-4" />

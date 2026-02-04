@@ -13,19 +13,44 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  getTimesheetEntries,
-  getUsers,
-  getMatters,
-  getClients,
-  formatMinutesToHours,
-  formatCents,
-  getCabinetSettings,
-} from '@/lib/storage';
-import { exportKPIByUserCSV, exportKPIByMatterCSV, exportTimesheetCSV } from '@/lib/exports';
-import { Clock, Users, FolderOpen, TrendingUp, Download } from 'lucide-react';
+import { useTimesheetEntries, formatMinutesToHours } from '@/hooks/useTimesheet';
+import { useProfiles } from '@/hooks/useProfiles';
+import { useMatters } from '@/hooks/useMatters';
+import { useClients } from '@/hooks/useClients';
+import { useCabinetSettings } from '@/hooks/useCabinetSettings';
+import { Clock, Users, FolderOpen, TrendingUp, Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { KPIByUser, KPIByMatter } from '@/types';
+
+// Format cents to MAD
+function formatCents(cents: number): string {
+  return (cents / 100).toFixed(2).replace('.', ',') + ' MAD';
+}
+
+// Export functions
+function downloadCSV(content: string, filename: string) {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+}
+
+function exportKPIByUserCSV(data: KPIByUser[], from: string, to: string) {
+  const header = 'Collaborateur,Email,Minutes,Heures\n';
+  const rows = data.map(r => 
+    `"${r.userName}","${r.userEmail}",${r.billableMinutes},${(r.billableMinutes / 60).toFixed(2)}`
+  ).join('\n');
+  downloadCSV(header + rows, `kpi_collaborateurs_${from}_${to}.csv`);
+}
+
+function exportKPIByMatterCSV(data: KPIByMatter[], from: string, to: string) {
+  const header = 'Code,Dossier,Client,Minutes,Heures\n';
+  const rows = data.map(r => 
+    `"${r.matterCode}","${r.matterLabel}","${r.clientCode}",${r.billableMinutes},${(r.billableMinutes / 60).toFixed(2)}`
+  ).join('\n');
+  downloadCSV(header + rows, `kpi_dossiers_${from}_${to}.csv`);
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -36,59 +61,61 @@ export default function Dashboard() {
   });
   const [periodTo, setPeriodTo] = useState(() => new Date().toISOString().split('T')[0]);
 
-  const entries = getTimesheetEntries();
-  const users = getUsers();
-  const matters = getMatters();
-  const clients = getClients();
-  const settings = getCabinetSettings();
+  // Supabase hooks
+  const { data: entries = [], isLoading: entriesLoading } = useTimesheetEntries(
+    undefined, // All users for dashboard
+    periodFrom,
+    periodTo
+  );
+  const { data: profiles = [], isLoading: profilesLoading } = useProfiles();
+  const { data: matters = [], isLoading: mattersLoading } = useMatters();
+  const { data: clients = [], isLoading: clientsLoading } = useClients();
+  const { data: settings, isLoading: settingsLoading } = useCabinetSettings();
 
-  // Filter entries by period
-  const filteredEntries = useMemo(() => {
-    return entries.filter(e => e.date >= periodFrom && e.date <= periodTo);
-  }, [entries, periodFrom, periodTo]);
+  const isLoading = entriesLoading || profilesLoading || mattersLoading || clientsLoading || settingsLoading;
 
   // Calculate KPIs
   const kpiSummary = useMemo(() => {
-    const billable = filteredEntries.filter(e => e.billable);
+    const billable = entries.filter(e => e.billable);
     return {
-      totalMinutes: filteredEntries.reduce((sum, e) => sum + e.minutesRounded, 0),
-      totalBillableMinutes: billable.reduce((sum, e) => sum + e.minutesRounded, 0),
-      totalEntries: filteredEntries.length,
+      totalMinutes: entries.reduce((sum, e) => sum + e.minutes_rounded, 0),
+      totalBillableMinutes: billable.reduce((sum, e) => sum + e.minutes_rounded, 0),
+      totalEntries: entries.length,
       billableEntries: billable.length,
     };
-  }, [filteredEntries]);
+  }, [entries]);
 
   const kpiByUser = useMemo<KPIByUser[]>(() => {
     const grouped = new Map<string, number>();
-    filteredEntries.filter(e => e.billable).forEach(e => {
-      const current = grouped.get(e.userId) || 0;
-      grouped.set(e.userId, current + e.minutesRounded);
+    entries.filter(e => e.billable).forEach(e => {
+      const current = grouped.get(e.user_id) || 0;
+      grouped.set(e.user_id, current + e.minutes_rounded);
     });
     
     return Array.from(grouped.entries())
       .map(([userId, minutes]) => {
-        const u = users.find(user => user.id === userId);
+        const profile = profiles.find(p => p.id === userId);
         return {
           userId,
-          userName: u?.name || 'Inconnu',
-          userEmail: u?.email || '',
+          userName: profile?.name || 'Inconnu',
+          userEmail: profile?.email || '',
           billableMinutes: minutes,
         };
       })
       .sort((a, b) => b.billableMinutes - a.billableMinutes);
-  }, [filteredEntries, users]);
+  }, [entries, profiles]);
 
   const kpiByMatter = useMemo<KPIByMatter[]>(() => {
     const grouped = new Map<string, number>();
-    filteredEntries.filter(e => e.billable).forEach(e => {
-      const current = grouped.get(e.matterId) || 0;
-      grouped.set(e.matterId, current + e.minutesRounded);
+    entries.filter(e => e.billable).forEach(e => {
+      const current = grouped.get(e.matter_id) || 0;
+      grouped.set(e.matter_id, current + e.minutes_rounded);
     });
     
     return Array.from(grouped.entries())
       .map(([matterId, minutes]) => {
         const m = matters.find(matter => matter.id === matterId);
-        const c = clients.find(client => client.id === m?.clientId);
+        const c = clients.find(client => client.id === m?.client_id);
         return {
           matterId,
           matterCode: m?.code || '',
@@ -98,12 +125,13 @@ export default function Dashboard() {
         };
       })
       .sort((a, b) => b.billableMinutes - a.billableMinutes);
-  }, [filteredEntries, matters, clients]);
+  }, [entries, matters, clients]);
 
   // Estimated revenue (using cabinet default rate)
   const estimatedRevenue = useMemo(() => {
-    return Math.round((kpiSummary.totalBillableMinutes * settings.rateCabinetCents) / 60);
-  }, [kpiSummary.totalBillableMinutes, settings.rateCabinetCents]);
+    const rateCents = settings?.rate_cabinet_cents || 15000;
+    return Math.round((kpiSummary.totalBillableMinutes * rateCents) / 60);
+  }, [kpiSummary.totalBillableMinutes, settings?.rate_cabinet_cents]);
 
   if (user?.role !== 'owner') {
     return (
@@ -117,6 +145,14 @@ export default function Dashboard() {
     );
   }
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   const handleExportKPIByUser = () => {
     exportKPIByUserCSV(kpiByUser, periodFrom, periodTo);
     toast.success('Export KPI par collaborateur téléchargé');
@@ -125,11 +161,6 @@ export default function Dashboard() {
   const handleExportKPIByMatter = () => {
     exportKPIByMatterCSV(kpiByMatter, periodFrom, periodTo);
     toast.success('Export KPI par dossier téléchargé');
-  };
-
-  const handleExportTimesheet = () => {
-    exportTimesheetCSV(filteredEntries, `timesheet_${periodFrom}_${periodTo}.csv`);
-    toast.success('Export timesheet téléchargé');
   };
 
   return (
@@ -162,9 +193,6 @@ export default function Dashboard() {
               className="w-36"
             />
           </div>
-          <Button variant="outline" size="sm" onClick={handleExportTimesheet} className="mt-5">
-            <Download className="w-4 h-4" />
-          </Button>
         </div>
       </div>
 

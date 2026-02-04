@@ -30,16 +30,20 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  getMatters,
-  getClients,
-  saveMatter,
-  generateId,
-  generateCode,
-  formatCents,
-} from '@/lib/storage';
-import { Plus, Pencil, FolderOpen, Search } from 'lucide-react';
+  useMatters,
+  useCreateMatter,
+  useUpdateMatter,
+  generateMatterCode,
+  type Matter,
+} from '@/hooks/useMatters';
+import { useClients } from '@/hooks/useClients';
+import { Plus, Pencil, FolderOpen, Search, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Matter } from '@/types';
+
+// Format cents to MAD
+function formatCents(cents: number): string {
+  return (cents / 100).toFixed(2).replace('.', ',') + ' MAD';
+}
 
 export default function Matters() {
   const { user } = useAuth();
@@ -53,8 +57,12 @@ export default function Matters() {
   const [formRateCents, setFormRateCents] = useState('');
   const [formVatRate, setFormVatRate] = useState<'0' | '20'>('20');
 
-  const matters = getMatters();
-  const clients = getClients();
+  // Supabase hooks
+  const { data: matters = [], isLoading: mattersLoading } = useMatters();
+  const { data: clients = [], isLoading: clientsLoading } = useClients();
+  const createMatter = useCreateMatter();
+  const updateMatter = useUpdateMatter();
+
   const activeClients = clients.filter(c => c.active);
 
   const filteredMatters = matters.filter(m =>
@@ -74,16 +82,16 @@ export default function Matters() {
     if (matter) {
       setEditingMatter(matter);
       setFormLabel(matter.label);
-      setFormClientId(matter.clientId);
-      setFormRateCents(matter.rateCents ? String(matter.rateCents / 100) : '');
-      setFormVatRate(String(matter.vatRate) as '0' | '20');
+      setFormClientId(matter.client_id);
+      setFormRateCents(matter.rate_cents ? String(matter.rate_cents / 100) : '');
+      setFormVatRate(String(matter.vat_rate) as '0' | '20');
     } else {
       resetForm();
     }
     setIsDialogOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formLabel.trim()) {
       toast.error('Le libellé est obligatoire');
       return;
@@ -93,28 +101,46 @@ export default function Matters() {
       return;
     }
 
-    const rateCents = formRateCents ? Math.round(parseFloat(formRateCents) * 100) : undefined;
+    const rateCents = formRateCents ? Math.round(parseFloat(formRateCents) * 100) : null;
 
-    const matter: Matter = {
-      id: editingMatter?.id || generateId(),
-      code: editingMatter?.code || generateCode('DOS', matters),
-      label: formLabel.trim(),
-      clientId: editingMatter?.clientId || formClientId,
-      status: editingMatter?.status || 'open',
-      rateCents: rateCents || undefined,
-      vatRate: parseInt(formVatRate) as 0 | 20,
-      createdAt: editingMatter?.createdAt || new Date().toISOString(),
-    };
-
-    saveMatter(matter);
-    toast.success(editingMatter ? 'Dossier modifié' : 'Dossier créé');
-    setIsDialogOpen(false);
-    resetForm();
+    try {
+      if (editingMatter) {
+        await updateMatter.mutateAsync({
+          id: editingMatter.id,
+          label: formLabel.trim(),
+          rate_cents: rateCents,
+          vat_rate: parseInt(formVatRate),
+        });
+        toast.success('Dossier modifié');
+      } else {
+        await createMatter.mutateAsync({
+          code: generateMatterCode(matters),
+          label: formLabel.trim(),
+          client_id: formClientId,
+          status: 'open',
+          rate_cents: rateCents,
+          vat_rate: parseInt(formVatRate),
+        });
+        toast.success('Dossier créé');
+      }
+      setIsDialogOpen(false);
+      resetForm();
+    } catch (error) {
+      toast.error('Erreur lors de la sauvegarde');
+      console.error(error);
+    }
   };
 
-  const toggleStatus = (matter: Matter) => {
-    saveMatter({ ...matter, status: matter.status === 'open' ? 'closed' : 'open' });
-    toast.success(matter.status === 'open' ? 'Dossier clôturé' : 'Dossier réouvert');
+  const toggleStatus = async (matter: Matter) => {
+    try {
+      await updateMatter.mutateAsync({
+        id: matter.id,
+        status: matter.status === 'open' ? 'closed' : 'open',
+      });
+      toast.success(matter.status === 'open' ? 'Dossier clôturé' : 'Dossier réouvert');
+    } catch (error) {
+      toast.error('Erreur lors de la mise à jour');
+    }
   };
 
   const getClientName = (clientId: string) => {
@@ -123,6 +149,16 @@ export default function Matters() {
   };
 
   const canEdit = user?.role === 'owner' || user?.role === 'assistant';
+  const isLoading = mattersLoading || clientsLoading;
+  const isSaving = createMatter.isPending || updateMatter.isPending;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -145,7 +181,7 @@ export default function Matters() {
                 <DialogTitle>{editingMatter ? 'Modifier le dossier' : 'Nouveau dossier'}</DialogTitle>
                 <DialogDescription>
                   {editingMatter
-                    ? `Code: ${editingMatter.code} — Client: ${getClientName(editingMatter.clientId)}`
+                    ? `Code: ${editingMatter.code} — Client: ${getClientName(editingMatter.client_id)}`
                     : 'Un code dossier unique sera généré automatiquement.'}
                 </DialogDescription>
               </DialogHeader>
@@ -219,7 +255,8 @@ export default function Matters() {
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Annuler
                 </Button>
-                <Button onClick={handleSave}>
+                <Button onClick={handleSave} disabled={isSaving}>
+                  {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   {editingMatter ? 'Enregistrer' : 'Créer'}
                 </Button>
               </DialogFooter>
@@ -279,13 +316,13 @@ export default function Matters() {
                     </TableCell>
                     <TableCell className="font-medium">{matter.label}</TableCell>
                     <TableCell className="text-muted-foreground">
-                      {getClientName(matter.clientId)}
+                      {getClientName(matter.client_id)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {matter.rateCents ? formatCents(matter.rateCents) : '—'}
+                      {matter.rate_cents ? formatCents(matter.rate_cents) : '—'}
                     </TableCell>
                     <TableCell className="text-center">
-                      <Badge variant="secondary">{matter.vatRate}%</Badge>
+                      <Badge variant="secondary">{matter.vat_rate}%</Badge>
                     </TableCell>
                     <TableCell className="text-center">
                       {matter.status === 'open' ? (
