@@ -262,9 +262,11 @@ export type Database = {
       }
       matters: {
         Row: {
+          billing_type: string
           client_id: string
           code: string
           created_at: string
+          flat_fee_cents: number | null
           id: string
           label: string
           rate_cents: number | null
@@ -273,9 +275,11 @@ export type Database = {
           vat_rate: number
         }
         Insert: {
+          billing_type?: string
           client_id: string
           code: string
           created_at?: string
+          flat_fee_cents?: number | null
           id?: string
           label: string
           rate_cents?: number | null
@@ -284,9 +288,11 @@ export type Database = {
           vat_rate?: number
         }
         Update: {
+          billing_type?: string
           client_id?: string
           code?: string
           created_at?: string
+          flat_fee_cents?: number | null
           id?: string
           label?: string
           rate_cents?: number | null

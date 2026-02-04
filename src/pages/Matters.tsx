@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   useMatters,
   useCreateMatter,
@@ -57,6 +58,8 @@ export default function Matters() {
   const [formClientId, setFormClientId] = useState('');
   const [formRateCents, setFormRateCents] = useState('');
   const [formVatRate, setFormVatRate] = useState<'0' | '20'>('20');
+  const [formBillingType, setFormBillingType] = useState<'time_based' | 'flat_fee'>('time_based');
+  const [formFlatFeeCents, setFormFlatFeeCents] = useState('');
 
   // Supabase hooks
   const { data: matters = [], isLoading: mattersLoading } = useMatters();
@@ -76,6 +79,8 @@ export default function Matters() {
     setFormClientId('');
     setFormRateCents('');
     setFormVatRate('20');
+    setFormBillingType('time_based');
+    setFormFlatFeeCents('');
     setEditingMatter(null);
   };
 
@@ -86,6 +91,8 @@ export default function Matters() {
       setFormClientId(matter.client_id);
       setFormRateCents(matter.rate_cents ? String(matter.rate_cents / 100) : '');
       setFormVatRate(String(matter.vat_rate) as '0' | '20');
+      setFormBillingType(matter.billing_type || 'time_based');
+      setFormFlatFeeCents(matter.flat_fee_cents ? String(matter.flat_fee_cents / 100) : '');
     } else {
       resetForm();
     }
@@ -101,8 +108,15 @@ export default function Matters() {
       toast.error('Veuillez sélectionner un client');
       return;
     }
+    if (formBillingType === 'flat_fee' && !formFlatFeeCents) {
+      toast.error('Le montant du forfait est obligatoire');
+      return;
+    }
 
     const rateCents = formRateCents ? Math.round(parseFloat(formRateCents) * 100) : null;
+    const flatFeeCents = formBillingType === 'flat_fee' && formFlatFeeCents 
+      ? Math.round(parseFloat(formFlatFeeCents) * 100) 
+      : null;
 
     try {
       if (editingMatter) {
@@ -111,6 +125,8 @@ export default function Matters() {
           label: formLabel.trim(),
           rate_cents: rateCents,
           vat_rate: parseInt(formVatRate),
+          billing_type: formBillingType,
+          flat_fee_cents: flatFeeCents,
         });
         toast.success('Dossier modifié');
       } else {
@@ -126,6 +142,8 @@ export default function Matters() {
           status: 'open',
           rate_cents: rateCents,
           vat_rate: parseInt(formVatRate),
+          billing_type: formBillingType,
+          flat_fee_cents: flatFeeCents,
         });
         toast.success('Dossier créé');
       }
@@ -252,23 +270,81 @@ export default function Matters() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {/* Billing Type */}
+                <div className="grid gap-3">
+                  <Label>Type de facturation</Label>
+                  <RadioGroup
+                    value={formBillingType}
+                    onValueChange={(v) => setFormBillingType(v as 'time_based' | 'flat_fee')}
+                    className="flex flex-col gap-2"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="time_based" id="time_based" />
+                      <Label htmlFor="time_based" className="font-normal cursor-pointer">
+                        Facturation au temps passé
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="flat_fee" id="flat_fee" />
+                      <Label htmlFor="flat_fee" className="font-normal cursor-pointer">
+                        Facturation au forfait
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {/* Flat fee amount - only shown when flat_fee is selected */}
+                {formBillingType === 'flat_fee' && (
                   <div className="grid gap-2">
-                    <Label htmlFor="rate">Taux horaire (MAD)</Label>
+                    <Label htmlFor="flatFee">Montant du forfait HT (MAD) *</Label>
                     <Input
-                      id="rate"
+                      id="flatFee"
                       type="number"
                       min="0"
                       step="0.01"
-                      placeholder="Ex: 180.00"
-                      value={formRateCents}
-                      onChange={(e) => setFormRateCents(e.target.value)}
+                      placeholder="Ex: 5000.00"
+                      value={formFlatFeeCents}
+                      onChange={(e) => setFormFlatFeeCents(e.target.value)}
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Laissez vide pour utiliser le taux par défaut
-                    </p>
                   </div>
+                )}
 
+                {/* Rate and VAT - only shown for time-based billing */}
+                {formBillingType === 'time_based' && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="rate">Taux horaire (MAD)</Label>
+                      <Input
+                        id="rate"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Ex: 180.00"
+                        value={formRateCents}
+                        onChange={(e) => setFormRateCents(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Laissez vide pour utiliser le taux par défaut
+                      </p>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="vat">TVA</Label>
+                      <Select value={formVatRate} onValueChange={(v) => setFormVatRate(v as '0' | '20')}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="20">20%</SelectItem>
+                          <SelectItem value="0">0% (Exonéré)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
+                {/* VAT for flat fee */}
+                {formBillingType === 'flat_fee' && (
                   <div className="grid gap-2">
                     <Label htmlFor="vat">TVA</Label>
                     <Select value={formVatRate} onValueChange={(v) => setFormVatRate(v as '0' | '20')}>
@@ -281,7 +357,7 @@ export default function Matters() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
+                )}
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
@@ -318,7 +394,8 @@ export default function Matters() {
                 <TableHead>Code</TableHead>
                 <TableHead>Libellé</TableHead>
                 <TableHead>Client</TableHead>
-                <TableHead className="text-right">Taux horaire</TableHead>
+                <TableHead className="text-center">Facturation</TableHead>
+                <TableHead className="text-right">Montant</TableHead>
                 <TableHead className="text-center">TVA</TableHead>
                 <TableHead className="text-center">Statut</TableHead>
                 {canEdit && <TableHead className="text-right">Actions</TableHead>}
@@ -327,7 +404,7 @@ export default function Matters() {
             <TableBody>
               {filteredMatters.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canEdit ? 7 : 6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={canEdit ? 8 : 7} className="text-center py-8 text-muted-foreground">
                     <FolderOpen className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     <p>Aucun dossier trouvé</p>
                     {canEdit && matters.length === 0 && (
@@ -351,8 +428,15 @@ export default function Matters() {
                     <TableCell className="text-muted-foreground">
                       {getClientName(matter.client_id)}
                     </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant={matter.billing_type === 'flat_fee' ? 'default' : 'outline'}>
+                        {matter.billing_type === 'flat_fee' ? 'Forfait' : 'Temps passé'}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-right">
-                      {matter.rate_cents ? formatCents(matter.rate_cents) : '—'}
+                      {matter.billing_type === 'flat_fee' 
+                        ? (matter.flat_fee_cents ? formatCents(matter.flat_fee_cents) : '—')
+                        : (matter.rate_cents ? formatCents(matter.rate_cents) : '—')}
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge variant="secondary">{matter.vat_rate}%</Badge>
