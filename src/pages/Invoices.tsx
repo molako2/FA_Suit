@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -38,20 +38,36 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { getInvoices, getMatters, getClients, formatCents, deleteInvoice, getCabinetSettings, formatMinutesToHours } from '@/lib/storage';
-import { getBillableEntries, createDraftInvoice, issueInvoice, type GroupingMode } from '@/lib/invoicing';
+import { useMatters } from '@/hooks/useMatters';
+import { useClients } from '@/hooks/useClients';
+import { useInvoices, useCreateInvoice, useUpdateInvoice, useDeleteInvoice, type Invoice, type InvoiceLine } from '@/hooks/useInvoices';
+import { useCabinetSettings, useIncrementInvoiceSeq } from '@/hooks/useCabinetSettings';
+import { useTimesheetEntries, useLockTimesheetEntries, formatMinutesToHours } from '@/hooks/useTimesheet';
+import { useProfiles } from '@/hooks/useProfiles';
 import { printInvoicePDF } from '@/lib/pdf';
 import { exportInvoicesCSV } from '@/lib/exports';
 import { FileText, Plus, Download, Eye, Send, Trash2, Printer } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
+// Format cents to currency
+function formatCents(cents: number): string {
+  return (cents / 100).toFixed(2).replace('.', ',') + ' MAD';
+}
+
 export default function Invoices() {
   const { role } = useAuth();
-  const [invoices, setInvoices] = useState(getInvoices);
-  const matters = getMatters();
-  const clients = getClients();
-  const settings = getCabinetSettings();
+  const { data: invoices = [], isLoading: isLoadingInvoices } = useInvoices();
+  const { data: matters = [] } = useMatters();
+  const { data: clients = [] } = useClients();
+  const { data: settings } = useCabinetSettings();
+  const { data: profiles = [] } = useProfiles();
+
+  const createInvoiceMutation = useCreateInvoice();
+  const updateInvoiceMutation = useUpdateInvoice();
+  const deleteInvoiceMutation = useDeleteInvoice();
+  const incrementInvoiceSeq = useIncrementInvoiceSeq();
+  const lockEntriesMutation = useLockTimesheetEntries();
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
@@ -69,17 +85,24 @@ export default function Invoices() {
   const [periodTo, setPeriodTo] = useState(() => new Date().toISOString().split('T')[0]);
   const [groupByCollaborator, setGroupByCollaborator] = useState(false);
 
-  const canEdit = role === 'owner' || role === 'assistant' || role === 'sysadmin';
+  // Fetch timesheet entries for preview
+  const { data: allTimesheetEntries = [] } = useTimesheetEntries(undefined, periodFrom, periodTo);
 
-  const refreshInvoices = () => setInvoices(getInvoices());
+  const canEdit = role === 'owner' || role === 'assistant' || role === 'sysadmin';
 
   // Preview billable entries for selected matter/period
   const previewEntries = useMemo(() => {
     if (!selectedMatterId) return [];
-    return getBillableEntries(selectedMatterId, periodFrom, periodTo);
-  }, [selectedMatterId, periodFrom, periodTo]);
+    return allTimesheetEntries.filter(e => 
+      e.matter_id === selectedMatterId &&
+      e.billable &&
+      !e.locked &&
+      e.date >= periodFrom &&
+      e.date <= periodTo
+    );
+  }, [selectedMatterId, periodFrom, periodTo, allTimesheetEntries]);
 
-  const previewTotalMinutes = previewEntries.reduce((sum, e) => sum + e.minutesRounded, 0);
+  const previewTotalMinutes = previewEntries.reduce((sum, e) => sum + e.minutes_rounded, 0);
 
   const getMatterInfo = (matterId: string) => {
     const matter = matters.find(m => m.id === matterId);
@@ -91,11 +114,16 @@ export default function Invoices() {
     return client?.name || 'Inconnu';
   };
 
+  const getClientIdFromMatter = (matterId: string) => {
+    const matter = matters.find(m => m.id === matterId);
+    return matter?.client_id || '';
+  };
+
   const getSelectedMatter = () => matters.find(m => m.id === selectedMatterId);
 
   const statusColors: Record<string, string> = {
     draft: 'bg-secondary text-secondary-foreground',
-    issued: 'bg-success text-success-foreground',
+    issued: 'bg-green-500/20 text-green-700',
     cancelled: 'bg-destructive text-destructive-foreground',
   };
 
@@ -105,7 +133,7 @@ export default function Invoices() {
     cancelled: 'Annulée',
   };
 
-  const handleCreateDraft = () => {
+  const handleCreateDraft = async () => {
     if (!selectedMatterId) {
       toast.error('Veuillez sélectionner un dossier');
       return;
@@ -117,52 +145,238 @@ export default function Invoices() {
     }
 
     const matter = getSelectedMatter();
-    if (!matter) return;
+    if (!matter || !settings) return;
 
-    const groupingMode: GroupingMode = groupByCollaborator ? 'by_collaborator' : 'single';
-    createDraftInvoice(selectedMatterId, matter.clientId, periodFrom, periodTo, groupingMode);
-    
-    toast.success('Brouillon de facture créé');
-    setIsCreateDialogOpen(false);
-    refreshInvoices();
+    const clientId = matter.client_id;
+    const rateCents = matter.rate_cents || settings.rate_cabinet_cents;
+    const vatRate = matter.vat_rate;
+
+    // Group entries
+    let lines: InvoiceLine[];
+    if (groupByCollaborator) {
+      // Group by collaborator
+      const grouped = previewEntries.reduce((acc, entry) => {
+        const userId = entry.user_id;
+        if (!acc[userId]) {
+          acc[userId] = { minutes: 0, entries: [] };
+        }
+        acc[userId].minutes += entry.minutes_rounded;
+        acc[userId].entries.push(entry);
+        return acc;
+      }, {} as Record<string, { minutes: number; entries: typeof previewEntries }>);
+
+      lines = Object.entries(grouped).map(([userId, data]) => {
+        const profile = profiles.find(p => p.id === userId);
+        const userRate = profile?.rate_cents || rateCents;
+        const amountHt = Math.round((data.minutes / 60) * userRate);
+        const vatCents = Math.round(amountHt * vatRate / 100);
+        return {
+          id: crypto.randomUUID(),
+          label: `Prestations - ${profile?.name || 'Collaborateur'}`,
+          minutes: data.minutes,
+          rate_cents: userRate,
+          vat_rate: vatRate,
+          amount_ht_cents: amountHt,
+          vat_cents: vatCents,
+          amount_ttc_cents: amountHt + vatCents,
+        };
+      });
+    } else {
+      // Single line
+      const totalMinutes = previewEntries.reduce((sum, e) => sum + e.minutes_rounded, 0);
+      const amountHt = Math.round((totalMinutes / 60) * rateCents);
+      const vatCents = Math.round(amountHt * vatRate / 100);
+      lines = [{
+        id: crypto.randomUUID(),
+        label: `Prestations juridiques - ${matter.label}`,
+        minutes: totalMinutes,
+        rate_cents: rateCents,
+        vat_rate: vatRate,
+        amount_ht_cents: amountHt,
+        vat_cents: vatCents,
+        amount_ttc_cents: amountHt + vatCents,
+      }];
+    }
+
+    const totalHt = lines.reduce((sum, l) => sum + l.amount_ht_cents, 0);
+    const totalVat = lines.reduce((sum, l) => sum + l.vat_cents, 0);
+    const totalTtc = lines.reduce((sum, l) => sum + l.amount_ttc_cents, 0);
+
+    try {
+      await createInvoiceMutation.mutateAsync({
+        matter_id: selectedMatterId,
+        status: 'draft',
+        period_from: periodFrom,
+        period_to: periodTo,
+        issue_date: null,
+        number: null,
+        lines,
+        total_ht_cents: totalHt,
+        total_vat_cents: totalVat,
+        total_ttc_cents: totalTtc,
+      });
+      toast.success('Brouillon de facture créé');
+      setIsCreateDialogOpen(false);
+      setSelectedMatterId('');
+    } catch (error) {
+      toast.error('Erreur lors de la création de la facture');
+    }
   };
 
-  const handleIssueInvoice = (invoiceId: string) => {
-    const result = issueInvoice(invoiceId);
-    if (result) {
-      toast.success(`Facture ${result.number} émise avec succès`);
+  const handleIssueInvoice = async (invoiceId: string) => {
+    const invoice = invoices.find(i => i.id === invoiceId);
+    if (!invoice) return;
+
+    try {
+      // Generate invoice number
+      const invoiceNumber = await incrementInvoiceSeq.mutateAsync();
+
+      // Update invoice to issued status
+      await updateInvoiceMutation.mutateAsync({
+        id: invoiceId,
+        status: 'issued',
+        number: invoiceNumber,
+        issue_date: new Date().toISOString().split('T')[0],
+      });
+
+      // Lock the associated timesheet entries
+      const entriesToLock = allTimesheetEntries.filter(e =>
+        e.matter_id === invoice.matter_id &&
+        e.billable &&
+        !e.locked &&
+        e.date >= invoice.period_from &&
+        e.date <= invoice.period_to
+      );
+
+      if (entriesToLock.length > 0) {
+        await lockEntriesMutation.mutateAsync(entriesToLock.map(e => e.id));
+      }
+
+      toast.success(`Facture ${invoiceNumber} émise avec succès`);
       setIsIssueDialogOpen(false);
       setSelectedInvoice(null);
-      refreshInvoices();
-    } else {
+    } catch (error) {
       toast.error('Erreur lors de l\'émission de la facture');
     }
   };
 
-  const handleDeleteDraft = (invoiceId: string) => {
+  const handleDeleteDraft = async (invoiceId: string) => {
     const invoice = invoices.find(i => i.id === invoiceId);
     if (invoice?.status !== 'draft') {
       toast.error('Seuls les brouillons peuvent être supprimés');
       return;
     }
-    deleteInvoice(invoiceId);
-    toast.success('Brouillon supprimé');
-    refreshInvoices();
+    try {
+      await deleteInvoiceMutation.mutateAsync(invoiceId);
+      toast.success('Brouillon supprimé');
+    } catch (error) {
+      toast.error('Erreur lors de la suppression');
+    }
   };
 
   const handlePrintPDF = (invoiceId: string) => {
     const invoice = invoices.find(i => i.id === invoiceId);
-    if (!invoice) return;
+    if (!invoice || !settings) return;
 
-    const matter = matters.find(m => m.id === invoice.matterId);
-    const client = clients.find(c => c.id === invoice.clientId);
+    const matter = matters.find(m => m.id === invoice.matter_id);
+    const client = clients.find(c => c.id === matter?.client_id);
     if (!matter || !client) return;
 
-    printInvoicePDF({ invoice, settings, client, matter });
+    // Map to the format expected by printInvoicePDF (camelCase)
+    const invoiceData = {
+      id: invoice.id,
+      number: invoice.number,
+      year: new Date().getFullYear(),
+      matterId: invoice.matter_id,
+      clientId: matter.client_id,
+      status: invoice.status,
+      periodFrom: invoice.period_from,
+      periodTo: invoice.period_to,
+      issueDate: invoice.issue_date,
+      lines: invoice.lines.map(l => ({
+        id: l.id,
+        invoiceId: invoice.id,
+        label: l.label,
+        minutes: l.minutes,
+        rateCents: l.rate_cents,
+        vatRate: l.vat_rate as 0 | 20,
+        amountHtCents: l.amount_ht_cents,
+        vatCents: l.vat_cents,
+        amountTtcCents: l.amount_ttc_cents,
+      })),
+      totalHtCents: invoice.total_ht_cents,
+      totalVatCents: invoice.total_vat_cents,
+      totalTtcCents: invoice.total_ttc_cents,
+      createdAt: invoice.created_at,
+    };
+
+    const settingsData = {
+      id: settings.id,
+      name: settings.name,
+      address: settings.address,
+      iban: settings.iban,
+      mentions: settings.mentions,
+      rateCabinetCents: settings.rate_cabinet_cents,
+      vatDefault: settings.vat_default as 0 | 20,
+      invoiceSeqYear: settings.invoice_seq_year,
+      invoiceSeqNext: settings.invoice_seq_next,
+      creditSeqYear: settings.credit_seq_year,
+      creditSeqNext: settings.credit_seq_next,
+    };
+
+    const clientData = {
+      id: client.id,
+      code: client.code,
+      name: client.name,
+      address: client.address,
+      billingEmail: client.billing_email,
+      vatNumber: client.vat_number,
+      active: client.active,
+      createdAt: client.created_at,
+    };
+
+    const matterData = {
+      id: matter.id,
+      code: matter.code,
+      label: matter.label,
+      clientId: matter.client_id,
+      status: matter.status as 'open' | 'closed',
+      rateCents: matter.rate_cents,
+      vatRate: matter.vat_rate as 0 | 20,
+      createdAt: matter.created_at,
+    };
+
+    printInvoicePDF({ invoice: invoiceData, settings: settingsData, client: clientData, matter: matterData });
   };
 
   const handleExportCSV = () => {
-    exportInvoicesCSV(invoices);
+    const exportData = invoices.map(inv => ({
+      id: inv.id,
+      number: inv.number,
+      year: new Date().getFullYear(),
+      matterId: inv.matter_id,
+      clientId: getClientIdFromMatter(inv.matter_id),
+      status: inv.status,
+      periodFrom: inv.period_from,
+      periodTo: inv.period_to,
+      issueDate: inv.issue_date,
+      lines: inv.lines.map(l => ({
+        id: l.id,
+        invoiceId: inv.id,
+        label: l.label,
+        minutes: l.minutes,
+        rateCents: l.rate_cents,
+        vatRate: l.vat_rate as 0 | 20,
+        amountHtCents: l.amount_ht_cents,
+        vatCents: l.vat_cents,
+        amountTtcCents: l.amount_ttc_cents,
+      })),
+      totalHtCents: inv.total_ht_cents,
+      totalVatCents: inv.total_vat_cents,
+      totalTtcCents: inv.total_ttc_cents,
+      createdAt: inv.created_at,
+    }));
+    exportInvoicesCSV(exportData);
     toast.success('Export CSV téléchargé');
   };
 
@@ -172,6 +386,10 @@ export default function Invoices() {
   };
 
   const getPreviewInvoice = () => invoices.find(i => i.id === selectedInvoice);
+
+  if (isLoadingInvoices) {
+    return <div className="flex items-center justify-center h-64">Chargement...</div>;
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -223,7 +441,7 @@ export default function Invoices() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCents(invoices.filter(i => i.status === 'issued').reduce((sum, i) => sum + i.totalTtcCents, 0))}
+              {formatCents(invoices.filter(i => i.status === 'issued').reduce((sum, i) => sum + i.total_ttc_cents, 0))}
             </div>
           </CardContent>
         </Card>
@@ -265,19 +483,19 @@ export default function Invoices() {
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium">
-                      {getMatterInfo(invoice.matterId)}
+                      {getMatterInfo(invoice.matter_id)}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {getClientInfo(invoice.clientId)}
+                      {getClientInfo(getClientIdFromMatter(invoice.matter_id))}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
-                      {invoice.periodFrom} → {invoice.periodTo}
+                      {invoice.period_from} → {invoice.period_to}
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatCents(invoice.totalHtCents)}
+                      {formatCents(invoice.total_ht_cents)}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {formatCents(invoice.totalTtcCents)}
+                      {formatCents(invoice.total_ttc_cents)}
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge className={statusColors[invoice.status]}>
@@ -344,7 +562,7 @@ export default function Invoices() {
                 </SelectTrigger>
                 <SelectContent>
                   {matters.filter(m => m.status === 'open').map((matter) => {
-                    const client = clients.find(c => c.id === matter.clientId);
+                    const client = clients.find(c => c.id === matter.client_id);
                     return (
                       <SelectItem key={matter.id} value={matter.id}>
                         {matter.code} - {matter.label} ({client?.name})
@@ -403,8 +621,8 @@ export default function Invoices() {
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
               Annuler
             </Button>
-            <Button onClick={handleCreateDraft} disabled={previewEntries.length === 0}>
-              Créer le brouillon
+            <Button onClick={handleCreateDraft} disabled={previewEntries.length === 0 || createInvoiceMutation.isPending}>
+              {createInvoiceMutation.isPending ? 'Création...' : 'Créer le brouillon'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -431,11 +649,11 @@ export default function Invoices() {
                 </div>
                 <div>
                   <span className="text-muted-foreground">Dossier:</span>{' '}
-                  <span className="font-medium">{getMatterInfo(getPreviewInvoice()!.matterId)}</span>
+                  <span className="font-medium">{getMatterInfo(getPreviewInvoice()!.matter_id)}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Client:</span>{' '}
-                  <span className="font-medium">{getClientInfo(getPreviewInvoice()!.clientId)}</span>
+                  <span className="font-medium">{getClientInfo(getClientIdFromMatter(getPreviewInvoice()!.matter_id))}</span>
                 </div>
               </div>
 
@@ -454,9 +672,9 @@ export default function Invoices() {
                     <TableRow key={line.id}>
                       <TableCell>{line.label}</TableCell>
                       <TableCell className="text-right">{formatMinutesToHours(line.minutes)}</TableCell>
-                      <TableCell className="text-right">{formatCents(line.rateCents)}</TableCell>
-                      <TableCell className="text-right">{line.vatRate}%</TableCell>
-                      <TableCell className="text-right font-medium">{formatCents(line.amountTtcCents)}</TableCell>
+                      <TableCell className="text-right">{formatCents(line.rate_cents)}</TableCell>
+                      <TableCell className="text-right">{line.vat_rate}%</TableCell>
+                      <TableCell className="text-right font-medium">{formatCents(line.amount_ttc_cents)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -466,15 +684,15 @@ export default function Invoices() {
                 <div className="space-y-1 text-right">
                   <div className="text-sm">
                     <span className="text-muted-foreground">Total HT:</span>{' '}
-                    {formatCents(getPreviewInvoice()!.totalHtCents)}
+                    {formatCents(getPreviewInvoice()!.total_ht_cents)}
                   </div>
                   <div className="text-sm">
                     <span className="text-muted-foreground">TVA:</span>{' '}
-                    {formatCents(getPreviewInvoice()!.totalVatCents)}
+                    {formatCents(getPreviewInvoice()!.total_vat_cents)}
                   </div>
                   <div className="text-lg font-bold">
                     <span className="text-muted-foreground">TTC:</span>{' '}
-                    {formatCents(getPreviewInvoice()!.totalTtcCents)}
+                    {formatCents(getPreviewInvoice()!.total_ttc_cents)}
                   </div>
                 </div>
               </div>
