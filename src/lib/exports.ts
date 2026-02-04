@@ -191,3 +191,114 @@ export function exportCreditNotesCSV(creditNotes: CreditNote[], invoices: Invoic
 
   downloadCSV(toCSV(headers, rows), `avoirs_${new Date().toISOString().split('T')[0]}.csv`);
 }
+
+// Export Clients
+export interface ClientExport {
+  code: string;
+  name: string;
+  address?: string | null;
+  billingEmail?: string | null;
+  vatNumber?: string | null;
+  active: boolean;
+}
+
+export function exportClientsCSV(clients: ClientExport[]): void {
+  const headers = [
+    'Code',
+    'Nom',
+    'Adresse',
+    'Email Facturation',
+    'N° TVA',
+    'Statut'
+  ];
+
+  const rows = clients.map(c => [
+    c.code,
+    c.name,
+    c.address || '',
+    c.billingEmail || '',
+    c.vatNumber || '',
+    c.active ? 'Actif' : 'Inactif'
+  ]);
+
+  downloadCSV(toCSV(headers, rows), `clients_${new Date().toISOString().split('T')[0]}.csv`);
+}
+
+// Export Matters
+export interface MatterExport {
+  code: string;
+  label: string;
+  clientId: string;
+  status: 'open' | 'closed';
+  rateCents?: number | null;
+  vatRate: number;
+}
+
+export interface ClientForMatterExport {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export function exportMattersCSV(matters: MatterExport[], clients: ClientForMatterExport[]): void {
+  const headers = [
+    'Code',
+    'Libellé',
+    'Client Code',
+    'Client Nom',
+    'Taux Horaire (MAD)',
+    'TVA (%)',
+    'Statut'
+  ];
+
+  const rows = matters.map(m => {
+    const client = clients.find(c => c.id === m.clientId);
+    return [
+      m.code,
+      m.label,
+      client?.code || '',
+      client?.name || '',
+      m.rateCents ? (m.rateCents / 100).toFixed(2) : '',
+      m.vatRate,
+      m.status === 'open' ? 'Ouvert' : 'Clôturé'
+    ];
+  });
+
+  downloadCSV(toCSV(headers, rows), `dossiers_${new Date().toISOString().split('T')[0]}.csv`);
+}
+
+// Export Collaborators
+export interface CollaboratorExport {
+  email: string;
+  name: string;
+  role: string;
+  rateCents?: number | null;
+  active: boolean;
+}
+
+export function exportCollaboratorsCSV(users: CollaboratorExport[]): void {
+  const headers = [
+    'Email',
+    'Nom',
+    'Rôle',
+    'Taux Horaire (MAD)',
+    'Statut'
+  ];
+
+  const roleLabels: Record<string, string> = {
+    sysadmin: 'Sysadmin',
+    owner: 'Associé',
+    assistant: 'Assistant',
+    collaborator: 'Collaborateur'
+  };
+
+  const rows = users.map(u => [
+    u.email,
+    u.name,
+    roleLabels[u.role] || u.role,
+    u.rateCents ? (u.rateCents / 100).toFixed(2) : '',
+    u.active ? 'Actif' : 'Inactif'
+  ]);
+
+  downloadCSV(toCSV(headers, rows), `collaborateurs_${new Date().toISOString().split('T')[0]}.csv`);
+}

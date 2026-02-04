@@ -24,9 +24,10 @@ import { useProfiles, useUpdateProfile, useUpdateUserRole, type ProfileWithRole 
 import { useMatters } from '@/hooks/useMatters';
 import { useAssignments, useCreateAssignment, useDeleteAssignment } from '@/hooks/useAssignments';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Pencil, Users, UserPlus, Trash2, Search, Loader2, Key } from 'lucide-react';
+import { Plus, Pencil, Users, UserPlus, Trash2, Search, Loader2, Key, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import type { UserRole } from '@/types';
+import { exportCollaboratorsCSV } from '@/lib/exports';
 
 export default function Collaborators() {
   const { role } = useAuth();
@@ -277,10 +278,29 @@ export default function Collaborators() {
           <p className="text-muted-foreground">Gestion des utilisateurs et affectations</p>
         </div>
 
-        <Button onClick={() => openUserDialog()}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nouvel utilisateur
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              exportCollaboratorsCSV(profiles.map(p => ({
+                email: p.email,
+                name: p.name,
+                role: p.role || 'collaborator',
+                rateCents: p.rate_cents,
+                active: p.active,
+              })));
+              toast.success('Export CSV téléchargé');
+            }}
+            disabled={profiles.length === 0}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+          <Button onClick={() => openUserDialog()}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nouvel utilisateur
+          </Button>
+        </div>
 
         <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
           <DialogContent className="sm:max-w-[500px]">

@@ -37,8 +37,9 @@ import {
   type Matter,
 } from '@/hooks/useMatters';
 import { useClients } from '@/hooks/useClients';
-import { Plus, Pencil, FolderOpen, Search, Loader2 } from 'lucide-react';
+import { Plus, Pencil, FolderOpen, Search, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import { exportMattersCSV } from '@/lib/exports';
 
 // Format cents to MAD
 function formatCents(cents: number): string {
@@ -168,14 +169,40 @@ export default function Matters() {
           <p className="text-muted-foreground">Gestion des dossiers clients</p>
         </div>
 
-        {canEdit && (
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => openDialog()}>
-                <Plus className="w-4 h-4 mr-2" />
-                Nouveau dossier
-              </Button>
-            </DialogTrigger>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              exportMattersCSV(
+                matters.map(m => ({
+                  code: m.code,
+                  label: m.label,
+                  clientId: m.client_id,
+                  status: m.status as 'open' | 'closed',
+                  rateCents: m.rate_cents,
+                  vatRate: m.vat_rate,
+                })),
+                clients.map(c => ({
+                  id: c.id,
+                  code: c.code,
+                  name: c.name,
+                }))
+              );
+              toast.success('Export CSV téléchargé');
+            }}
+            disabled={matters.length === 0}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+          {canEdit && (
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => openDialog()}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nouveau dossier
+                </Button>
+              </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>{editingMatter ? 'Modifier le dossier' : 'Nouveau dossier'}</DialogTitle>
@@ -260,9 +287,10 @@ export default function Matters() {
                   {editingMatter ? 'Enregistrer' : 'Créer'}
                 </Button>
               </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </div>
 
       {/* Search */}
