@@ -302,3 +302,82 @@ export function exportCollaboratorsCSV(users: CollaboratorExport[]): void {
 
   downloadCSV(toCSV(headers, rows), `collaborateurs_${new Date().toISOString().split('T')[0]}.csv`);
 }
+
+// Export detailed timesheet entries with user, client, and matter info
+export interface TimesheetExportEntry {
+  date: string;
+  minutes_rounded: number;
+  billable: boolean;
+  description: string;
+  locked: boolean;
+  user_id: string;
+  matter_id: string;
+}
+
+export interface TimesheetExportProfile {
+  id: string;
+  email: string;
+  name: string;
+}
+
+export interface TimesheetExportMatter {
+  id: string;
+  code: string;
+  label: string;
+  client_id: string;
+}
+
+export interface TimesheetExportClient {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export function exportDetailedTimesheetCSV(
+  entries: TimesheetExportEntry[],
+  profiles: TimesheetExportProfile[],
+  matters: TimesheetExportMatter[],
+  clients: TimesheetExportClient[],
+  periodFrom: string,
+  periodTo: string,
+  userName?: string
+): void {
+  const headers = [
+    'Date',
+    'Collaborateur',
+    'Email',
+    'Code Client',
+    'Nom Client',
+    'Code Dossier',
+    'Libellé Dossier',
+    'Minutes',
+    'Heures',
+    'Facturable',
+    'Description',
+    'Verrouillé'
+  ];
+
+  const rows = entries.map(e => {
+    const profile = profiles.find(p => p.id === e.user_id);
+    const matter = matters.find(m => m.id === e.matter_id);
+    const client = matter ? clients.find(c => c.id === matter.client_id) : null;
+
+    return [
+      e.date,
+      profile?.name || '',
+      profile?.email || '',
+      client?.code || '',
+      client?.name || '',
+      matter?.code || '',
+      matter?.label || '',
+      e.minutes_rounded,
+      (e.minutes_rounded / 60).toFixed(2),
+      e.billable ? 'Oui' : 'Non',
+      e.description,
+      e.locked ? 'Oui' : 'Non'
+    ];
+  });
+
+  const userSuffix = userName ? `_${userName.replace(/\s+/g, '_')}` : '';
+  downloadCSV(toCSV(headers, rows), `timesheet${userSuffix}_${periodFrom}_${periodTo}.csv`);
+}
