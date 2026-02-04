@@ -44,7 +44,7 @@ import { toast } from 'sonner';
 import type { User, Assignment, UserRole } from '@/types';
 
 export default function Collaborators() {
-  const { user } = useAuth();
+  const { role } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
@@ -70,7 +70,7 @@ export default function Collaborators() {
     u.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (user?.role !== 'owner' && user?.role !== 'sysadmin') {
+  if (role !== 'owner' && role !== 'sysadmin') {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <Card>

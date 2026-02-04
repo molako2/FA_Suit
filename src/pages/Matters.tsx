@@ -46,7 +46,7 @@ function formatCents(cents: number): string {
 }
 
 export default function Matters() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMatter, setEditingMatter] = useState<Matter | null>(null);
@@ -148,7 +148,7 @@ export default function Matters() {
     return client?.name || 'Inconnu';
   };
 
-  const canEdit = user?.role === 'owner' || user?.role === 'assistant' || user?.role === 'sysadmin';
+  const canEdit = role === 'owner' || role === 'assistant' || role === 'sysadmin';
   const isLoading = mattersLoading || clientsLoading;
   const isSaving = createMatter.isPending || updateMatter.isPending;
 

@@ -47,7 +47,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 export default function Invoices() {
-  const { user } = useAuth();
+  const { role } = useAuth();
   const [invoices, setInvoices] = useState(getInvoices);
   const matters = getMatters();
   const clients = getClients();
@@ -69,7 +69,7 @@ export default function Invoices() {
   const [periodTo, setPeriodTo] = useState(() => new Date().toISOString().split('T')[0]);
   const [groupByCollaborator, setGroupByCollaborator] = useState(false);
 
-  const canEdit = user?.role === 'owner' || user?.role === 'assistant';
+  const canEdit = role === 'owner' || role === 'assistant' || role === 'sysadmin';
 
   const refreshInvoices = () => setInvoices(getInvoices());
 
