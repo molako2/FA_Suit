@@ -416,6 +416,7 @@ export type Database = {
       }
       is_owner: { Args: never; Returns: boolean }
       is_owner_or_assistant: { Args: never; Returns: boolean }
+      is_sysadmin: { Args: never; Returns: boolean }
       user_is_assigned_to_matter: {
         Args: { _matter_id: string }
         Returns: boolean

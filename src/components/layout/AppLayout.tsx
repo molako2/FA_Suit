@@ -28,7 +28,7 @@ interface NavItem {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  roles: ('owner' | 'assistant' | 'collaborator')[];
+  roles: ('sysadmin' | 'owner' | 'assistant' | 'collaborator')[];
 }
 
 const navItems: NavItem[] = [
@@ -36,59 +36,61 @@ const navItems: NavItem[] = [
     label: 'Dashboard',
     href: '/',
     icon: LayoutDashboard,
-    roles: ['owner'],
+    roles: ['sysadmin', 'owner'],
   },
   {
     label: 'Mes temps',
     href: '/timesheet',
     icon: Clock,
-    roles: ['owner', 'assistant', 'collaborator'],
+    roles: ['sysadmin', 'owner', 'assistant', 'collaborator'],
   },
   {
     label: 'Clients',
     href: '/clients',
     icon: Building2,
-    roles: ['owner', 'assistant'],
+    roles: ['sysadmin', 'owner', 'assistant'],
   },
   {
     label: 'Dossiers',
     href: '/matters',
     icon: FolderOpen,
-    roles: ['owner', 'assistant'],
+    roles: ['sysadmin', 'owner', 'assistant'],
   },
   {
     label: 'Collaborateurs',
     href: '/collaborators',
     icon: Users,
-    roles: ['owner'],
+    roles: ['sysadmin', 'owner'],
   },
   {
     label: 'Factures',
     href: '/invoices',
     icon: FileText,
-    roles: ['owner', 'assistant'],
+    roles: ['sysadmin', 'owner', 'assistant'],
   },
   {
     label: 'Avoirs',
     href: '/credit-notes',
     icon: FileMinus2,
-    roles: ['owner', 'assistant'],
+    roles: ['sysadmin', 'owner', 'assistant'],
   },
   {
     label: 'Paramètres',
     href: '/settings',
     icon: Settings,
-    roles: ['owner'],
+    roles: ['sysadmin', 'owner'],
   },
 ];
 
 const roleLabels = {
+  sysadmin: 'Sysadmin',
   owner: 'Associé',
   assistant: 'Assistant',
   collaborator: 'Collaborateur',
 };
 
 const roleColors = {
+  sysadmin: 'bg-destructive text-destructive-foreground',
   owner: 'bg-accent text-accent-foreground',
   assistant: 'bg-primary text-primary-foreground',
   collaborator: 'bg-secondary text-secondary-foreground',
