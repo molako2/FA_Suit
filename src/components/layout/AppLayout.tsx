@@ -1,0 +1,225 @@
+import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { cn } from '@/lib/utils';
+import {
+  Clock,
+  LayoutDashboard,
+  Users,
+  Briefcase,
+  FileText,
+  FileMinus2,
+  Settings,
+  LogOut,
+  ChevronDown,
+  Building2,
+  FolderOpen,
+} from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+
+interface NavItem {
+  label: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  roles: ('owner' | 'assistant' | 'collaborator')[];
+}
+
+const navItems: NavItem[] = [
+  {
+    label: 'Dashboard',
+    href: '/',
+    icon: LayoutDashboard,
+    roles: ['owner'],
+  },
+  {
+    label: 'Mes temps',
+    href: '/timesheet',
+    icon: Clock,
+    roles: ['owner', 'assistant', 'collaborator'],
+  },
+  {
+    label: 'Clients',
+    href: '/clients',
+    icon: Building2,
+    roles: ['owner', 'assistant'],
+  },
+  {
+    label: 'Dossiers',
+    href: '/matters',
+    icon: FolderOpen,
+    roles: ['owner', 'assistant'],
+  },
+  {
+    label: 'Collaborateurs',
+    href: '/collaborators',
+    icon: Users,
+    roles: ['owner'],
+  },
+  {
+    label: 'Factures',
+    href: '/invoices',
+    icon: FileText,
+    roles: ['owner', 'assistant'],
+  },
+  {
+    label: 'Avoirs',
+    href: '/credit-notes',
+    icon: FileMinus2,
+    roles: ['owner', 'assistant'],
+  },
+  {
+    label: 'Paramètres',
+    href: '/settings',
+    icon: Settings,
+    roles: ['owner'],
+  },
+];
+
+const roleLabels = {
+  owner: 'Associé',
+  assistant: 'Assistant',
+  collaborator: 'Collaborateur',
+};
+
+const roleColors = {
+  owner: 'bg-accent text-accent-foreground',
+  assistant: 'bg-primary text-primary-foreground',
+  collaborator: 'bg-secondary text-secondary-foreground',
+};
+
+export function AppLayout({ children }: { children: React.ReactNode }) {
+  const { user, logout, switchRole } = useAuth();
+  const location = useLocation();
+
+  if (!user) return null;
+
+  const filteredNavItems = navItems.filter(item => item.roles.includes(user.role));
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Top Navigation */}
+      <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+        <div className="container flex h-16 items-center justify-between">
+          {/* Logo */}
+          <Link to="/" className="flex items-center space-x-2">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+              <Clock className="w-4 h-4 text-primary-foreground" />
+            </div>
+            <span className="font-semibold text-lg">FlowAssist</span>
+          </Link>
+
+          {/* Main Navigation */}
+          <nav className="hidden md:flex items-center space-x-1">
+            {filteredNavItems.map((item) => {
+              const isActive = location.pathname === item.href;
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className={cn(
+                    'flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  )}
+                >
+                  <Icon className="w-4 h-4 mr-2" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* User Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <span className="text-sm font-medium text-primary">
+                    {user.name.split(' ').map(n => n[0]).join('')}
+                  </span>
+                </div>
+                <div className="hidden sm:block text-left">
+                  <p className="text-sm font-medium">{user.name}</p>
+                  <Badge className={cn('text-xs', roleColors[user.role])}>
+                    {roleLabels[user.role]}
+                  </Badge>
+                </div>
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>
+                <div>
+                  <p className="font-medium">{user.name}</p>
+                  <p className="text-xs text-muted-foreground">{user.email}</p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              
+              {/* Demo: Role Switcher */}
+              <DropdownMenuLabel className="text-xs text-muted-foreground">
+                Démo — Changer de rôle
+              </DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => switchRole('owner')}>
+                <span className="w-2 h-2 rounded-full bg-accent mr-2" />
+                Associé
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => switchRole('assistant')}>
+                <span className="w-2 h-2 rounded-full bg-primary mr-2" />
+                Assistant
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => switchRole('collaborator')}>
+                <span className="w-2 h-2 rounded-full bg-muted-foreground mr-2" />
+                Collaborateur
+              </DropdownMenuItem>
+              
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={logout} className="text-destructive">
+                <LogOut className="w-4 h-4 mr-2" />
+                Déconnexion
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
+
+      {/* Mobile Navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border">
+        <div className="flex justify-around py-2">
+          {filteredNavItems.slice(0, 5).map((item) => {
+            const isActive = location.pathname === item.href;
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                to={item.href}
+                className={cn(
+                  'flex flex-col items-center p-2 text-xs',
+                  isActive ? 'text-primary' : 'text-muted-foreground'
+                )}
+              >
+                <Icon className="w-5 h-5 mb-1" />
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <main className="container py-6 pb-24 md:pb-6">
+        {children}
+      </main>
+    </div>
+  );
+}
