@@ -22,7 +22,9 @@ import {
   formatCents,
   getCabinetSettings,
 } from '@/lib/storage';
+import { exportKPIByUserCSV, exportKPIByMatterCSV, exportTimesheetCSV } from '@/lib/exports';
 import { Clock, Users, FolderOpen, TrendingUp, Download } from 'lucide-react';
+import { toast } from 'sonner';
 import type { KPIByUser, KPIByMatter } from '@/types';
 
 export default function Dashboard() {
@@ -115,6 +117,21 @@ export default function Dashboard() {
     );
   }
 
+  const handleExportKPIByUser = () => {
+    exportKPIByUserCSV(kpiByUser, periodFrom, periodTo);
+    toast.success('Export KPI par collaborateur téléchargé');
+  };
+
+  const handleExportKPIByMatter = () => {
+    exportKPIByMatterCSV(kpiByMatter, periodFrom, periodTo);
+    toast.success('Export KPI par dossier téléchargé');
+  };
+
+  const handleExportTimesheet = () => {
+    exportTimesheetCSV(filteredEntries, `timesheet_${periodFrom}_${periodTo}.csv`);
+    toast.success('Export timesheet téléchargé');
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -145,6 +162,9 @@ export default function Dashboard() {
               className="w-36"
             />
           </div>
+          <Button variant="outline" size="sm" onClick={handleExportTimesheet} className="mt-5">
+            <Download className="w-4 h-4" />
+          </Button>
         </div>
       </div>
 
@@ -210,7 +230,7 @@ export default function Dashboard() {
             <CardTitle>Par collaborateur</CardTitle>
             <CardDescription>Heures facturables par collaborateur sur la période</CardDescription>
           </div>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleExportKPIByUser}>
             <Download className="w-4 h-4 mr-2" />
             Export CSV
           </Button>
@@ -256,7 +276,7 @@ export default function Dashboard() {
             <CardTitle>Par dossier</CardTitle>
             <CardDescription>Heures facturables par dossier sur la période</CardDescription>
           </div>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleExportKPIByMatter}>
             <Download className="w-4 h-4 mr-2" />
             Export CSV
           </Button>
