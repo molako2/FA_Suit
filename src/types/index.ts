@@ -1,6 +1,6 @@
 // FlowAssist Types
 
-export type UserRole = 'owner' | 'assistant' | 'collaborator';
+export type UserRole = 'sysadmin' | 'owner' | 'assistant' | 'collaborator';
 
 export interface User {
   id: string;

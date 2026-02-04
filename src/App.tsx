@@ -27,7 +27,7 @@ function AppRoutes() {
   // Redirect based on role for root path
   const getHomeRoute = () => {
     if (!user) return <Navigate to="/login" replace />;
-    if (role === 'owner') return <Dashboard />;
+    if (role === 'owner' || role === 'sysadmin') return <Dashboard />;
     return <Navigate to="/timesheet" replace />;
   };
 
@@ -56,7 +56,7 @@ function AppRoutes() {
       <Route
         path="/clients"
         element={
-          <ProtectedRoute allowedRoles={['owner', 'assistant']}>
+          <ProtectedRoute allowedRoles={['sysadmin', 'owner', 'assistant']}>
             <AppLayout><Clients /></AppLayout>
           </ProtectedRoute>
         }
@@ -65,7 +65,7 @@ function AppRoutes() {
       <Route
         path="/matters"
         element={
-          <ProtectedRoute allowedRoles={['owner', 'assistant']}>
+          <ProtectedRoute allowedRoles={['sysadmin', 'owner', 'assistant']}>
             <AppLayout><Matters /></AppLayout>
           </ProtectedRoute>
         }
@@ -74,7 +74,7 @@ function AppRoutes() {
       <Route
         path="/collaborators"
         element={
-          <ProtectedRoute allowedRoles={['owner']}>
+          <ProtectedRoute allowedRoles={['sysadmin', 'owner']}>
             <AppLayout><Collaborators /></AppLayout>
           </ProtectedRoute>
         }
@@ -83,7 +83,7 @@ function AppRoutes() {
       <Route
         path="/invoices"
         element={
-          <ProtectedRoute allowedRoles={['owner', 'assistant']}>
+          <ProtectedRoute allowedRoles={['sysadmin', 'owner', 'assistant']}>
             <AppLayout><Invoices /></AppLayout>
           </ProtectedRoute>
         }
@@ -92,7 +92,7 @@ function AppRoutes() {
       <Route
         path="/credit-notes"
         element={
-          <ProtectedRoute allowedRoles={['owner', 'assistant']}>
+          <ProtectedRoute allowedRoles={['sysadmin', 'owner', 'assistant']}>
             <AppLayout><CreditNotes /></AppLayout>
           </ProtectedRoute>
         }
@@ -101,7 +101,7 @@ function AppRoutes() {
       <Route
         path="/settings"
         element={
-          <ProtectedRoute allowedRoles={['owner']}>
+          <ProtectedRoute allowedRoles={['sysadmin', 'owner']}>
             <AppLayout><Settings /></AppLayout>
           </ProtectedRoute>
         }

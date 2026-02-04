@@ -41,7 +41,7 @@ import {
 } from '@/lib/storage';
 import { Plus, Pencil, Users, UserPlus, Trash2, Search } from 'lucide-react';
 import { toast } from 'sonner';
-import type { User, Assignment } from '@/types';
+import type { User, Assignment, UserRole } from '@/types';
 
 export default function Collaborators() {
   const { user } = useAuth();
@@ -54,7 +54,7 @@ export default function Collaborators() {
   // User form state
   const [formName, setFormName] = useState('');
   const [formEmail, setFormEmail] = useState('');
-  const [formRole, setFormRole] = useState<'owner' | 'assistant' | 'collaborator'>('collaborator');
+  const [formRole, setFormRole] = useState<UserRole>('collaborator');
   const [formRateCents, setFormRateCents] = useState('');
 
   // Assignment form state
@@ -70,7 +70,7 @@ export default function Collaborators() {
     u.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (user?.role !== 'owner') {
+  if (user?.role !== 'owner' && user?.role !== 'sysadmin') {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <Card>
@@ -171,13 +171,15 @@ export default function Collaborators() {
     return matter ? `${matter.code} - ${matter.label}` : 'Inconnu';
   };
 
-  const roleLabels = {
+  const roleLabels: Record<UserRole, string> = {
+    sysadmin: 'Sysadmin',
     owner: 'Associé',
     assistant: 'Assistant',
     collaborator: 'Collaborateur',
   };
 
-  const roleColors = {
+  const roleColors: Record<UserRole, string> = {
+    sysadmin: 'bg-destructive text-destructive-foreground',
     owner: 'bg-accent text-accent-foreground',
     assistant: 'bg-primary text-primary-foreground',
     collaborator: 'bg-secondary text-secondary-foreground',
@@ -230,11 +232,12 @@ export default function Collaborators() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="role">Rôle</Label>
-                  <Select value={formRole} onValueChange={(v) => setFormRole(v as typeof formRole)}>
+                  <Select value={formRole} onValueChange={(v) => setFormRole(v as UserRole)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="sysadmin">Sysadmin</SelectItem>
                       <SelectItem value="owner">Associé</SelectItem>
                       <SelectItem value="assistant">Assistant</SelectItem>
                       <SelectItem value="collaborator">Collaborateur</SelectItem>

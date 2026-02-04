@@ -26,7 +26,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
 
   if (allowedRoles && role && !allowedRoles.includes(role)) {
     // Redirect to appropriate home based on role
-    const homeRoute = role === 'collaborator' ? '/timesheet' : '/';
+    const homeRoute = (role === 'collaborator') ? '/timesheet' : '/';
     return <Navigate to={homeRoute} replace />;
   }
 
