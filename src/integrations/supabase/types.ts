@@ -14,16 +14,415 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      assignments: {
+        Row: {
+          created_at: string
+          end_date: string | null
+          id: string
+          matter_id: string
+          start_date: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          matter_id: string
+          start_date: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          matter_id?: string
+          start_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignments_matter_id_fkey"
+            columns: ["matter_id"]
+            isOneToOne: false
+            referencedRelation: "matters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      cabinet_settings: {
+        Row: {
+          address: string | null
+          credit_seq_next: number
+          credit_seq_year: number
+          iban: string | null
+          id: string
+          invoice_seq_next: number
+          invoice_seq_year: number
+          mentions: string | null
+          name: string
+          rate_cabinet_cents: number
+          updated_at: string
+          vat_default: number
+        }
+        Insert: {
+          address?: string | null
+          credit_seq_next?: number
+          credit_seq_year?: number
+          iban?: string | null
+          id?: string
+          invoice_seq_next?: number
+          invoice_seq_year?: number
+          mentions?: string | null
+          name?: string
+          rate_cabinet_cents?: number
+          updated_at?: string
+          vat_default?: number
+        }
+        Update: {
+          address?: string | null
+          credit_seq_next?: number
+          credit_seq_year?: number
+          iban?: string | null
+          id?: string
+          invoice_seq_next?: number
+          invoice_seq_year?: number
+          mentions?: string | null
+          name?: string
+          rate_cabinet_cents?: number
+          updated_at?: string
+          vat_default?: number
+        }
+        Relationships: []
+      }
+      clients: {
+        Row: {
+          active: boolean
+          address: string | null
+          billing_email: string | null
+          code: string
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          vat_number: string | null
+        }
+        Insert: {
+          active?: boolean
+          address?: string | null
+          billing_email?: string | null
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          vat_number?: string | null
+        }
+        Update: {
+          active?: boolean
+          address?: string | null
+          billing_email?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          vat_number?: string | null
+        }
+        Relationships: []
+      }
+      credit_notes: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_id: string
+          issue_date: string
+          number: string
+          reason: string | null
+          total_ht_cents: number
+          total_ttc_cents: number
+          total_vat_cents: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_id: string
+          issue_date: string
+          number: string
+          reason?: string | null
+          total_ht_cents: number
+          total_ttc_cents: number
+          total_vat_cents: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          issue_date?: string
+          number?: string
+          reason?: string | null
+          total_ht_cents?: number
+          total_ttc_cents?: number
+          total_vat_cents?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_notes_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          created_at: string
+          id: string
+          issue_date: string | null
+          lines: Json
+          matter_id: string
+          number: string | null
+          period_from: string
+          period_to: string
+          status: string
+          total_ht_cents: number
+          total_ttc_cents: number
+          total_vat_cents: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          issue_date?: string | null
+          lines?: Json
+          matter_id: string
+          number?: string | null
+          period_from: string
+          period_to: string
+          status?: string
+          total_ht_cents?: number
+          total_ttc_cents?: number
+          total_vat_cents?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          issue_date?: string | null
+          lines?: Json
+          matter_id?: string
+          number?: string | null
+          period_from?: string
+          period_to?: string
+          status?: string
+          total_ht_cents?: number
+          total_ttc_cents?: number
+          total_vat_cents?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_matter_id_fkey"
+            columns: ["matter_id"]
+            isOneToOne: false
+            referencedRelation: "matters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      matters: {
+        Row: {
+          client_id: string
+          code: string
+          created_at: string
+          id: string
+          label: string
+          rate_cents: number | null
+          status: string
+          updated_at: string
+          vat_rate: number
+        }
+        Insert: {
+          client_id: string
+          code: string
+          created_at?: string
+          id?: string
+          label: string
+          rate_cents?: number | null
+          status?: string
+          updated_at?: string
+          vat_rate?: number
+        }
+        Update: {
+          client_id?: string
+          code?: string
+          created_at?: string
+          id?: string
+          label?: string
+          rate_cents?: number | null
+          status?: string
+          updated_at?: string
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matters_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          active: boolean
+          created_at: string
+          email: string
+          id: string
+          name: string
+          rate_cents: number | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          email: string
+          id: string
+          name: string
+          rate_cents?: number | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          rate_cents?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      timesheet_entries: {
+        Row: {
+          billable: boolean
+          created_at: string
+          date: string
+          description: string
+          id: string
+          locked: boolean
+          matter_id: string
+          minutes_rounded: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          billable?: boolean
+          created_at?: string
+          date: string
+          description: string
+          id?: string
+          locked?: boolean
+          matter_id: string
+          minutes_rounded: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          billable?: boolean
+          created_at?: string
+          date?: string
+          description?: string
+          id?: string
+          locked?: boolean
+          matter_id?: string
+          minutes_rounded?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timesheet_entries_matter_id_fkey"
+            columns: ["matter_id"]
+            isOneToOne: false
+            referencedRelation: "matters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_owner: { Args: never; Returns: boolean }
+      is_owner_or_assistant: { Args: never; Returns: boolean }
+      user_is_assigned_to_matter: {
+        Args: { _matter_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "owner" | "assistant" | "collaborator"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +549,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["owner", "assistant", "collaborator"],
+    },
   },
 } as const
