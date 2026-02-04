@@ -139,22 +139,44 @@ export default function Invoices() {
       return;
     }
 
-    if (previewEntries.length === 0) {
+    const matter = getSelectedMatter();
+    if (!matter || !settings) return;
+
+    const isFlatFee = matter.billing_type === 'flat_fee';
+
+    // For time-based billing, require entries
+    if (!isFlatFee && previewEntries.length === 0) {
       toast.error('Aucune entrée facturable pour cette période');
       return;
     }
 
-    const matter = getSelectedMatter();
-    if (!matter || !settings) return;
+    // For flat fee, require flat_fee_cents to be set
+    if (isFlatFee && !matter.flat_fee_cents) {
+      toast.error('Le montant du forfait n\'est pas défini pour ce dossier');
+      return;
+    }
 
-    const clientId = matter.client_id;
     const rateCents = matter.rate_cents || settings.rate_cabinet_cents;
     const vatRate = matter.vat_rate;
 
-    // Group entries
     let lines: InvoiceLine[];
-    if (groupByCollaborator) {
-      // Group by collaborator
+
+    if (isFlatFee) {
+      // Flat fee billing - single line with fixed amount
+      const amountHt = matter.flat_fee_cents!;
+      const vatCents = Math.round(amountHt * vatRate / 100);
+      lines = [{
+        id: crypto.randomUUID(),
+        label: `Forfait - ${matter.label}`,
+        minutes: 0,
+        rate_cents: 0,
+        vat_rate: vatRate,
+        amount_ht_cents: amountHt,
+        vat_cents: vatCents,
+        amount_ttc_cents: amountHt + vatCents,
+      }];
+    } else if (groupByCollaborator) {
+      // Group by collaborator (time-based)
       const grouped = previewEntries.reduce((acc, entry) => {
         const userId = entry.user_id;
         if (!acc[userId]) {
@@ -182,7 +204,7 @@ export default function Invoices() {
         };
       });
     } else {
-      // Single line
+      // Single line (time-based)
       const totalMinutes = previewEntries.reduce((sum, e) => sum + e.minutes_rounded, 0);
       const amountHt = Math.round((totalMinutes / 60) * rateCents);
       const vatCents = Math.round(amountHt * vatRate / 100);
@@ -620,6 +642,7 @@ export default function Invoices() {
               <Switch
                 checked={groupByCollaborator}
                 onCheckedChange={setGroupByCollaborator}
+                disabled={getSelectedMatter()?.billing_type === 'flat_fee'}
               />
             </div>
 
@@ -627,14 +650,28 @@ export default function Invoices() {
               <Card className="bg-muted">
                 <CardContent className="p-4">
                   <div className="text-sm font-medium mb-2">Aperçu</div>
-                  <p className="text-muted-foreground text-sm">
-                    {previewEntries.length} entrée(s) facturable(s) pour un total de{' '}
-                    <span className="font-semibold">{formatMinutesToHours(previewTotalMinutes)}</span>
-                  </p>
-                  {previewEntries.length === 0 && (
-                    <p className="text-destructive text-sm mt-2">
-                      Aucune entrée facturable non facturée pour cette période.
-                    </p>
+                  {getSelectedMatter()?.billing_type === 'flat_fee' ? (
+                    <>
+                      <p className="text-muted-foreground text-sm">
+                        <Badge variant="secondary" className="mr-2">Forfait</Badge>
+                        Montant HT : <span className="font-semibold">{formatCents(getSelectedMatter()?.flat_fee_cents || 0)}</span>
+                      </p>
+                      <p className="text-muted-foreground text-xs mt-2">
+                        Ce dossier est facturé au forfait. Le montant défini lors de la création du dossier sera utilisé.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-muted-foreground text-sm">
+                        {previewEntries.length} entrée(s) facturable(s) pour un total de{' '}
+                        <span className="font-semibold">{formatMinutesToHours(previewTotalMinutes)}</span>
+                      </p>
+                      {previewEntries.length === 0 && (
+                        <p className="text-destructive text-sm mt-2">
+                          Aucune entrée facturable non facturée pour cette période.
+                        </p>
+                      )}
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -644,7 +681,14 @@ export default function Invoices() {
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
               Annuler
             </Button>
-            <Button onClick={handleCreateDraft} disabled={previewEntries.length === 0 || createInvoiceMutation.isPending}>
+            <Button 
+              onClick={handleCreateDraft} 
+              disabled={
+                !selectedMatterId ||
+                (getSelectedMatter()?.billing_type !== 'flat_fee' && previewEntries.length === 0) ||
+                createInvoiceMutation.isPending
+              }
+            >
               {createInvoiceMutation.isPending ? 'Création...' : 'Créer le brouillon'}
             </Button>
           </DialogFooter>
