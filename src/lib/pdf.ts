@@ -2,7 +2,11 @@
 // Uses browser print capabilities for PDF generation
 
 import type { Invoice, CreditNote, InvoiceLine, CabinetSettings, Client, Matter } from '@/types';
-import { formatCents } from './storage';
+
+// Local formatCents function
+function formatCents(cents: number): string {
+  return (cents / 100).toFixed(2).replace('.', ',') + ' MAD';
+}
 
 interface InvoicePDFData {
   invoice: Invoice;
