@@ -148,7 +148,7 @@ export default function Matters() {
     return client?.name || 'Inconnu';
   };
 
-  const canEdit = user?.role === 'owner' || user?.role === 'assistant';
+  const canEdit = user?.role === 'owner' || user?.role === 'assistant' || user?.role === 'sysadmin';
   const isLoading = mattersLoading || clientsLoading;
   const isSaving = createMatter.isPending || updateMatter.isPending;
 

@@ -122,7 +122,7 @@ export default function Clients() {
     }
   };
 
-  const canEdit = user?.role === 'owner' || user?.role === 'assistant';
+  const canEdit = user?.role === 'owner' || user?.role === 'assistant' || user?.role === 'sysadmin';
   const isSaving = createClient.isPending || updateClient.isPending;
 
   if (isLoading) {
