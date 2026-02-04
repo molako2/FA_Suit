@@ -29,8 +29,9 @@ import {
   generateClientCode,
   type Client,
 } from '@/hooks/useClients';
-import { Plus, Pencil, Building2, Search, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Building2, Search, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import { exportClientsCSV } from '@/lib/exports';
 
 export default function Clients() {
   const { role } = useAuth();
@@ -141,14 +142,33 @@ export default function Clients() {
           <p className="text-muted-foreground">Gestion des clients du cabinet</p>
         </div>
 
-        {canEdit && (
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => openDialog()}>
-                <Plus className="w-4 h-4 mr-2" />
-                Nouveau client
-              </Button>
-            </DialogTrigger>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              exportClientsCSV(clients.map(c => ({
+                code: c.code,
+                name: c.name,
+                address: c.address,
+                billingEmail: c.billing_email,
+                vatNumber: c.vat_number,
+                active: c.active,
+              })));
+              toast.success('Export CSV téléchargé');
+            }}
+            disabled={clients.length === 0}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+          {canEdit && (
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => openDialog()}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nouveau client
+                </Button>
+              </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>{editingClient ? 'Modifier le client' : 'Nouveau client'}</DialogTitle>
@@ -209,9 +229,10 @@ export default function Clients() {
                   {editingClient ? 'Enregistrer' : 'Créer'}
                 </Button>
               </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </div>
 
       {/* Search */}
