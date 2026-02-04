@@ -114,8 +114,13 @@ export default function Matters() {
         });
         toast.success('Dossier modifié');
       } else {
+        const selectedClient = clients.find(c => c.id === formClientId);
+        if (!selectedClient) {
+          toast.error('Client introuvable');
+          return;
+        }
         await createMatter.mutateAsync({
-          code: generateMatterCode(matters),
+          code: generateMatterCode(matters, selectedClient.code),
           label: formLabel.trim(),
           client_id: formClientId,
           status: 'open',

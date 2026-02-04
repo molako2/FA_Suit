@@ -106,13 +106,16 @@ export function useDeleteMatter() {
   });
 }
 
-export function generateMatterCode(matters: Matter[]): string {
+export function generateMatterCode(matters: Matter[], clientCode: string): string {
+  // Filter matters for this specific client
+  const clientMatters = matters.filter(m => m.code.startsWith(clientCode + '-'));
   const existingCodes = matters.map(m => m.code);
-  let num = matters.length + 1;
-  let code = `DOS${String(num).padStart(4, '0')}`;
+  
+  let num = clientMatters.length + 1;
+  let code = `${clientCode}-DOS${String(num).padStart(4, '0')}`;
   while (existingCodes.includes(code)) {
     num++;
-    code = `DOS${String(num).padStart(4, '0')}`;
+    code = `${clientCode}-DOS${String(num).padStart(4, '0')}`;
   }
   return code;
 }
