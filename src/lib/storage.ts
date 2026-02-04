@@ -254,7 +254,7 @@ export function getCabinetSettings(): CabinetSettings {
   return getItem<CabinetSettings>(STORAGE_KEYS.cabinetSettings, {
     id: 'cabinet-1',
     name: 'Mon Cabinet',
-    rateCabinetCents: 15000, // 150€/h default
+    rateCabinetCents: 15000, // 150 MAD/h default
     vatDefault: 20,
     invoiceSeqYear: new Date().getFullYear(),
     invoiceSeqNext: 1,

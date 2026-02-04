@@ -243,7 +243,7 @@ export default function Collaborators() {
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="rate">Taux horaire (€)</Label>
+                  <Label htmlFor="rate">Taux horaire (MAD)</Label>
                   <Input
                     id="rate"
                     type="number"
