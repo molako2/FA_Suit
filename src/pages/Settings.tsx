@@ -207,7 +207,7 @@ export default function Settings() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="rate">Taux horaire par défaut (€)</Label>
+                <Label htmlFor="rate">Taux horaire par défaut (MAD)</Label>
                 <Input
                   id="rate"
                   type="number"

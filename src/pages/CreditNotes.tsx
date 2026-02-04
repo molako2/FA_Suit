@@ -285,7 +285,7 @@ export default function CreditNotes() {
 
             {isPartial && (
               <div className="grid gap-2">
-                <Label>Montant TTC de l'avoir (€)</Label>
+                <Label>Montant TTC de l'avoir (MAD)</Label>
                 <Input
                   type="number"
                   min="0.01"
