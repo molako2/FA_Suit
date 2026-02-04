@@ -6,6 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Table,
   TableBody,
   TableCell,
@@ -18,8 +25,9 @@ import { useProfiles } from '@/hooks/useProfiles';
 import { useMatters } from '@/hooks/useMatters';
 import { useClients } from '@/hooks/useClients';
 import { useCabinetSettings } from '@/hooks/useCabinetSettings';
-import { Clock, Users, FolderOpen, TrendingUp, Download, Loader2 } from 'lucide-react';
+import { Clock, Users, FolderOpen, TrendingUp, Download, Loader2, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
+import { exportDetailedTimesheetCSV } from '@/lib/exports';
 import type { KPIByUser, KPIByMatter } from '@/types';
 
 // Format cents to MAD
@@ -60,6 +68,7 @@ export default function Dashboard() {
     return d.toISOString().split('T')[0];
   });
   const [periodTo, setPeriodTo] = useState(() => new Date().toISOString().split('T')[0]);
+  const [exportUserId, setExportUserId] = useState<string>('all');
 
   // Supabase hooks
   const { data: entries = [], isLoading: entriesLoading } = useTimesheetEntries(
@@ -161,6 +170,32 @@ export default function Dashboard() {
   const handleExportKPIByMatter = () => {
     exportKPIByMatterCSV(kpiByMatter, periodFrom, periodTo);
     toast.success('Export KPI par dossier téléchargé');
+  };
+
+  const handleExportTimesheet = () => {
+    const filteredEntries = exportUserId === 'all' 
+      ? entries 
+      : entries.filter(e => e.user_id === exportUserId);
+    
+    if (filteredEntries.length === 0) {
+      toast.error('Aucune entrée à exporter pour cette sélection');
+      return;
+    }
+
+    const selectedProfile = exportUserId === 'all' 
+      ? undefined 
+      : profiles.find(p => p.id === exportUserId);
+    
+    exportDetailedTimesheetCSV(
+      filteredEntries,
+      profiles,
+      matters,
+      clients,
+      periodFrom,
+      periodTo,
+      selectedProfile?.name
+    );
+    toast.success('Export timesheet téléchargé');
   };
 
   return (
@@ -344,6 +379,49 @@ export default function Dashboard() {
               )}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+
+      {/* Timesheet Export */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <FileSpreadsheet className="h-5 w-5 text-primary" />
+            <div>
+              <CardTitle>Export Timesheet détaillé</CardTitle>
+              <CardDescription>Exporter les entrées de temps avec codes client et dossier</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
+            <div className="grid gap-2 w-full sm:w-auto">
+              <Label htmlFor="exportUser" className="text-sm">Collaborateur</Label>
+              <Select value={exportUserId} onValueChange={setExportUserId}>
+                <SelectTrigger id="exportUser" className="w-full sm:w-[250px]">
+                  <SelectValue placeholder="Sélectionner un collaborateur" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les collaborateurs</SelectItem>
+                  {profiles.map((profile) => (
+                    <SelectItem key={profile.id} value={profile.id}>
+                      {profile.name} ({profile.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Période: {periodFrom} au {periodTo}
+            </div>
+            <Button onClick={handleExportTimesheet} className="w-full sm:w-auto">
+              <Download className="w-4 h-4 mr-2" />
+              Exporter CSV
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            L'export inclut: date, collaborateur, code client, nom client, code dossier, libellé dossier, minutes, heures, facturable, description
+          </p>
         </CardContent>
       </Card>
     </div>
