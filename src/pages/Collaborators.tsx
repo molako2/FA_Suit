@@ -6,14 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -29,31 +21,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  getUsers,
-  getMatters,
-  getAssignments,
-  saveUser,
-  saveAssignment,
-  deleteAssignment,
-  generateId,
-  formatCents,
-} from '@/lib/storage';
-import { Plus, Pencil, Users, UserPlus, Trash2, Search } from 'lucide-react';
+import { useProfiles, useUpdateProfile, useUpdateUserRole, type ProfileWithRole } from '@/hooks/useProfiles';
+import { useMatters } from '@/hooks/useMatters';
+import { useAssignments, useCreateAssignment, useDeleteAssignment } from '@/hooks/useAssignments';
+import { Plus, Pencil, Users, UserPlus, Trash2, Search, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { User, Assignment, UserRole } from '@/types';
+import type { UserRole } from '@/types';
 
 export default function Collaborators() {
   const { role } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editingUser, setEditingUser] = useState<ProfileWithRole | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
 
   // User form state
   const [formName, setFormName] = useState('');
-  const [formEmail, setFormEmail] = useState('');
   const [formRole, setFormRole] = useState<UserRole>('collaborator');
   const [formRateCents, setFormRateCents] = useState('');
 
@@ -61,11 +45,16 @@ export default function Collaborators() {
   const [assignMatterId, setAssignMatterId] = useState('');
   const [assignStartDate, setAssignStartDate] = useState(() => new Date().toISOString().split('T')[0]);
 
-  const users = getUsers();
-  const matters = getMatters();
-  const assignments = getAssignments();
+  // Hooks for data
+  const { data: profiles = [], isLoading: profilesLoading } = useProfiles();
+  const { data: matters = [], isLoading: mattersLoading } = useMatters();
+  const { data: assignments = [], isLoading: assignmentsLoading } = useAssignments();
+  const updateProfile = useUpdateProfile();
+  const updateUserRole = useUpdateUserRole();
+  const createAssignment = useCreateAssignment();
+  const deleteAssignment = useDeleteAssignment();
 
-  const filteredUsers = users.filter(u =>
+  const filteredUsers = profiles.filter(u =>
     u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -82,54 +71,81 @@ export default function Collaborators() {
     );
   }
 
+  const isLoading = profilesLoading || mattersLoading || assignmentsLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   const resetUserForm = () => {
     setFormName('');
-    setFormEmail('');
     setFormRole('collaborator');
     setFormRateCents('');
     setEditingUser(null);
   };
 
-  const openUserDialog = (u?: User) => {
+  const openUserDialog = (u?: ProfileWithRole) => {
     if (u) {
       setEditingUser(u);
       setFormName(u.name);
-      setFormEmail(u.email);
-      setFormRole(u.role);
-      setFormRateCents(u.rateCents ? String(u.rateCents / 100) : '');
+      setFormRole(u.role || 'collaborator');
+      setFormRateCents(u.rate_cents ? String(u.rate_cents / 100) : '');
     } else {
       resetUserForm();
     }
     setIsUserDialogOpen(true);
   };
 
-  const handleSaveUser = () => {
-    if (!formName.trim() || !formEmail.trim()) {
-      toast.error('Nom et email sont obligatoires');
+  const handleSaveUser = async () => {
+    if (!editingUser) return;
+    
+    if (!formName.trim()) {
+      toast.error('Le nom est obligatoire');
       return;
     }
 
-    const rateCents = formRateCents ? Math.round(parseFloat(formRateCents) * 100) : undefined;
+    const rateCents = formRateCents ? Math.round(parseFloat(formRateCents) * 100) : null;
 
-    const newUser: User = {
-      id: editingUser?.id || generateId(),
-      email: formEmail.trim(),
-      name: formName.trim(),
-      role: formRole,
-      active: editingUser?.active ?? true,
-      createdAt: editingUser?.createdAt || new Date().toISOString(),
-      rateCents: rateCents || undefined,
-    };
+    try {
+      // Update profile
+      await updateProfile.mutateAsync({
+        id: editingUser.id,
+        name: formName.trim(),
+        rate_cents: rateCents,
+      });
 
-    saveUser(newUser);
-    toast.success(editingUser ? 'Utilisateur modifié' : 'Utilisateur créé');
-    setIsUserDialogOpen(false);
-    resetUserForm();
+      // Update role if changed
+      if (formRole !== editingUser.role) {
+        await updateUserRole.mutateAsync({
+          userId: editingUser.id,
+          role: formRole,
+        });
+      }
+
+      toast.success('Utilisateur modifié');
+      setIsUserDialogOpen(false);
+      resetUserForm();
+    } catch (error) {
+      toast.error('Erreur lors de la modification');
+      console.error(error);
+    }
   };
 
-  const toggleUserActive = (u: User) => {
-    saveUser({ ...u, active: !u.active });
-    toast.success(u.active ? 'Utilisateur désactivé' : 'Utilisateur activé');
+  const toggleUserActive = async (u: ProfileWithRole) => {
+    try {
+      await updateProfile.mutateAsync({
+        id: u.id,
+        active: !u.active,
+      });
+      toast.success(u.active ? 'Utilisateur désactivé' : 'Utilisateur activé');
+    } catch (error) {
+      toast.error('Erreur lors de la modification');
+      console.error(error);
+    }
   };
 
   const openAssignDialog = (userId: string) => {
@@ -139,36 +155,51 @@ export default function Collaborators() {
     setIsAssignDialogOpen(true);
   };
 
-  const handleSaveAssignment = () => {
+  const handleSaveAssignment = async () => {
     if (!assignMatterId) {
       toast.error('Veuillez sélectionner un dossier');
       return;
     }
 
-    const assignment: Assignment = {
-      id: generateId(),
-      matterId: assignMatterId,
-      userId: selectedUserId,
-      startDate: assignStartDate,
-    };
-
-    saveAssignment(assignment);
-    toast.success('Affectation créée');
-    setIsAssignDialogOpen(false);
+    try {
+      await createAssignment.mutateAsync({
+        matter_id: assignMatterId,
+        user_id: selectedUserId,
+        start_date: assignStartDate,
+        end_date: null,
+      });
+      toast.success('Affectation créée');
+      setIsAssignDialogOpen(false);
+    } catch (error) {
+      toast.error('Erreur lors de la création de l\'affectation');
+      console.error(error);
+    }
   };
 
-  const handleDeleteAssignment = (assignmentId: string) => {
-    deleteAssignment(assignmentId);
-    toast.success('Affectation supprimée');
+  const handleDeleteAssignment = async (assignmentId: string) => {
+    try {
+      await deleteAssignment.mutateAsync(assignmentId);
+      toast.success('Affectation supprimée');
+    } catch (error) {
+      toast.error('Erreur lors de la suppression');
+      console.error(error);
+    }
   };
 
   const getUserAssignments = (userId: string) => {
-    return assignments.filter(a => a.userId === userId);
+    return assignments.filter(a => a.user_id === userId);
   };
 
   const getMatterLabel = (matterId: string) => {
     const matter = matters.find(m => m.id === matterId);
     return matter ? `${matter.code} - ${matter.label}` : 'Inconnu';
+  };
+
+  const formatCents = (cents: number) => {
+    return new Intl.NumberFormat('fr-MA', {
+      style: 'currency',
+      currency: 'MAD',
+    }).format(cents / 100);
   };
 
   const roleLabels: Record<UserRole, string> = {
@@ -185,6 +216,8 @@ export default function Collaborators() {
     collaborator: 'bg-secondary text-secondary-foreground',
   };
 
+  const openMatters = matters.filter(m => m.status === 'open');
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -194,17 +227,11 @@ export default function Collaborators() {
         </div>
 
         <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => openUserDialog()}>
-              <Plus className="w-4 h-4 mr-2" />
-              Nouvel utilisateur
-            </Button>
-          </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>{editingUser ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur'}</DialogTitle>
+              <DialogTitle>Modifier l'utilisateur</DialogTitle>
               <DialogDescription>
-                Définissez les informations et le rôle de l'utilisateur.
+                Modifiez les informations et le rôle de l'utilisateur.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -219,13 +246,11 @@ export default function Collaborators() {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="email">Email *</Label>
+                <Label>Email</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="utilisateur@cabinet.fr"
-                  value={formEmail}
-                  onChange={(e) => setFormEmail(e.target.value)}
+                  value={editingUser?.email || ''}
+                  disabled
+                  className="bg-muted"
                 />
               </div>
 
@@ -263,8 +288,14 @@ export default function Collaborators() {
               <Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>
                 Annuler
               </Button>
-              <Button onClick={handleSaveUser}>
-                {editingUser ? 'Enregistrer' : 'Créer'}
+              <Button 
+                onClick={handleSaveUser}
+                disabled={updateProfile.isPending || updateUserRole.isPending}
+              >
+                {(updateProfile.isPending || updateUserRole.isPending) && (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                )}
+                Enregistrer
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -299,11 +330,17 @@ export default function Collaborators() {
                   <SelectValue placeholder="Sélectionnez un dossier" />
                 </SelectTrigger>
                 <SelectContent>
-                  {matters.filter(m => m.status === 'open').map((matter) => (
-                    <SelectItem key={matter.id} value={matter.id}>
-                      {matter.code} - {matter.label}
-                    </SelectItem>
-                  ))}
+                  {openMatters.length === 0 ? (
+                    <div className="p-2 text-sm text-muted-foreground text-center">
+                      Aucun dossier ouvert disponible
+                    </div>
+                  ) : (
+                    openMatters.map((matter) => (
+                      <SelectItem key={matter.id} value={matter.id}>
+                        {matter.code} - {matter.label}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -322,7 +359,13 @@ export default function Collaborators() {
             <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
               Annuler
             </Button>
-            <Button onClick={handleSaveAssignment}>
+            <Button 
+              onClick={handleSaveAssignment}
+              disabled={createAssignment.isPending || !assignMatterId}
+            >
+              {createAssignment.isPending && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
               Affecter
             </Button>
           </DialogFooter>
@@ -354,13 +397,15 @@ export default function Collaborators() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{u.name}</span>
-                          <Badge className={roleColors[u.role]}>{roleLabels[u.role]}</Badge>
+                          {u.role && (
+                            <Badge className={roleColors[u.role]}>{roleLabels[u.role]}</Badge>
+                          )}
                           {!u.active && <Badge variant="secondary">Inactif</Badge>}
                         </div>
                         <p className="text-sm text-muted-foreground">{u.email}</p>
-                        {u.rateCents && (
+                        {u.rate_cents && (
                           <p className="text-xs text-muted-foreground">
-                            Taux: {formatCents(u.rateCents)}/h
+                            Taux: {formatCents(u.rate_cents)}/h
                           </p>
                         )}
                       </div>
@@ -399,7 +444,7 @@ export default function Collaborators() {
                       <div className="flex flex-wrap gap-2">
                         {userAssignments.map((a) => (
                           <Badge key={a.id} variant="outline" className="flex items-center gap-1">
-                            {getMatterLabel(a.matterId)}
+                            {getMatterLabel(a.matter_id)}
                             <button
                               onClick={() => handleDeleteAssignment(a.id)}
                               className="ml-1 hover:text-destructive"
