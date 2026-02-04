@@ -33,7 +33,7 @@ import { Plus, Pencil, Building2, Search, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Clients() {
-  const { user } = useAuth();
+  const { role } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -122,7 +122,7 @@ export default function Clients() {
     }
   };
 
-  const canEdit = user?.role === 'owner' || user?.role === 'assistant' || user?.role === 'sysadmin';
+  const canEdit = role === 'owner' || role === 'assistant' || role === 'sysadmin';
   const isSaving = createClient.isPending || updateClient.isPending;
 
   if (isLoading) {

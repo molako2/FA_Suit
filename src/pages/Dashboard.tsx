@@ -53,7 +53,7 @@ function exportKPIByMatterCSV(data: KPIByMatter[], from: string, to: string) {
 }
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { role } = useAuth();
   const [periodFrom, setPeriodFrom] = useState(() => {
     const d = new Date();
     d.setDate(1); // First of month
@@ -133,7 +133,7 @@ export default function Dashboard() {
     return Math.round((kpiSummary.totalBillableMinutes * rateCents) / 60);
   }, [kpiSummary.totalBillableMinutes, settings?.rate_cabinet_cents]);
 
-  if (user?.role !== 'owner') {
+  if (role !== 'owner' && role !== 'sysadmin') {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <Card>

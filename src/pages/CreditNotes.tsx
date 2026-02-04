@@ -38,7 +38,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 export default function CreditNotes() {
-  const { user } = useAuth();
+  const { role } = useAuth();
   const [creditNotes, setCreditNotes] = useState(getCreditNotes);
   const invoices = getInvoices();
   const matters = getMatters();
@@ -51,7 +51,7 @@ export default function CreditNotes() {
   const [isPartial, setIsPartial] = useState(false);
   const [partialAmount, setPartialAmount] = useState('');
 
-  const canEdit = user?.role === 'owner' || user?.role === 'assistant';
+  const canEdit = role === 'owner' || role === 'assistant' || role === 'sysadmin';
 
   const refreshCreditNotes = () => setCreditNotes(getCreditNotes());
 
