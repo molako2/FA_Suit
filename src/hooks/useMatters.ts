@@ -9,6 +9,8 @@ export interface Matter {
   status: 'open' | 'closed';
   rate_cents: number | null;
   vat_rate: number;
+  billing_type: 'time_based' | 'flat_fee';
+  flat_fee_cents: number | null;
   created_at: string;
   updated_at: string;
 }
