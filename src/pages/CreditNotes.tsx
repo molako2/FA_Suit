@@ -177,7 +177,7 @@ export default function CreditNotes() {
     setPartialAmount('');
   };
 
-  const handlePrintPDF = (creditNoteId: string) => {
+  const handlePrintPDF = async (creditNoteId: string) => {
     const creditNote = creditNotes.find(cn => cn.id === creditNoteId);
     if (!creditNote || !settings) return;
 
@@ -201,7 +201,7 @@ export default function CreditNotes() {
       amountTtcCents: l.amount_ttc_cents,
     }));
 
-    printCreditNotePDF({
+    await printCreditNotePDF({
       creditNote: {
         id: creditNote.id,
         number: creditNote.number,

@@ -380,7 +380,7 @@ export default function Invoices() {
     }
   };
 
-  const handlePrintPDF = (invoiceId: string) => {
+  const handlePrintPDF = async (invoiceId: string) => {
     const invoice = invoices.find(i => i.id === invoiceId);
     if (!invoice || !settings) return;
 
@@ -452,7 +452,7 @@ export default function Invoices() {
       createdAt: matter.created_at,
     };
 
-    printInvoicePDF({ invoice: invoiceData, settings: settingsData, client: clientData, matter: matterData });
+    await printInvoicePDF({ invoice: invoiceData, settings: settingsData, client: clientData, matter: matterData });
   };
 
   const handleExportCSV = () => {
