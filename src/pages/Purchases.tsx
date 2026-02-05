@@ -62,8 +62,8 @@ export default function Purchases() {
   const [formNumIF, setFormNumIF] = useState('');
   const [formSupplier, setFormSupplier] = useState('');
   const [formICE, setFormICE] = useState('');
-  const [formRate, setFormRate] = useState('');
-  const [formProrata, setFormProrata] = useState('');
+  const [formRate, setFormRate] = useState('20');
+  const [formProrata, setFormProrata] = useState('100');
   const [formPaymentMode, setFormPaymentMode] = useState('1');
   const [formPaymentDate, setFormPaymentDate] = useState('');
   const [formInvoiceDate, setFormInvoiceDate] = useState('');
@@ -88,8 +88,8 @@ export default function Purchases() {
     setFormNumIF('');
     setFormSupplier('');
     setFormICE('');
-    setFormRate('');
-    setFormProrata('');
+    setFormRate('20');
+    setFormProrata('100');
     setFormPaymentMode('1');
     setFormPaymentDate('');
     setFormInvoiceDate('');
