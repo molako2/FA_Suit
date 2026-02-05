@@ -44,6 +44,8 @@ export default function Clients() {
   const [formAddress, setFormAddress] = useState('');
   const [formBillingEmail, setFormBillingEmail] = useState('');
   const [formVatNumber, setFormVatNumber] = useState('');
+  const [formContactName, setFormContactName] = useState('');
+  const [formContactPhone, setFormContactPhone] = useState('');
 
   // Supabase hooks
   const { data: clients = [], isLoading } = useClients();
@@ -60,6 +62,8 @@ export default function Clients() {
     setFormAddress('');
     setFormBillingEmail('');
     setFormVatNumber('');
+    setFormContactName('');
+    setFormContactPhone('');
     setEditingClient(null);
   };
 
@@ -70,6 +74,8 @@ export default function Clients() {
       setFormAddress(client.address || '');
       setFormBillingEmail(client.billing_email || '');
       setFormVatNumber(client.vat_number || '');
+      setFormContactName(client.contact_name || '');
+      setFormContactPhone(client.contact_phone || '');
     } else {
       resetForm();
     }
@@ -95,6 +101,8 @@ export default function Clients() {
           address: formAddress.trim() || null,
           billing_email: formBillingEmail.trim() || null,
           vat_number: formVatNumber.trim() || null,
+          contact_name: formContactName.trim() || null,
+          contact_phone: formContactPhone.trim() || null,
         });
         toast.success('Client modifié');
       } else {
@@ -104,6 +112,8 @@ export default function Clients() {
           address: formAddress.trim() || null,
           billing_email: formBillingEmail.trim() || null,
           vat_number: formVatNumber.trim() || null,
+          contact_name: formContactName.trim() || null,
+          contact_phone: formContactPhone.trim() || null,
           active: true,
         });
         toast.success('Client créé');
@@ -230,6 +240,27 @@ export default function Clients() {
                   {formVatNumber && formVatNumber.length !== 15 && (
                     <p className="text-xs text-destructive">Le numéro ICE doit contenir exactement 15 chiffres</p>
                   )}
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="contactName">Nom du contact</Label>
+                  <Input
+                    id="contactName"
+                    placeholder="Nom du contact chez le client"
+                    value={formContactName}
+                    onChange={(e) => setFormContactName(e.target.value)}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="contactPhone">Téléphone du contact</Label>
+                  <Input
+                    id="contactPhone"
+                    type="tel"
+                    placeholder="+212 6XX XXX XXX"
+                    value={formContactPhone}
+                    onChange={(e) => setFormContactPhone(e.target.value)}
+                  />
                 </div>
               </div>
               <DialogFooter>
