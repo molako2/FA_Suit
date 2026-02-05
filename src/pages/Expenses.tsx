@@ -47,9 +47,19 @@ import { Plus, Trash2, Loader2, Receipt, Download } from 'lucide-react';
    const [nature, setNature] = useState('');
    const [amountTTC, setAmountTTC] = useState('');
    const [billable, setBillable] = useState(true);
+  const [selectedUserId, setSelectedUserId] = useState('');
+
+  // Initialize selectedUserId when dialog opens
+  const handleOpenDialog = (open: boolean) => {
+    if (open && !selectedUserId && user) {
+      setSelectedUserId(user.id);
+    }
+    setIsDialogOpen(open);
+  };
  
    // Data hooks
   const canViewAll = role === 'owner' || role === 'sysadmin';
+  const canAddForOthers = role === 'owner' || role === 'sysadmin';
   const { data: expenses = [], isLoading: expensesLoading } = useExpenses(canViewAll ? undefined : user?.id);
    const { data: clients = [], isLoading: clientsLoading } = useClients();
    const { data: matters = [], isLoading: mattersLoading } = useMatters();
@@ -79,6 +89,7 @@ import { Plus, Trash2, Loader2, Receipt, Download } from 'lucide-react';
      setNature('');
      setAmountTTC('');
      setBillable(true);
+    setSelectedUserId(user?.id || '');
    };
  
    const handleSubmit = async (e: React.FormEvent) => {
@@ -105,9 +116,11 @@ import { Plus, Trash2, Loader2, Receipt, Download } from 'lucide-react';
        return;
      }
  
+    const targetUserId = canAddForOthers && selectedUserId ? selectedUserId : user.id;
+
      try {
        await createExpense.mutateAsync({
-         user_id: user.id,
+        user_id: targetUserId,
          client_id: selectedClientId,
          matter_id: selectedMatterId,
          expense_date: expenseDate,
@@ -197,7 +210,7 @@ import { Plus, Trash2, Loader2, Receipt, Download } from 'lucide-react';
               <Download className="w-4 h-4 mr-2" />
               Export CSV
             </Button>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={handleOpenDialog}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="w-4 h-4 mr-2" />
@@ -212,6 +225,24 @@ import { Plus, Trash2, Loader2, Receipt, Download } from 'lucide-react';
                </DialogDescription>
              </DialogHeader>
              <form onSubmit={handleSubmit} className="space-y-4">
+              {canAddForOthers && (
+                <div className="grid gap-2">
+                  <Label htmlFor="userSelect">Collaborateur</Label>
+                  <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionnez un collaborateur" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {profiles.filter(p => p.active).map((profile) => (
+                        <SelectItem key={profile.id} value={profile.id}>
+                          {profile.name} ({profile.email})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
                {/* Client Code */}
                <div className="grid gap-2">
                  <Label htmlFor="clientCode">Code Client</Label>
