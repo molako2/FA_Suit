@@ -333,10 +333,12 @@ export type Database = {
         Row: {
           billing_type: string
           client_id: string
+          client_sector: string | null
           code: string
           created_at: string
           flat_fee_cents: number | null
           id: string
+          intervention_nature: string | null
           label: string
           rate_cents: number | null
           status: string
@@ -346,10 +348,12 @@ export type Database = {
         Insert: {
           billing_type?: string
           client_id: string
+          client_sector?: string | null
           code: string
           created_at?: string
           flat_fee_cents?: number | null
           id?: string
+          intervention_nature?: string | null
           label: string
           rate_cents?: number | null
           status?: string
@@ -359,10 +363,12 @@ export type Database = {
         Update: {
           billing_type?: string
           client_id?: string
+          client_sector?: string | null
           code?: string
           created_at?: string
           flat_fee_cents?: number | null
           id?: string
+          intervention_nature?: string | null
           label?: string
           rate_cents?: number | null
           status?: string
