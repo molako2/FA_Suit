@@ -12,6 +12,7 @@ import {
   ChevronDown,
   Building2,
   FolderOpen,
+   Receipt,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -44,6 +45,12 @@ const navItems: NavItem[] = [
     icon: Clock,
     roles: ['sysadmin', 'owner', 'assistant', 'collaborator'],
   },
+   {
+     label: 'Mes frais',
+     href: '/expenses',
+     icon: Receipt,
+     roles: ['sysadmin', 'owner', 'assistant', 'collaborator'],
+   },
   {
     label: 'Clients',
     href: '/clients',

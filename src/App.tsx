@@ -11,6 +11,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Timesheet from "./pages/Timesheet";
+ import Expenses from "./pages/Expenses";
 import Clients from "./pages/Clients";
 import Matters from "./pages/Matters";
 import Collaborators from "./pages/Collaborators";
@@ -53,6 +54,15 @@ function AppRoutes() {
         }
       />
       
+       <Route
+         path="/expenses"
+         element={
+           <ProtectedRoute>
+             <AppLayout><Expenses /></AppLayout>
+           </ProtectedRoute>
+         }
+       />
+       
       <Route
         path="/clients"
         element={
