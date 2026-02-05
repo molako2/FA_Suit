@@ -5,7 +5,64 @@ import type { Invoice, CreditNote, InvoiceLine, CabinetSettings, Client, Matter 
 
 // Local formatCents function
 function formatCents(cents: number): string {
-  return (cents / 100).toFixed(2).replace('.', ',') + ' MAD';
+  return (cents / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' MAD';
+}
+
+// Convert number to words in French
+function numberToWordsFR(amount: number): string {
+  const units = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf'];
+  const tens = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt'];
+  
+  if (amount === 0) return 'zéro';
+  if (amount < 0) return 'moins ' + numberToWordsFR(-amount);
+  
+  let words = '';
+  
+  if (amount >= 1000000) {
+    const millions = Math.floor(amount / 1000000);
+    words += (millions === 1 ? 'un million' : numberToWordsFR(millions) + ' millions') + ' ';
+    amount %= 1000000;
+  }
+  
+  if (amount >= 1000) {
+    const thousands = Math.floor(amount / 1000);
+    words += (thousands === 1 ? 'mille' : numberToWordsFR(thousands) + ' mille') + ' ';
+    amount %= 1000;
+  }
+  
+  if (amount >= 100) {
+    const hundreds = Math.floor(amount / 100);
+    words += (hundreds === 1 ? 'cent' : units[hundreds] + ' cent') + ' ';
+    amount %= 100;
+  }
+  
+  if (amount >= 20) {
+    const ten = Math.floor(amount / 10);
+    const unit = amount % 10;
+    if (ten === 7 || ten === 9) {
+      words += tens[ten] + '-' + units[10 + unit];
+    } else if (ten === 8 && unit === 0) {
+      words += 'quatre-vingts';
+    } else {
+      words += tens[ten] + (unit === 1 && ten !== 8 ? '-et-' : (unit > 0 ? '-' : '')) + units[unit];
+    }
+  } else if (amount > 0) {
+    words += units[amount];
+  }
+  
+  return words.trim();
+}
+
+function amountToWordsFR(cents: number): string {
+  const dirhams = Math.floor(cents / 100);
+  const centimes = cents % 100;
+  
+  let result = numberToWordsFR(dirhams) + ' dirham' + (dirhams > 1 ? 's' : '');
+  if (centimes > 0) {
+    result += ' et ' + numberToWordsFR(centimes) + ' centime' + (centimes > 1 ? 's' : '');
+  }
+  
+  return result.charAt(0).toUpperCase() + result.slice(1);
 }
 
 interface InvoicePDFData {
@@ -36,6 +93,7 @@ function formatMinutesToHours(minutes: number): string {
   return `${hours} h`;
 }
 
+// CM2A Invoice Template
 function generateInvoiceHTML(data: InvoicePDFData): string {
   const { invoice, settings, client, matter } = data;
   
@@ -45,6 +103,9 @@ function generateInvoiceHTML(data: InvoicePDFData): string {
     cancelled: 'ANNULÉE'
   }[invoice.status];
 
+  // Calculate VAT rate from lines (assuming same rate for all)
+  const vatRate = invoice.lines.length > 0 ? invoice.lines[0].vatRate : 20;
+
   return `
     <!DOCTYPE html>
     <html lang="fr">
@@ -52,145 +113,409 @@ function generateInvoiceHTML(data: InvoicePDFData): string {
       <meta charset="UTF-8">
       <title>Facture ${invoice.number || 'Brouillon'}</title>
       <style>
+        @page {
+          size: A4;
+          margin: 0;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
           font-family: 'Segoe UI', Arial, sans-serif; 
           font-size: 11pt;
           line-height: 1.5;
-          color: #1a365d;
-          padding: 40px;
+          color: #333;
+          background: white;
+          min-height: 100vh;
+          position: relative;
         }
-        .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
-        .cabinet { text-align: left; }
-        .cabinet-name { font-size: 18pt; font-weight: bold; color: #1a365d; }
-        .cabinet-info { color: #4a5568; font-size: 10pt; white-space: pre-line; margin-top: 8px; }
-        .invoice-info { text-align: right; }
-        .invoice-title { font-size: 24pt; font-weight: bold; color: #1a365d; }
-        .invoice-number { font-size: 14pt; color: #c9a227; margin-top: 4px; }
-        .invoice-date { color: #4a5568; margin-top: 8px; }
-        .status-badge { 
-          display: inline-block;
-          padding: 4px 12px;
-          background: #fed7d7;
-          color: #c53030;
+        .page {
+          position: relative;
+          min-height: 100vh;
+          padding: 0;
+        }
+        /* Top colored bar */
+        .top-bar {
+          height: 20px;
+          display: flex;
+        }
+        .top-bar-blue { background: #1e3a8a; flex: 1; }
+        .top-bar-yellow { background: #fbbf24; flex: 1; }
+        .top-bar-red { background: #dc2626; flex: 1; }
+        
+        /* Header */
+        .header {
+          display: flex;
+          justify-content: space-between;
+          padding: 20px 40px;
+          align-items: flex-start;
+        }
+        .logo-section {
+          display: flex;
+          align-items: center;
+          gap: 15px;
+        }
+        .logo-img {
+          height: 80px;
+          width: auto;
+        }
+        .company-name {
+          font-size: 28pt;
           font-weight: bold;
-          font-size: 10pt;
-          border-radius: 4px;
-          margin-top: 8px;
         }
-        .client-section { 
-          background: #f7fafc; 
-          padding: 20px; 
-          border-radius: 8px;
-          margin-bottom: 30px;
-        }
-        .section-label { font-size: 9pt; color: #718096; text-transform: uppercase; margin-bottom: 8px; }
-        .client-name { font-size: 14pt; font-weight: bold; }
-        .client-info { color: #4a5568; white-space: pre-line; }
-        .matter-info { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0; }
-        .period { color: #718096; font-size: 10pt; margin-top: 4px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-        th { 
-          background: #1a365d; 
-          color: white; 
-          padding: 12px; 
-          text-align: left; 
-          font-size: 10pt;
-        }
-        th:last-child, th:nth-child(4), th:nth-child(5), th:nth-child(6) { text-align: right; }
-        td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
-        td:last-child, td:nth-child(4), td:nth-child(5), td:nth-child(6) { text-align: right; }
-        .totals { margin-left: auto; width: 300px; }
-        .total-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
-        .total-row.final { 
-          font-size: 14pt; 
-          font-weight: bold; 
-          color: #1a365d;
-          border-bottom: 2px solid #1a365d;
-          padding: 12px 0;
-        }
-        .footer { 
-          margin-top: 40px; 
-          padding-top: 20px; 
-          border-top: 1px solid #e2e8f0;
+        .company-name .cm2a { color: #1e3a8a; }
+        .company-name .consulting { color: #dc2626; }
+        .contact-info {
+          text-align: right;
           font-size: 9pt;
-          color: #718096;
+          color: #666;
         }
-        .iban { margin-top: 12px; font-family: monospace; }
+        .contact-info div {
+          margin-bottom: 2px;
+        }
+        .contact-icon {
+          color: #dc2626;
+          margin-right: 5px;
+        }
+        
+        /* Main content */
+        .content {
+          padding: 20px 40px;
+        }
+        
+        /* Client section */
+        .client-section {
+          text-align: right;
+          margin-bottom: 20px;
+        }
+        .client-label {
+          font-size: 10pt;
+          color: #666;
+        }
+        .client-name {
+          font-weight: bold;
+          font-size: 12pt;
+        }
+        
+        /* Date */
+        .date-section {
+          text-align: center;
+          margin: 30px 0;
+        }
+        
+        /* Invoice badge */
+        .invoice-badge-section {
+          margin: 30px 0;
+        }
+        .invoice-badge {
+          display: inline-block;
+          background: #fbbf24;
+          color: #000;
+          padding: 5px 15px;
+          font-weight: bold;
+          font-size: 11pt;
+        }
+        .invoice-number {
+          margin-top: 5px;
+          color: #666;
+        }
+        ${statusLabel ? `
+        .status-badge {
+          display: inline-block;
+          background: #dc2626;
+          color: white;
+          padding: 3px 10px;
+          font-size: 9pt;
+          margin-left: 10px;
+        }
+        ` : ''}
+        
+        /* Description */
+        .description-section {
+          margin: 40px 0;
+        }
+        .description-title {
+          font-size: 12pt;
+          margin-bottom: 20px;
+        }
+        
+        /* Watermark */
+        .watermark {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          opacity: 0.08;
+          font-size: 120pt;
+          font-weight: bold;
+          color: #1e3a8a;
+          pointer-events: none;
+          z-index: 0;
+          white-space: nowrap;
+        }
+        .watermark .consulting { color: #dc2626; }
+        
+        /* Lines table */
+        .lines-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 30px;
+          position: relative;
+          z-index: 1;
+        }
+        .lines-table th {
+          background: #f3f4f6;
+          padding: 10px;
+          text-align: left;
+          font-size: 10pt;
+          border-bottom: 2px solid #ddd;
+        }
+        .lines-table td {
+          padding: 10px;
+          border-bottom: 1px solid #eee;
+        }
+        .lines-table .right {
+          text-align: right;
+        }
+        
+        /* Totals section */
+        .totals-section {
+          display: flex;
+          justify-content: flex-end;
+          margin: 30px 0;
+          position: relative;
+          z-index: 1;
+        }
+        .totals-table {
+          width: 300px;
+        }
+        .total-row {
+          display: flex;
+          justify-content: space-between;
+          padding: 8px 0;
+          border-bottom: 1px solid #eee;
+        }
+        .total-row.final {
+          font-weight: bold;
+          font-size: 12pt;
+          border-bottom: 2px solid #333;
+        }
+        
+        /* Amount in words */
+        .amount-words {
+          font-style: italic;
+          margin: 20px 0;
+          position: relative;
+          z-index: 1;
+        }
+        
+        /* Stamp section */
+        .stamp-section {
+          display: flex;
+          justify-content: flex-end;
+          margin: 30px 0;
+          position: relative;
+          z-index: 1;
+        }
+        .stamp-box {
+          text-align: center;
+          padding: 10px;
+        }
+        .stamp-company {
+          font-weight: bold;
+          color: #1e3a8a;
+        }
+        .stamp-details {
+          font-size: 8pt;
+          color: #666;
+        }
+        
+        /* Payment info */
+        .payment-section {
+          margin-top: 40px;
+          text-align: center;
+          font-size: 10pt;
+          position: relative;
+          z-index: 1;
+        }
+        .payment-section p {
+          margin: 5px 0;
+        }
+        .payment-bold {
+          font-weight: bold;
+        }
+        
+        /* Footer */
+        .footer {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+        }
+        .footer-content {
+          background: white;
+          padding: 15px 40px;
+          text-align: center;
+          font-size: 9pt;
+          color: #dc2626;
+        }
+        .footer-content p {
+          margin: 2px 0;
+        }
+        .footer-company {
+          font-weight: bold;
+        }
+        .bottom-bar {
+          height: 20px;
+          display: flex;
+        }
+        .bottom-bar-blue { background: #1e3a8a; flex: 1; }
+        .bottom-bar-yellow { background: #fbbf24; flex: 1; }
+        .bottom-bar-red { background: #dc2626; flex: 1; }
+        
         @media print {
-          body { padding: 20px; }
-          @page { margin: 15mm; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .page { page-break-after: always; }
         }
       </style>
     </head>
     <body>
-      <div class="header">
-        <div class="cabinet">
-          <div class="cabinet-name">${settings.name}</div>
-          ${settings.address ? `<div class="cabinet-info">${settings.address}</div>` : ''}
+      <div class="page">
+        <!-- Top bar -->
+        <div class="top-bar">
+          <div class="top-bar-blue"></div>
+          <div class="top-bar-yellow"></div>
+          <div class="top-bar-red"></div>
         </div>
-        <div class="invoice-info">
-          <div class="invoice-title">FACTURE</div>
-          <div class="invoice-number">${invoice.number || 'BROUILLON'}</div>
-          ${invoice.issueDate ? `<div class="invoice-date">Date: ${formatDate(invoice.issueDate)}</div>` : ''}
-          ${statusLabel ? `<div class="status-badge">${statusLabel}</div>` : ''}
+        
+        <!-- Header -->
+        <div class="header">
+          <div class="logo-section">
+            <div class="company-name">
+              <span class="cm2a">CM2A</span><br>
+              <span class="consulting">Consulting</span>
+            </div>
+          </div>
+          <div class="contact-info">
+            <div><span class="contact-icon">📞</span>+212 808 56 40 38</div>
+            <div><span class="contact-icon">✉️</span>contact@cm2a.ma</div>
+            <div><span class="contact-icon">🌐</span>www.cm2a.ma</div>
+          </div>
         </div>
-      </div>
-
-      <div class="client-section">
-        <div class="section-label">Facturer à</div>
-        <div class="client-name">${client.name}</div>
-        ${client.address ? `<div class="client-info">${client.address}</div>` : ''}
-        ${client.vatNumber ? `<div class="client-info">TVA: ${client.vatNumber}</div>` : ''}
-        <div class="matter-info">
-          <strong>Dossier:</strong> ${matter.code} - ${matter.label}
-          <div class="period">Période: ${formatDate(invoice.periodFrom)} au ${formatDate(invoice.periodTo)}</div>
+        
+        <!-- Content -->
+        <div class="content">
+          <!-- Client -->
+          <div class="client-section">
+            <div class="client-label">A l'aimable attention de</div>
+            <div class="client-name">${client.name}</div>
+            ${client.address ? `<div>${client.address}</div>` : ''}
+            ${client.vatNumber ? `<div>ICE: ${client.vatNumber}</div>` : ''}
+          </div>
+          
+          <!-- Date -->
+          <div class="date-section">
+            Casablanca, le ${invoice.issueDate ? formatDate(invoice.issueDate) : '_______________'}
+          </div>
+          
+          <!-- Invoice badge -->
+          <div class="invoice-badge-section">
+            <span class="invoice-badge">FACTURE</span>
+            ${statusLabel ? `<span class="status-badge">${statusLabel}</span>` : ''}
+            <div class="invoice-number">N/FAC : ${invoice.number || '___________'}</div>
+          </div>
+          
+          <!-- Watermark -->
+          <div class="watermark">
+            CM2A<br><span class="consulting">Consulting</span>
+          </div>
+          
+          <!-- Description / Lines -->
+          <div class="description-section">
+            ${invoice.lines.length > 0 && invoice.lines.some(l => l.minutes > 0) ? `
+              <table class="lines-table">
+                <thead>
+                  <tr>
+                    <th>Description</th>
+                    <th class="right">Heures</th>
+                    <th class="right">Taux</th>
+                    <th class="right">Montant HT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${invoice.lines.map(line => `
+                    <tr>
+                      <td>${line.label}</td>
+                      <td class="right">${line.label.startsWith('Frais -') ? '-' : formatMinutesToHours(line.minutes)}</td>
+                      <td class="right">${line.label.startsWith('Frais -') ? '-' : formatCents(line.rateCents)}</td>
+                      <td class="right">${formatCents(line.amountHtCents)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            ` : `
+              <div class="description-title">Service professionnels rendus</div>
+              <p><strong>Dossier:</strong> ${matter.code} - ${matter.label}</p>
+              <p><strong>Période:</strong> ${formatDate(invoice.periodFrom)} au ${formatDate(invoice.periodTo)}</p>
+            `}
+          </div>
+          
+          <!-- Totals -->
+          <div class="totals-section">
+            <div class="totals-table">
+              <div class="total-row">
+                <span>Montant HT</span>
+                <span>${formatCents(invoice.totalHtCents)}</span>
+              </div>
+              <div class="total-row">
+                <span>TVA ${vatRate}%</span>
+                <span>${formatCents(invoice.totalVatCents)}</span>
+              </div>
+              <div class="total-row final">
+                <span>Total TTC</span>
+                <span>${formatCents(invoice.totalTtcCents)}</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Amount in words -->
+          <div class="amount-words">
+            <em>Arrêté la présente facture à la somme de ${amountToWordsFR(invoice.totalTtcCents)}</em>
+          </div>
+          
+          <!-- Stamp -->
+          <div class="stamp-section">
+            <div class="stamp-box">
+              <div class="stamp-company">CM2A CONSULTING</div>
+              <div class="stamp-details">SARL AU</div>
+              <div class="stamp-details">15, Bd. Med Zerktouni Rés. Prestige</div>
+              <div class="stamp-details">Etg 4 Appt 12 Casablanca</div>
+              <div class="stamp-details">RC 471315 - ICE 002465969000025</div>
+            </div>
+          </div>
+          
+          <!-- Payment info -->
+          <div class="payment-section">
+            <p class="payment-bold">Valeur en votre aimable règlement à réception de la présente</p>
+            <p>Règlement par chèque à libeller au nom de « CM2A CONSULTING »</p>
+            <p>Règlement par virement sur le compte de « CM2A CONSULTING »</p>
+            <p>AttijariWafa Bank – Agence CASA C.I.L</p>
+            <p class="payment-bold">Compte n° 007780000048200000049063</p>
+          </div>
         </div>
-      </div>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Description</th>
-            <th>Heures</th>
-            <th>Taux horaire</th>
-            <th>TVA</th>
-            <th>HT</th>
-            <th>TTC</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${invoice.lines.map(line => `
-            <tr>
-              <td>${line.label}</td>
-              <td>${line.label.startsWith('Frais -') ? '-' : formatMinutesToHours(line.minutes)}</td>
-              <td>${line.label.startsWith('Frais -') ? '-' : formatCents(line.rateCents)}</td>
-              <td>${line.vatRate}%</td>
-              <td>${formatCents(line.amountHtCents)}</td>
-              <td>${formatCents(line.amountTtcCents)}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-
-      <div class="totals">
-        <div class="total-row">
-          <span>Total HT</span>
-          <span>${formatCents(invoice.totalHtCents)}</span>
+        
+        <!-- Footer -->
+        <div class="footer">
+          <div class="footer-content">
+            <p class="footer-company">CM2A Consulting SARLAU au capital de 100.000 DH</p>
+            <p>Société d'audit et d'expertise comptable inscrite à l'Ordre des Experts-Comptables du Maroc</p>
+            <p>Adresse : 15 Bd Med Zerktouni | Résidence Prestige | 4ème étage - n°12 Casablanca |</p>
+            <p>TP: 36340816 | RC: 471315 | IF: 45939905  ICE: 002465969000025</p>
+          </div>
+          <div class="bottom-bar">
+            <div class="bottom-bar-blue"></div>
+            <div class="bottom-bar-yellow"></div>
+            <div class="bottom-bar-red"></div>
+          </div>
         </div>
-        <div class="total-row">
-          <span>TVA</span>
-          <span>${formatCents(invoice.totalVatCents)}</span>
-        </div>
-        <div class="total-row final">
-          <span>Total TTC</span>
-          <span>${formatCents(invoice.totalTtcCents)}</span>
-        </div>
-      </div>
-
-      <div class="footer">
-        ${settings.mentions ? `<p>${settings.mentions}</p>` : ''}
-        ${settings.iban ? `<p class="iban">IBAN: ${settings.iban}</p>` : ''}
       </div>
     </body>
     </html>
@@ -207,114 +532,340 @@ function generateCreditNoteHTML(data: CreditNotePDFData): string {
       <meta charset="UTF-8">
       <title>Avoir ${creditNote.number}</title>
       <style>
+        @page {
+          size: A4;
+          margin: 0;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
           font-family: 'Segoe UI', Arial, sans-serif; 
           font-size: 11pt;
           line-height: 1.5;
-          color: #1a365d;
-          padding: 40px;
+          color: #333;
+          background: white;
+          min-height: 100vh;
+          position: relative;
         }
-        .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
-        .cabinet { text-align: left; }
-        .cabinet-name { font-size: 18pt; font-weight: bold; color: #1a365d; }
-        .cabinet-info { color: #4a5568; font-size: 10pt; white-space: pre-line; margin-top: 8px; }
-        .invoice-info { text-align: right; }
-        .invoice-title { font-size: 24pt; font-weight: bold; color: #c53030; }
-        .invoice-number { font-size: 14pt; color: #c9a227; margin-top: 4px; }
-        .invoice-date { color: #4a5568; margin-top: 8px; }
-        .reference { 
-          background: #fff5f5;
-          color: #c53030;
-          padding: 8px 16px;
-          border-radius: 4px;
-          margin-top: 12px;
-          font-size: 10pt;
+        .page {
+          position: relative;
+          min-height: 100vh;
+          padding: 0;
         }
-        .client-section { 
-          background: #f7fafc; 
-          padding: 20px; 
-          border-radius: 8px;
-          margin-bottom: 30px;
+        /* Top colored bar */
+        .top-bar {
+          height: 20px;
+          display: flex;
         }
-        .section-label { font-size: 9pt; color: #718096; text-transform: uppercase; margin-bottom: 8px; }
-        .client-name { font-size: 14pt; font-weight: bold; }
-        .client-info { color: #4a5568; white-space: pre-line; }
-        .reason-section {
-          background: #fff5f5;
-          border: 1px solid #fed7d7;
-          padding: 16px;
-          border-radius: 8px;
-          margin-bottom: 30px;
+        .top-bar-blue { background: #1e3a8a; flex: 1; }
+        .top-bar-yellow { background: #fbbf24; flex: 1; }
+        .top-bar-red { background: #dc2626; flex: 1; }
+        
+        /* Header */
+        .header {
+          display: flex;
+          justify-content: space-between;
+          padding: 20px 40px;
+          align-items: flex-start;
         }
-        .reason-label { font-weight: bold; color: #c53030; margin-bottom: 4px; }
-        .totals { margin-left: auto; width: 300px; }
-        .total-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
-        .total-row.final { 
-          font-size: 14pt; 
-          font-weight: bold; 
-          color: #c53030;
-          border-bottom: 2px solid #c53030;
-          padding: 12px 0;
+        .logo-section {
+          display: flex;
+          align-items: center;
+          gap: 15px;
         }
-        .footer { 
-          margin-top: 40px; 
-          padding-top: 20px; 
-          border-top: 1px solid #e2e8f0;
+        .company-name {
+          font-size: 28pt;
+          font-weight: bold;
+        }
+        .company-name .cm2a { color: #1e3a8a; }
+        .company-name .consulting { color: #dc2626; }
+        .contact-info {
+          text-align: right;
           font-size: 9pt;
-          color: #718096;
+          color: #666;
         }
+        .contact-info div {
+          margin-bottom: 2px;
+        }
+        .contact-icon {
+          color: #dc2626;
+          margin-right: 5px;
+        }
+        
+        /* Main content */
+        .content {
+          padding: 20px 40px;
+        }
+        
+        /* Client section */
+        .client-section {
+          text-align: right;
+          margin-bottom: 20px;
+        }
+        .client-label {
+          font-size: 10pt;
+          color: #666;
+        }
+        .client-name {
+          font-weight: bold;
+          font-size: 12pt;
+        }
+        
+        /* Date */
+        .date-section {
+          text-align: center;
+          margin: 30px 0;
+        }
+        
+        /* Invoice badge */
+        .invoice-badge-section {
+          margin: 30px 0;
+        }
+        .invoice-badge {
+          display: inline-block;
+          background: #dc2626;
+          color: white;
+          padding: 5px 15px;
+          font-weight: bold;
+          font-size: 11pt;
+        }
+        .invoice-number {
+          margin-top: 5px;
+          color: #666;
+        }
+        .reference {
+          margin-top: 10px;
+          padding: 8px 15px;
+          background: #fef2f2;
+          border-left: 3px solid #dc2626;
+          display: inline-block;
+        }
+        
+        /* Watermark */
+        .watermark {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          opacity: 0.08;
+          font-size: 120pt;
+          font-weight: bold;
+          color: #1e3a8a;
+          pointer-events: none;
+          z-index: 0;
+          white-space: nowrap;
+        }
+        .watermark .consulting { color: #dc2626; }
+        
+        /* Reason section */
+        .reason-section {
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+          padding: 15px;
+          border-radius: 5px;
+          margin: 30px 0;
+          position: relative;
+          z-index: 1;
+        }
+        .reason-label {
+          font-weight: bold;
+          color: #dc2626;
+          margin-bottom: 5px;
+        }
+        
+        /* Totals section */
+        .totals-section {
+          display: flex;
+          justify-content: flex-end;
+          margin: 30px 0;
+          position: relative;
+          z-index: 1;
+        }
+        .totals-table {
+          width: 300px;
+        }
+        .total-row {
+          display: flex;
+          justify-content: space-between;
+          padding: 8px 0;
+          border-bottom: 1px solid #eee;
+        }
+        .total-row.final {
+          font-weight: bold;
+          font-size: 12pt;
+          border-bottom: 2px solid #dc2626;
+          color: #dc2626;
+        }
+        
+        /* Amount in words */
+        .amount-words {
+          font-style: italic;
+          margin: 20px 0;
+          position: relative;
+          z-index: 1;
+        }
+        
+        /* Stamp section */
+        .stamp-section {
+          display: flex;
+          justify-content: flex-end;
+          margin: 30px 0;
+          position: relative;
+          z-index: 1;
+        }
+        .stamp-box {
+          text-align: center;
+          padding: 10px;
+        }
+        .stamp-company {
+          font-weight: bold;
+          color: #1e3a8a;
+        }
+        .stamp-details {
+          font-size: 8pt;
+          color: #666;
+        }
+        
+        /* Footer */
+        .footer {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+        }
+        .footer-content {
+          background: white;
+          padding: 15px 40px;
+          text-align: center;
+          font-size: 9pt;
+          color: #dc2626;
+        }
+        .footer-content p {
+          margin: 2px 0;
+        }
+        .footer-company {
+          font-weight: bold;
+        }
+        .bottom-bar {
+          height: 20px;
+          display: flex;
+        }
+        .bottom-bar-blue { background: #1e3a8a; flex: 1; }
+        .bottom-bar-yellow { background: #fbbf24; flex: 1; }
+        .bottom-bar-red { background: #dc2626; flex: 1; }
+        
         @media print {
-          body { padding: 20px; }
-          @page { margin: 15mm; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .page { page-break-after: always; }
         }
       </style>
     </head>
     <body>
-      <div class="header">
-        <div class="cabinet">
-          <div class="cabinet-name">${settings.name}</div>
-          ${settings.address ? `<div class="cabinet-info">${settings.address}</div>` : ''}
+      <div class="page">
+        <!-- Top bar -->
+        <div class="top-bar">
+          <div class="top-bar-blue"></div>
+          <div class="top-bar-yellow"></div>
+          <div class="top-bar-red"></div>
         </div>
-        <div class="invoice-info">
-          <div class="invoice-title">AVOIR</div>
-          <div class="invoice-number">${creditNote.number}</div>
-          <div class="invoice-date">Date: ${formatDate(creditNote.issueDate)}</div>
-          <div class="reference">Réf. Facture: ${invoice.number}</div>
+        
+        <!-- Header -->
+        <div class="header">
+          <div class="logo-section">
+            <div class="company-name">
+              <span class="cm2a">CM2A</span><br>
+              <span class="consulting">Consulting</span>
+            </div>
+          </div>
+          <div class="contact-info">
+            <div><span class="contact-icon">📞</span>+212 808 56 40 38</div>
+            <div><span class="contact-icon">✉️</span>contact@cm2a.ma</div>
+            <div><span class="contact-icon">🌐</span>www.cm2a.ma</div>
+          </div>
         </div>
-      </div>
-
-      <div class="client-section">
-        <div class="section-label">Client</div>
-        <div class="client-name">${client.name}</div>
-        ${client.address ? `<div class="client-info">${client.address}</div>` : ''}
-        ${client.vatNumber ? `<div class="client-info">TVA: ${client.vatNumber}</div>` : ''}
-      </div>
-
-      ${creditNote.reason ? `
-        <div class="reason-section">
-          <div class="reason-label">Motif de l'avoir</div>
-          <div>${creditNote.reason}</div>
+        
+        <!-- Content -->
+        <div class="content">
+          <!-- Client -->
+          <div class="client-section">
+            <div class="client-label">A l'aimable attention de</div>
+            <div class="client-name">${client.name}</div>
+            ${client.address ? `<div>${client.address}</div>` : ''}
+            ${client.vatNumber ? `<div>ICE: ${client.vatNumber}</div>` : ''}
+          </div>
+          
+          <!-- Date -->
+          <div class="date-section">
+            Casablanca, le ${formatDate(creditNote.issueDate)}
+          </div>
+          
+          <!-- Invoice badge -->
+          <div class="invoice-badge-section">
+            <span class="invoice-badge">AVOIR</span>
+            <div class="invoice-number">N° : ${creditNote.number}</div>
+            <div class="reference">Réf. Facture : ${invoice.number}</div>
+          </div>
+          
+          <!-- Watermark -->
+          <div class="watermark">
+            CM2A<br><span class="consulting">Consulting</span>
+          </div>
+          
+          ${creditNote.reason ? `
+            <div class="reason-section">
+              <div class="reason-label">Motif de l'avoir</div>
+              <div>${creditNote.reason}</div>
+            </div>
+          ` : ''}
+          
+          <!-- Totals -->
+          <div class="totals-section">
+            <div class="totals-table">
+              <div class="total-row">
+                <span>Total HT</span>
+                <span>-${formatCents(creditNote.totalHtCents)}</span>
+              </div>
+              <div class="total-row">
+                <span>TVA</span>
+                <span>-${formatCents(creditNote.totalVatCents)}</span>
+              </div>
+              <div class="total-row final">
+                <span>Total TTC</span>
+                <span>-${formatCents(creditNote.totalTtcCents)}</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Amount in words -->
+          <div class="amount-words">
+            <em>Arrêté le présent avoir à la somme de ${amountToWordsFR(creditNote.totalTtcCents)}</em>
+          </div>
+          
+          <!-- Stamp -->
+          <div class="stamp-section">
+            <div class="stamp-box">
+              <div class="stamp-company">CM2A CONSULTING</div>
+              <div class="stamp-details">SARL AU</div>
+              <div class="stamp-details">15, Bd. Med Zerktouni Rés. Prestige</div>
+              <div class="stamp-details">Etg 4 Appt 12 Casablanca</div>
+              <div class="stamp-details">RC 471315 - ICE 002465969000025</div>
+            </div>
+          </div>
         </div>
-      ` : ''}
-
-      <div class="totals">
-        <div class="total-row">
-          <span>Total HT</span>
-          <span>-${formatCents(creditNote.totalHtCents)}</span>
+        
+        <!-- Footer -->
+        <div class="footer">
+          <div class="footer-content">
+            <p class="footer-company">CM2A Consulting SARLAU au capital de 100.000 DH</p>
+            <p>Société d'audit et d'expertise comptable inscrite à l'Ordre des Experts-Comptables du Maroc</p>
+            <p>Adresse : 15 Bd Med Zerktouni | Résidence Prestige | 4ème étage - n°12 Casablanca |</p>
+            <p>TP: 36340816 | RC: 471315 | IF: 45939905  ICE: 002465969000025</p>
+          </div>
+          <div class="bottom-bar">
+            <div class="bottom-bar-blue"></div>
+            <div class="bottom-bar-yellow"></div>
+            <div class="bottom-bar-red"></div>
+          </div>
         </div>
-        <div class="total-row">
-          <span>TVA</span>
-          <span>-${formatCents(creditNote.totalVatCents)}</span>
-        </div>
-        <div class="total-row final">
-          <span>Total TTC</span>
-          <span>-${formatCents(creditNote.totalTtcCents)}</span>
-        </div>
-      </div>
-
-      <div class="footer">
-        ${settings.mentions ? `<p>${settings.mentions}</p>` : ''}
       </div>
     </body>
     </html>
