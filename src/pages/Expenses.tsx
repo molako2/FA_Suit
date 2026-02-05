@@ -1,4 +1,5 @@
  import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
  import { useAuth } from '@/contexts/AuthContext';
  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
  import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ import { Plus, Trash2, Loader2, Receipt, Download } from 'lucide-react';
  import { toast } from 'sonner';
  
  export default function Expenses() {
+  const { t } = useTranslation();
   const { user, role } = useAuth();
    const [isDialogOpen, setIsDialogOpen] = useState(false);
    
@@ -96,23 +98,23 @@ import { Plus, Trash2, Loader2, Receipt, Download } from 'lucide-react';
      e.preventDefault();
      
      if (!user) {
-       toast.error('Utilisateur non connecté');
+      toast.error(t('errors.userNotConnected'));
        return;
      }
  
      if (!selectedClientId || !selectedMatterId || !expenseDate || !nature || !amountTTC) {
-       toast.error('Veuillez remplir tous les champs obligatoires');
+      toast.error(t('errors.fillRequired'));
        return;
      }
  
      if (nature.length > 100) {
-       toast.error('La nature ne doit pas dépasser 100 caractères');
+      toast.error(t('expenses.nature') + ' ' + t('errors.maxCharacters', { max: 100 }));
        return;
      }
  
      const amountCents = Math.round(parseFloat(amountTTC) * 100);
      if (isNaN(amountCents) || amountCents <= 0) {
-       toast.error('Montant invalide');
+      toast.error(t('errors.invalidAmount'));
        return;
      }
  
@@ -128,29 +130,29 @@ import { Plus, Trash2, Loader2, Receipt, Download } from 'lucide-react';
          amount_ttc_cents: amountCents,
          billable,
        });
-       toast.success('Frais ajouté avec succès');
+      toast.success(t('expenses.expenseAdded'));
        resetForm();
        setIsDialogOpen(false);
      } catch (error: any) {
-       toast.error(error.message || 'Erreur lors de l\'ajout du frais');
+      toast.error(error.message || t('errors.saveError'));
      }
    };
  
    const handleDelete = async (expenseId: string) => {
-     if (!confirm('Êtes-vous sûr de vouloir supprimer ce frais ?')) return;
+    if (!confirm(t('expenses.confirmDelete'))) return;
      
      try {
        await deleteExpense.mutateAsync(expenseId);
-       toast.success('Frais supprimé');
+      toast.success(t('expenses.expenseDeleted'));
      } catch (error: any) {
-       toast.error(error.message || 'Erreur lors de la suppression');
+      toast.error(error.message || t('errors.deleteError'));
      }
    };
  
   // Export to CSV
   const handleExportCSV = () => {
     if (expenses.length === 0) {
-      toast.error('Aucun frais à exporter');
+      toast.error(t('errors.noDataToExport'));
       return;
     }
 
@@ -180,7 +182,7 @@ import { Plus, Trash2, Loader2, Receipt, Download } from 'lucide-react';
     link.download = `frais_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    toast.success('Export CSV téléchargé');
+    toast.success(t('common.exportCSV'));
   };
 
    // When client changes, reset matter
@@ -201,36 +203,36 @@ import { Plus, Trash2, Loader2, Receipt, Download } from 'lucide-react';
      <div className="space-y-6 animate-fade-in">
        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
          <div>
-            <h1 className="text-3xl font-bold">{canViewAll ? 'Gestion des frais' : 'Mes frais'}</h1>
-           <p className="text-muted-foreground">Gérez vos notes de frais</p>
+            <h1 className="text-3xl font-bold">{canViewAll ? t('expenses.allTitle') : t('expenses.title')}</h1>
+            <p className="text-muted-foreground">{t('expenses.subtitle')}</p>
          </div>
          
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleExportCSV}>
               <Download className="w-4 h-4 mr-2" />
-              Export CSV
+               {t('common.exportCSV')}
             </Button>
           <Dialog open={isDialogOpen} onOpenChange={handleOpenDialog}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="w-4 h-4 mr-2" />
-                  Nouveau frais
+                   {t('expenses.newExpense')}
                 </Button>
               </DialogTrigger>
            <DialogContent className="sm:max-w-[500px]">
              <DialogHeader>
-               <DialogTitle>Ajouter un frais</DialogTitle>
+                <DialogTitle>{t('expenses.newExpense')}</DialogTitle>
                <DialogDescription>
-                 Saisissez les informations du frais à ajouter
+                  {t('expenses.subtitle')}
                </DialogDescription>
              </DialogHeader>
              <form onSubmit={handleSubmit} className="space-y-4">
               {canAddForOthers && (
                 <div className="grid gap-2">
-                  <Label htmlFor="userSelect">Collaborateur</Label>
+                    <Label htmlFor="userSelect">{t('expenses.collaborator')}</Label>
                   <Select value={selectedUserId} onValueChange={setSelectedUserId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Sélectionnez un collaborateur" />
+                        <SelectValue placeholder={t('expenses.selectCollaborator')} />
                     </SelectTrigger>
                     <SelectContent>
                       {profiles.filter(p => p.active).map((profile) => (
@@ -245,10 +247,10 @@ import { Plus, Trash2, Loader2, Receipt, Download } from 'lucide-react';
 
                {/* Client Code */}
                <div className="grid gap-2">
-                 <Label htmlFor="clientCode">Code Client</Label>
+                  <Label htmlFor="clientCode">{t('expenses.clientCode')}</Label>
                  <Select value={selectedClientId} onValueChange={handleClientChange}>
                    <SelectTrigger>
-                     <SelectValue placeholder="Sélectionner un client" />
+                      <SelectValue placeholder={t('expenses.selectClient')} />
                    </SelectTrigger>
                    <SelectContent>
                      {clients.filter(c => c.active).map(client => (
@@ -263,21 +265,21 @@ import { Plus, Trash2, Loader2, Receipt, Download } from 'lucide-react';
                {/* Client Name (read-only display) */}
                {selectedClientId && (
                  <div className="grid gap-2">
-                   <Label>Nom du Client</Label>
+                    <Label>{t('expenses.clientName')}</Label>
                    <Input value={getClientName(selectedClientId)} disabled />
                  </div>
                )}
  
                {/* Matter Code */}
                <div className="grid gap-2">
-                 <Label htmlFor="matterCode">Code Dossier</Label>
+                  <Label htmlFor="matterCode">{t('expenses.matterCode')}</Label>
                  <Select 
                    value={selectedMatterId} 
                    onValueChange={setSelectedMatterId}
                    disabled={!selectedClientId}
                  >
                    <SelectTrigger>
-                     <SelectValue placeholder={selectedClientId ? "Sélectionner un dossier" : "Sélectionnez d'abord un client"} />
+                      <SelectValue placeholder={selectedClientId ? t('expenses.selectMatter') : t('expenses.selectClientFirst')} />
                    </SelectTrigger>
                    <SelectContent>
                      {filteredMatters.map(matter => (
@@ -292,14 +294,14 @@ import { Plus, Trash2, Loader2, Receipt, Download } from 'lucide-react';
                {/* Matter Name (read-only display) */}
                {selectedMatterId && (
                  <div className="grid gap-2">
-                   <Label>Nom du Dossier</Label>
+                    <Label>{t('expenses.matterName')}</Label>
                    <Input value={getMatterLabel(selectedMatterId)} disabled />
                  </div>
                )}
  
                {/* Expense Date */}
                <div className="grid gap-2">
-                 <Label htmlFor="expenseDate">Date de dépense</Label>
+                  <Label htmlFor="expenseDate">{t('expenses.expenseDate')}</Label>
                  <Input
                    id="expenseDate"
                    type="date"
@@ -311,21 +313,21 @@ import { Plus, Trash2, Loader2, Receipt, Download } from 'lucide-react';
  
                {/* Nature */}
                <div className="grid gap-2">
-                 <Label htmlFor="nature">Nature de la dépense</Label>
+                  <Label htmlFor="nature">{t('expenses.nature')}</Label>
                  <Input
                    id="nature"
                    value={nature}
                    onChange={(e) => setNature(e.target.value.slice(0, 100))}
-                   placeholder="Ex: Déplacement, Repas client..."
+                    placeholder={t('expenses.naturePlaceholder')}
                    maxLength={100}
                    required
                  />
-                 <p className="text-xs text-muted-foreground">{nature.length}/100 caractères</p>
+                  <p className="text-xs text-muted-foreground">{nature.length}/100 {t('expenses.charactersCount')}</p>
                </div>
  
                {/* Amount TTC */}
                <div className="grid gap-2">
-                 <Label htmlFor="amountTTC">Montant TTC (MAD)</Label>
+                  <Label htmlFor="amountTTC">{t('expenses.amountTTC')}</Label>
                  <Input
                    id="amountTTC"
                    type="number"
@@ -345,16 +347,16 @@ import { Plus, Trash2, Loader2, Receipt, Download } from 'lucide-react';
                    checked={billable}
                    onCheckedChange={(checked) => setBillable(checked === true)}
                  />
-                 <Label htmlFor="billable" className="cursor-pointer">Facturable</Label>
+                  <Label htmlFor="billable" className="cursor-pointer">{t('common.billable')}</Label>
                </div>
  
                <DialogFooter>
-                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                   Annuler
+                  <Button type="button" variant="outline" onClick={() => handleOpenDialog(false)}>
+                    {t('common.cancel')}
                  </Button>
                  <Button type="submit" disabled={createExpense.isPending}>
                    {createExpense.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                   Ajouter
+                    {t('common.add')}
                  </Button>
                </DialogFooter>
              </form>
@@ -368,24 +370,24 @@ import { Plus, Trash2, Loader2, Receipt, Download } from 'lucide-react';
          <CardHeader>
            <CardTitle className="flex items-center gap-2">
              <Receipt className="w-5 h-5" />
-             Liste des frais
+              {t('expenses.expenseList')}
            </CardTitle>
            <CardDescription>
-             Vos notes de frais enregistrées
+              {t('expenses.subtitle')}
            </CardDescription>
          </CardHeader>
          <CardContent>
            <Table>
              <TableHeader>
                <TableRow>
-                 <TableHead>Date</TableHead>
-                  {canViewAll && <TableHead>Collaborateur</TableHead>}
-                 <TableHead>Client</TableHead>
-                 <TableHead>Dossier</TableHead>
-                 <TableHead>Nature</TableHead>
-                 <TableHead className="text-right">Montant TTC</TableHead>
-                 <TableHead className="text-center">Facturable</TableHead>
-                  <TableHead className="text-center">Statut</TableHead>
+                  <TableHead>{t('common.date')}</TableHead>
+                   {canViewAll && <TableHead>{t('expenses.collaborator')}</TableHead>}
+                  <TableHead>{t('clients.title')}</TableHead>
+                  <TableHead>{t('matters.title')}</TableHead>
+                  <TableHead>{t('expenses.nature')}</TableHead>
+                  <TableHead className="text-right">{t('expenses.amountTTC')}</TableHead>
+                  <TableHead className="text-center">{t('common.billable')}</TableHead>
+                   <TableHead className="text-center">{t('common.status')}</TableHead>
                  <TableHead></TableHead>
                </TableRow>
              </TableHeader>
@@ -393,7 +395,7 @@ import { Plus, Trash2, Loader2, Receipt, Download } from 'lucide-react';
                {expenses.length === 0 ? (
                  <TableRow>
                     <TableCell colSpan={canViewAll ? 9 : 8} className="text-center text-muted-foreground py-8">
-                     Aucun frais enregistré
+                      {t('expenses.noExpenses')}
                    </TableCell>
                  </TableRow>
                ) : (
@@ -424,9 +426,9 @@ import { Plus, Trash2, Loader2, Receipt, Download } from 'lucide-react';
                      </TableCell>
                       <TableCell className="text-center">
                         {expense.locked ? (
-                          <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">Facturé</span>
+                           <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{t('common.invoiced')}</span>
                         ) : (
-                          <span className="text-xs text-primary bg-primary/10 px-2 py-1 rounded">Disponible</span>
+                           <span className="text-xs text-primary bg-primary/10 px-2 py-1 rounded">{t('common.available')}</span>
                         )}
                       </TableCell>
                      <TableCell>

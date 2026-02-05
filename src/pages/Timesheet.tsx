@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,6 +49,7 @@ import { Plus, Pencil, Trash2, Clock, Lock, Calendar, Loader2 } from 'lucide-rea
 import { toast } from 'sonner';
 
 export default function Timesheet() {
+  const { t } = useTranslation();
   const { user, role } = useAuth();
   const [periodFrom, setPeriodFrom] = useState(() => {
     const d = new Date();
@@ -137,13 +139,13 @@ export default function Timesheet() {
 
   const handleSave = async () => {
     if (!formMatterId || !formDuration || !formDescription) {
-      toast.error('Veuillez remplir tous les champs obligatoires');
+      toast.error(t('errors.fillRequired'));
       return;
     }
 
     const durationMinutes = parseInt(formDuration, 10);
     if (isNaN(durationMinutes) || durationMinutes <= 0) {
-      toast.error('Durée invalide');
+      toast.error(t('errors.invalidDuration'));
       return;
     }
 
@@ -161,7 +163,7 @@ export default function Timesheet() {
           description: formDescription,
           billable: formBillable,
         });
-        toast.success('Entrée modifiée');
+        toast.success(t('timesheet.entryUpdated'));
       } else {
         await createEntry.mutateAsync({
           user_id: targetUserId,
@@ -172,26 +174,26 @@ export default function Timesheet() {
           billable: formBillable,
           locked: false,
         });
-        toast.success('Entrée créée');
+        toast.success(t('timesheet.entryCreated'));
       }
       setIsDialogOpen(false);
       resetForm();
     } catch (error) {
-      toast.error('Erreur lors de la sauvegarde');
+      toast.error(t('errors.saveError'));
       console.error(error);
     }
   };
 
   const handleDelete = async (entry: TimesheetEntry) => {
     if (entry.locked) {
-      toast.error('Cette entrée est verrouillée (facturée)');
+      toast.error(t('timesheet.entryLocked'));
       return;
     }
     try {
       await deleteEntry.mutateAsync(entry.id);
-      toast.success('Entrée supprimée');
+      toast.success(t('timesheet.entryDeleted'));
     } catch (error) {
-      toast.error('Erreur lors de la suppression');
+      toast.error(t('errors.deleteError'));
     }
   };
 
@@ -215,34 +217,34 @@ export default function Timesheet() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Mes temps</h1>
-          <p className="text-muted-foreground">Saisie et suivi de vos heures de travail</p>
+          <h1 className="text-3xl font-bold">{t('timesheet.title')}</h1>
+          <p className="text-muted-foreground">{t('timesheet.subtitle')}</p>
         </div>
         
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => openDialog()}>
               <Plus className="w-4 h-4 mr-2" />
-              Nouvelle entrée
+              {t('timesheet.newEntry')}
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>{editingEntry ? 'Modifier l\'entrée' : 'Nouvelle entrée de temps'}</DialogTitle>
+              <DialogTitle>{editingEntry ? t('timesheet.editEntry') : t('timesheet.newEntry')}</DialogTitle>
               <DialogDescription>
-                Saisissez les détails de votre activité. La durée sera arrondie au quart d'heure supérieur.
+                {t('timesheet.roundingNote')}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               {canAddForOthers && (
                 <div className="grid gap-2">
-                  <Label htmlFor="user">Collaborateur</Label>
+                  <Label htmlFor="user">{t('timesheet.collaborator')}</Label>
                   <Select value={formUserId} onValueChange={(value) => {
                     setFormUserId(value);
                     setFormMatterId(''); // Reset matter when user changes
                   }}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Sélectionnez un collaborateur" />
+                      <SelectValue placeholder={t('timesheet.selectCollaborator')} />
                     </SelectTrigger>
                     <SelectContent>
                       {profiles.filter(p => p.active).map((profile) => (
@@ -256,7 +258,7 @@ export default function Timesheet() {
               )}
 
               <div className="grid gap-2">
-                <Label htmlFor="date">Date</Label>
+                <Label htmlFor="date">{t('common.date')}</Label>
                 <Input
                   id="date"
                   type="date"
@@ -266,15 +268,15 @@ export default function Timesheet() {
               </div>
               
               <div className="grid gap-2">
-                <Label htmlFor="matter">Dossier</Label>
+                <Label htmlFor="matter">{t('timesheet.matter')}</Label>
                 <Select value={formMatterId} onValueChange={setFormMatterId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Sélectionnez un dossier" />
+                    <SelectValue placeholder={t('timesheet.selectMatter')} />
                   </SelectTrigger>
                   <SelectContent>
                     {assignedMatters.length === 0 ? (
                       <SelectItem value="none" disabled>
-                        Aucun dossier affecté
+                        {t('timesheet.noAssignedMatters')}
                       </SelectItem>
                     ) : (
                       assignedMatters.map((matter) => {
@@ -291,7 +293,7 @@ export default function Timesheet() {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="duration">Durée (en minutes)</Label>
+                <Label htmlFor="duration">{t('timesheet.durationMinutes')}</Label>
                 <div className="flex items-center gap-2">
                   <Input
                     id="duration"
@@ -309,12 +311,12 @@ export default function Timesheet() {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Arrondi automatique au quart d'heure supérieur
+                  {t('timesheet.roundingNote')}
                 </p>
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">{t('common.description')}</Label>
                 <Textarea
                   id="description"
                   placeholder="Décrivez votre activité..."
@@ -325,7 +327,7 @@ export default function Timesheet() {
               </div>
 
               <div className="flex items-center justify-between">
-                <Label htmlFor="billable">Facturable</Label>
+                <Label htmlFor="billable">{t('common.billable')}</Label>
                 <Switch
                   id="billable"
                   checked={formBillable}
@@ -335,11 +337,11 @@ export default function Timesheet() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Annuler
+                {t('common.cancel')}
               </Button>
               <Button onClick={handleSave} disabled={isSaving}>
                 {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {editingEntry ? 'Enregistrer' : 'Créer'}
+                {editingEntry ? t('common.save') : t('common.create')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -350,7 +352,7 @@ export default function Timesheet() {
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
         <div className="flex items-center gap-2">
           <div className="grid gap-1">
-            <Label htmlFor="from" className="text-xs">Du</Label>
+            <Label htmlFor="from" className="text-xs">{t('common.from')}</Label>
             <Input
               id="from"
               type="date"
@@ -360,7 +362,7 @@ export default function Timesheet() {
             />
           </div>
           <div className="grid gap-1">
-            <Label htmlFor="to" className="text-xs">Au</Label>
+            <Label htmlFor="to" className="text-xs">{t('common.to')}</Label>
             <Input
               id="to"
               type="date"
@@ -373,11 +375,11 @@ export default function Timesheet() {
         
         <div className="flex gap-4">
           <Card className="px-4 py-2">
-            <div className="text-xs text-muted-foreground">Total</div>
+            <div className="text-xs text-muted-foreground">{t('common.total')}</div>
             <div className="text-lg font-semibold">{formatMinutesToHours(totals.total)}</div>
           </Card>
           <Card className="px-4 py-2">
-            <div className="text-xs text-muted-foreground">Facturable</div>
+            <div className="text-xs text-muted-foreground">{t('common.billable')}</div>
             <div className="text-lg font-semibold text-accent">{formatMinutesToHours(totals.billable)}</div>
           </Card>
         </div>
@@ -389,12 +391,12 @@ export default function Timesheet() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Dossier</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-center">Durée</TableHead>
-                <TableHead className="text-center">Statut</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t('common.date')}</TableHead>
+                <TableHead>{t('timesheet.matter')}</TableHead>
+                <TableHead>{t('common.description')}</TableHead>
+                <TableHead className="text-center">{t('timesheet.duration')}</TableHead>
+                <TableHead className="text-center">{t('common.status')}</TableHead>
+                <TableHead className="text-right">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -402,13 +404,13 @@ export default function Timesheet() {
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p>Aucune entrée pour cette période</p>
+                    <p>{t('timesheet.noEntries')}</p>
                     <Button
                       variant="link"
                       className="mt-2"
                       onClick={() => openDialog()}
                     >
-                      Créer votre première entrée
+                      {t('timesheet.createFirst')}
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -439,9 +441,9 @@ export default function Timesheet() {
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-1">
                         {entry.billable ? (
-                          <Badge className="bg-accent text-accent-foreground">Facturable</Badge>
+                          <Badge className="bg-accent text-accent-foreground">{t('common.billable')}</Badge>
                         ) : (
-                          <Badge variant="secondary">Non fact.</Badge>
+                          <Badge variant="secondary">{t('common.nonBillable')}</Badge>
                         )}
                         {entry.locked && (
                           <Lock className="w-3 h-3 text-muted-foreground" />
