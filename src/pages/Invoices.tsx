@@ -47,6 +47,7 @@ import { useProfiles } from '@/hooks/useProfiles';
 import { printInvoicePDF } from '@/lib/pdf';
 import { exportInvoicesCSV } from '@/lib/exports';
 import { FileText, Plus, Download, Eye, Send, Trash2, Printer } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -236,6 +237,8 @@ export default function Invoices() {
         total_ht_cents: totalHt,
         total_vat_cents: totalVat,
         total_ttc_cents: totalTtc,
+        paid: false,
+        payment_date: null,
       });
       toast.success('Brouillon de facture créé');
       setIsCreateDialogOpen(false);
@@ -505,13 +508,15 @@ export default function Invoices() {
                 <TableHead className="text-right">HT</TableHead>
                 <TableHead className="text-right">TTC</TableHead>
                 <TableHead className="text-center">Statut</TableHead>
+                <TableHead className="text-center">Payée</TableHead>
+                <TableHead>Date règlement</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {invoices.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                     <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     <p>Aucune facture</p>
                     <p className="text-sm mt-1">
@@ -546,6 +551,39 @@ export default function Invoices() {
                       <Badge className={statusColors[invoice.status]}>
                         {statusLabels[invoice.status]}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Checkbox
+                        checked={invoice.paid}
+                        disabled={!canEdit || invoice.status !== 'issued'}
+                        onCheckedChange={(checked) => {
+                          updateInvoiceMutation.mutate({
+                            id: invoice.id,
+                            paid: checked === true,
+                            payment_date: checked === true ? new Date().toISOString().split('T')[0] : null,
+                          });
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {invoice.status === 'issued' && canEdit ? (
+                        <Input
+                          type="date"
+                          value={invoice.payment_date || ''}
+                          className="w-36"
+                          onChange={(e) => {
+                            updateInvoiceMutation.mutate({
+                              id: invoice.id,
+                              payment_date: e.target.value || null,
+                              paid: !!e.target.value,
+                            });
+                          }}
+                        />
+                      ) : (
+                        <span className="text-muted-foreground text-sm">
+                          {invoice.payment_date || '-'}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
