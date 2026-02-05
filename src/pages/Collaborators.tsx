@@ -39,8 +39,10 @@ export default function Collaborators() {
 
   // User form state
   const [formName, setFormName] = useState('');
+  const [formEmail, setFormEmail] = useState('');
   const [formRole, setFormRole] = useState<UserRole>('collaborator');
   const [formRateCents, setFormRateCents] = useState('');
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
 
   // Assignment form state
   const [assignMatterId, setAssignMatterId] = useState('');
@@ -92,6 +94,7 @@ export default function Collaborators() {
 
   const resetUserForm = () => {
     setFormName('');
+    setFormEmail('');
     setFormRole('collaborator');
     setFormRateCents('');
     setEditingUser(null);
@@ -101,6 +104,7 @@ export default function Collaborators() {
     if (u) {
       setEditingUser(u);
       setFormName(u.name);
+      setFormEmail(u.email);
       setFormRole(u.role || 'collaborator');
       setFormRateCents(u.rate_cents ? String(u.rate_cents / 100) : '');
     } else {
@@ -110,8 +114,6 @@ export default function Collaborators() {
   };
 
   const handleSaveUser = async () => {
-    if (!editingUser) return;
-    
     if (!formName.trim()) {
       toast.error('Le nom est obligatoire');
       return;
@@ -120,27 +122,66 @@ export default function Collaborators() {
     const rateCents = formRateCents ? Math.round(parseFloat(formRateCents) * 100) : null;
 
     try {
-      // Update profile
-      await updateProfile.mutateAsync({
-        id: editingUser.id,
-        name: formName.trim(),
-        rate_cents: rateCents,
-      });
-
-      // Update role if changed
-      if (formRole !== editingUser.role) {
-        await updateUserRole.mutateAsync({
-          userId: editingUser.id,
-          role: formRole,
+      if (editingUser) {
+        // Update existing user
+        await updateProfile.mutateAsync({
+          id: editingUser.id,
+          name: formName.trim(),
+          rate_cents: rateCents,
         });
-      }
 
-      toast.success('Utilisateur modifié');
+        // Update role if changed
+        if (formRole !== editingUser.role) {
+          await updateUserRole.mutateAsync({
+            userId: editingUser.id,
+            role: formRole,
+          });
+        }
+
+        toast.success('Utilisateur modifié');
+      } else {
+        // Create new user
+        if (!formEmail.trim()) {
+          toast.error('L\'email est obligatoire');
+          return;
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formEmail.trim())) {
+          toast.error('Format d\'email invalide');
+          return;
+        }
+
+        setIsCreatingUser(true);
+        
+        // Generate a random password for the new user
+        const tempPassword = Math.random().toString(36).slice(-12) + 'A1!';
+
+        // Create user via Supabase Auth (requires edge function with admin privileges)
+        const { data, error } = await supabase.functions.invoke('admin-create-user', {
+          body: {
+            email: formEmail.trim(),
+            password: tempPassword,
+            name: formName.trim(),
+            role: formRole,
+            rateCents: rateCents,
+          },
+        });
+
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+
+        toast.success(`Utilisateur créé. Un email d'invitation a été envoyé à ${formEmail.trim()}`);
+      }
+      
       setIsUserDialogOpen(false);
       resetUserForm();
-    } catch (error) {
-      toast.error('Erreur lors de la modification');
-      console.error(error);
+    } catch (error: any) {
+      console.error('Error saving user:', error);
+      toast.error(error.message || 'Erreur lors de la sauvegarde');
+    } finally {
+      setIsCreatingUser(false);
     }
   };
 
@@ -305,9 +346,11 @@ export default function Collaborators() {
         <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>Modifier l'utilisateur</DialogTitle>
+              <DialogTitle>{editingUser ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur'}</DialogTitle>
               <DialogDescription>
-                Modifiez les informations et le rôle de l'utilisateur.
+                {editingUser 
+                  ? 'Modifiez les informations et le rôle de l\'utilisateur.'
+                  : 'Créez un nouveau compte utilisateur. Un email d\'invitation sera envoyé.'}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -322,11 +365,15 @@ export default function Collaborators() {
               </div>
 
               <div className="grid gap-2">
-                <Label>Email</Label>
+                <Label htmlFor="email">Email {!editingUser && '*'}</Label>
                 <Input
-                  value={editingUser?.email || ''}
-                  disabled
-                  className="bg-muted"
+                  id="email"
+                  type="email"
+                  placeholder="utilisateur@example.com"
+                  value={editingUser ? editingUser.email : formEmail}
+                  onChange={(e) => setFormEmail(e.target.value)}
+                  disabled={!!editingUser}
+                  className={editingUser ? 'bg-muted' : ''}
                 />
               </div>
 
@@ -366,12 +413,12 @@ export default function Collaborators() {
               </Button>
               <Button 
                 onClick={handleSaveUser}
-                disabled={updateProfile.isPending || updateUserRole.isPending}
+                disabled={updateProfile.isPending || updateUserRole.isPending || isCreatingUser}
               >
-                {(updateProfile.isPending || updateUserRole.isPending) && (
+                {(updateProfile.isPending || updateUserRole.isPending || isCreatingUser) && (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 )}
-                Enregistrer
+                {editingUser ? 'Enregistrer' : 'Créer'}
               </Button>
             </DialogFooter>
           </DialogContent>
