@@ -87,8 +87,8 @@ export default function LoginPage() {
         <div className="w-full max-w-md space-y-6">
         {/* Logo & Title */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-xl bg-white border border-border overflow-hidden p-1">
-            <img src={appLogo} alt="FlowAssist" className="w-full h-full object-contain" />
+          <div className="inline-flex items-center justify-center w-24 h-24 rounded-xl bg-white border border-border overflow-hidden">
+            <img src={appLogo} alt="FlowAssist" className="w-full h-full object-cover scale-110" />
           </div>
           <h1 className="text-3xl font-bold text-foreground">FlowAssist</h1>
           <p className="text-muted-foreground">Suite de Gestion Intégrée</p>
