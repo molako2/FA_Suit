@@ -163,8 +163,8 @@ function generateInvoiceHTML(data: InvoicePDFData): string {
           ${invoice.lines.map(line => `
             <tr>
               <td>${line.label}</td>
-              <td>${formatMinutesToHours(line.minutes)}</td>
-              <td>${formatCents(line.rateCents)}</td>
+              <td>${line.label.startsWith('Frais -') ? '-' : formatMinutesToHours(line.minutes)}</td>
+              <td>${line.label.startsWith('Frais -') ? '-' : formatCents(line.rateCents)}</td>
               <td>${line.vatRate}%</td>
               <td>${formatCents(line.amountHtCents)}</td>
               <td>${formatCents(line.amountTtcCents)}</td>
