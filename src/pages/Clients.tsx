@@ -299,6 +299,9 @@ export default function Clients() {
                 <TableHead>Nom</TableHead>
                 <TableHead>Adresse</TableHead>
                 <TableHead>Email facturation</TableHead>
+                <TableHead>Numéro ICE</TableHead>
+                <TableHead>Contact</TableHead>
+                <TableHead>Tél. contact</TableHead>
                 <TableHead className="text-center">Statut</TableHead>
                 {canEdit && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
@@ -306,7 +309,7 @@ export default function Clients() {
             <TableBody>
               {filteredClients.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canEdit ? 6 : 5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={canEdit ? 9 : 8} className="text-center py-8 text-muted-foreground">
                     <Building2 className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     <p>Aucun client trouvé</p>
                     {canEdit && clients.length === 0 && (
@@ -332,6 +335,15 @@ export default function Clients() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {client.billing_email || '—'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {client.vat_number || '—'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {client.contact_name || '—'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {client.contact_phone || '—'}
                     </TableCell>
                     <TableCell className="text-center">
                       {client.active ? (
