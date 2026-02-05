@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Clock, Loader2, Eye, EyeOff } from 'lucide-react';
+ import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
  import cm2aBanner from '@/assets/cm2a-banner.png';
+ import appLogo from '@/assets/logo.png';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -86,8 +87,8 @@ export default function LoginPage() {
         <div className="w-full max-w-md space-y-6">
         {/* Logo & Title */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-primary text-primary-foreground">
-            <Clock className="w-8 h-8" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-primary overflow-hidden">
+            <img src={appLogo} alt="FlowAssist" className="w-12 h-12 object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-foreground">FlowAssist</h1>
           <p className="text-muted-foreground">Outil de gestion de votre société</p>
