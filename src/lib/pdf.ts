@@ -93,6 +93,14 @@ function formatMinutesToHours(minutes: number): string {
   return `${hours} h`;
 }
 
+// CM2A Logo SVG inline
+const CM2A_LOGO_SVG = `<svg width="70" height="70" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <path d="M50 5 C30 5, 15 25, 15 45 C15 55, 20 65, 30 75 L5 95" stroke="#1e3a8a" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <path d="M50 5 C55 15, 55 30, 50 45 C45 60, 35 75, 30 75" stroke="#dc2626" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M30 75 C50 75, 70 85, 95 95" stroke="#6b7280" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <text x="55" y="55" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#1e3a8a">CM2A</text>
+</svg>`;
+
 // CM2A Invoice Template
 function generateInvoiceHTML(data: InvoicePDFData): string {
   const { invoice, settings, client, matter } = data;
@@ -392,7 +400,7 @@ function generateInvoiceHTML(data: InvoicePDFData): string {
         <!-- Header -->
         <div class="header">
           <div class="logo-section">
-            <img class="logo-img" src="${window.location.origin}/cm2a-logo-icon.png" alt="CM2A Logo" />
+            ${CM2A_LOGO_SVG}
             <div class="company-name">
               <span class="cm2a">CM2A</span><br>
               <span class="consulting">Consulting</span>
@@ -781,7 +789,7 @@ function generateCreditNoteHTML(data: CreditNotePDFData): string {
         <!-- Header -->
         <div class="header">
           <div class="logo-section">
-            <img class="logo-img" src="${window.location.origin}/cm2a-logo-icon.png" alt="CM2A Logo" />
+            ${CM2A_LOGO_SVG}
             <div class="company-name">
               <span class="cm2a">CM2A</span><br>
               <span class="consulting">Consulting</span>
