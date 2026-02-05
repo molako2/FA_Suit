@@ -562,7 +562,7 @@ export default function Invoices() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">CA Facturé</CardTitle>
+            <CardTitle className="text-sm font-medium">CA Facturé HT</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -572,7 +572,7 @@ export default function Invoices() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">CA Encaissé</CardTitle>
+            <CardTitle className="text-sm font-medium">CA Encaissé HT</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
