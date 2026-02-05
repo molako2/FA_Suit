@@ -18,6 +18,7 @@ import Matters from "./pages/Matters";
 import Collaborators from "./pages/Collaborators";
 import Invoices from "./pages/Invoices";
 import CreditNotes from "./pages/CreditNotes";
+import Purchases from "./pages/Purchases";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -106,6 +107,15 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={['sysadmin', 'owner', 'assistant']}>
             <AppLayout><CreditNotes /></AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/purchases"
+        element={
+          <ProtectedRoute allowedRoles={['sysadmin', 'owner', 'assistant']}>
+            <AppLayout><Purchases /></AppLayout>
           </ProtectedRoute>
         }
       />

@@ -59,17 +59,18 @@
      "french": "Français",
      "english": "English"
    },
-   "nav": {
-     "dashboard": "Dashboard",
-     "timesheet": "Timesheet",
-     "expenses": "Expenses",
-     "clients": "Clients",
-     "matters": "Matters",
-     "invoices": "Invoices",
-     "creditNotes": "Credit Notes",
-     "collaborators": "Collaborators",
-     "settings": "Settings"
-   },
+  "nav": {
+    "dashboard": "Dashboard",
+    "timesheet": "Timesheet",
+    "expenses": "Expenses",
+    "clients": "Clients",
+    "matters": "Matters",
+    "invoices": "Invoices",
+    "creditNotes": "Credit Notes",
+    "purchases": "Purchases",
+    "collaborators": "Collaborators",
+    "settings": "Settings"
+  },
    "dashboard": {
      "title": "Dashboard",
      "subtitle": "Overview of your activity",

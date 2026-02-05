@@ -59,17 +59,18 @@
      "french": "Français",
      "english": "English"
    },
-   "nav": {
-     "dashboard": "Tableau de bord",
-     "timesheet": "Temps",
-     "expenses": "Frais",
-     "clients": "Clients",
-     "matters": "Dossiers",
-     "invoices": "Factures",
-     "creditNotes": "Avoirs",
-     "collaborators": "Collaborateurs",
-     "settings": "Paramètres"
-   },
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "timesheet": "Temps",
+    "expenses": "Frais",
+    "clients": "Clients",
+    "matters": "Dossiers",
+    "invoices": "Factures",
+    "creditNotes": "Avoirs",
+    "purchases": "Achats",
+    "collaborators": "Collaborateurs",
+    "settings": "Paramètres"
+  },
    "dashboard": {
      "title": "Tableau de bord",
      "subtitle": "Vue d'ensemble de votre activité",

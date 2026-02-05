@@ -12,8 +12,9 @@ import {
   ChevronDown,
   Building2,
   FolderOpen,
-   Receipt,
+  Receipt,
   Clock,
+  ShoppingCart,
 } from 'lucide-react';
   import appLogo from '@/assets/flowassist-logo.png';
 import {
@@ -81,6 +82,12 @@ const navItemsConfig: NavItemConfig[] = [
     labelKey: 'nav.creditNotes',
     href: '/credit-notes',
     icon: FileMinus2,
+    roles: ['sysadmin', 'owner', 'assistant'],
+  },
+  {
+    labelKey: 'nav.purchases',
+    href: '/purchases',
+    icon: ShoppingCart,
     roles: ['sysadmin', 'owner', 'assistant'],
   },
   {

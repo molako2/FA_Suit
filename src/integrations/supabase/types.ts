@@ -415,6 +415,66 @@ export type Database = {
         }
         Relationships: []
       }
+      purchases: {
+        Row: {
+          amount_ht_cents: number
+          amount_ttc_cents: number
+          amount_tva_cents: number
+          created_at: string
+          created_by: string | null
+          designation: string
+          ice: string | null
+          id: string
+          invoice_date: string
+          invoice_number: string
+          num_if: string | null
+          payment_date: string | null
+          payment_mode: number
+          prorata: number | null
+          rate: number | null
+          supplier: string
+          updated_at: string
+        }
+        Insert: {
+          amount_ht_cents?: number
+          amount_ttc_cents?: number
+          amount_tva_cents?: number
+          created_at?: string
+          created_by?: string | null
+          designation: string
+          ice?: string | null
+          id?: string
+          invoice_date: string
+          invoice_number: string
+          num_if?: string | null
+          payment_date?: string | null
+          payment_mode?: number
+          prorata?: number | null
+          rate?: number | null
+          supplier: string
+          updated_at?: string
+        }
+        Update: {
+          amount_ht_cents?: number
+          amount_ttc_cents?: number
+          amount_tva_cents?: number
+          created_at?: string
+          created_by?: string | null
+          designation?: string
+          ice?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          num_if?: string | null
+          payment_date?: string | null
+          payment_mode?: number
+          prorata?: number | null
+          rate?: number | null
+          supplier?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       timesheet_entries: {
         Row: {
           billable: boolean
