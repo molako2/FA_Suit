@@ -459,6 +459,8 @@ export default function Matters() {
                 <TableHead>Code</TableHead>
                 <TableHead>Libellé</TableHead>
                 <TableHead>Client</TableHead>
+                <TableHead>Nature intervention</TableHead>
+                <TableHead>Secteur activité</TableHead>
                 <TableHead className="text-center">Facturation</TableHead>
                 <TableHead className="text-right">Montant</TableHead>
                 <TableHead className="text-center">TVA</TableHead>
@@ -469,7 +471,7 @@ export default function Matters() {
             <TableBody>
               {filteredMatters.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canEdit ? 8 : 7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={canEdit ? 10 : 9} className="text-center py-8 text-muted-foreground">
                     <FolderOpen className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     <p>Aucun dossier trouvé</p>
                     {canEdit && matters.length === 0 && (
@@ -492,6 +494,12 @@ export default function Matters() {
                     <TableCell className="font-medium">{matter.label}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {getClientName(matter.client_id)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {matter.intervention_nature || '—'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {matter.client_sector || '—'}
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge variant={matter.billing_type === 'flat_fee' ? 'default' : 'outline'}>
