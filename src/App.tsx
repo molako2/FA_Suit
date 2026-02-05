@@ -9,6 +9,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 
 // Pages
 import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Timesheet from "./pages/Timesheet";
  import Expenses from "./pages/Expenses";
@@ -35,6 +36,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       
       <Route
         path="/"
