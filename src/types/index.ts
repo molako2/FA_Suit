@@ -84,6 +84,7 @@ export interface InvoiceLine {
   amountHtCents: number;
   vatCents: number;
   amountTtcCents: number;
+  expenseId?: string;
 }
 
 export interface CreditNote {

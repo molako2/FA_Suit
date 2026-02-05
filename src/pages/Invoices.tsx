@@ -263,7 +263,6 @@ export default function Invoices() {
 
      // Add expense lines if any selected
      const expenseLinesToAdd: InvoiceLine[] = [];
-     const expenseIdsToLock: string[] = [];
      
      matterExpenses.forEach(exp => {
        const selection = selectedExpenses[exp.id];
@@ -282,8 +281,8 @@ export default function Invoices() {
            amount_ht_cents: amountHt,
            vat_cents: vatCents,
            amount_ttc_cents: amountTTC,
+            expense_id: exp.id,
          });
-         expenseIdsToLock.push(exp.id);
        }
      });
      
@@ -312,11 +311,6 @@ export default function Invoices() {
       setIsCreateDialogOpen(false);
       setSelectedMatterId('');
        setSelectedExpenses({});
- 
-       // Lock the selected expenses
-       if (expenseIdsToLock.length > 0) {
-         await lockExpensesMutation.mutateAsync(expenseIdsToLock);
-       }
     } catch (error) {
       toast.error('Erreur lors de la création de la facture');
     }
@@ -349,6 +343,15 @@ export default function Invoices() {
 
       if (entriesToLock.length > 0) {
         await lockEntriesMutation.mutateAsync(entriesToLock.map(e => e.id));
+      }
+
+      // Lock the associated expenses (from invoice lines with expense_id)
+      const expenseIdsToLock = invoice.lines
+        .filter(l => l.expense_id)
+        .map(l => l.expense_id!);
+      
+      if (expenseIdsToLock.length > 0) {
+        await lockExpensesMutation.mutateAsync(expenseIdsToLock);
       }
 
       toast.success(`Facture ${invoiceNumber} émise avec succès`);
