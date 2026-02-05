@@ -30,6 +30,7 @@ import { Clock, Users, FolderOpen, TrendingUp, Download, Loader2 } from 'lucide-
 import { toast } from 'sonner';
 import { TimesheetExport } from '@/components/dashboard/TimesheetExport';
 import { KPIAnalytics } from '@/components/dashboard/KPIAnalytics';
+import { KPIAnalyticsFlatFee } from '@/components/dashboard/KPIAnalyticsFlatFee';
 import type { KPIByUser, KPIByMatter } from '@/types';
 
 // Format cents to MAD
@@ -367,6 +368,13 @@ export default function Dashboard() {
         clients={clients}
         invoices={invoices}
         defaultRateCents={settings?.rate_cabinet_cents || 15000}
+      />
+
+      {/* KPI Analytics for flat-fee */}
+      <KPIAnalyticsFlatFee
+        matters={matters}
+        clients={clients}
+        invoices={invoices}
       />
 
       {/* Timesheet Export */}

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { CalendarIcon, Download, Eye, EyeOff, BarChart3, TrendingUp } from 'lucide-react';
+import { CalendarIcon, Download, Eye, EyeOff, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -31,28 +31,13 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-interface TimesheetEntry {
-  user_id: string;
-  matter_id: string;
-  date: string;
-  minutes_rounded: number;
-  billable: boolean;
-}
-
-interface Profile {
-  id: string;
-  email: string;
-  name: string;
-  rate_cents: number | null;
-}
-
 interface Matter {
   id: string;
   code: string;
   label: string;
   client_id: string;
-  rate_cents: number | null;
   billing_type: string;
+  flat_fee_cents: number | null;
 }
 
 interface Client {
@@ -71,40 +56,26 @@ interface Invoice {
   total_ht_cents: number;
 }
 
-interface KPIAnalyticsProps {
-  entries: TimesheetEntry[];
-  profiles: Profile[];
+interface KPIAnalyticsFlatFeeProps {
   matters: Matter[];
   clients: Client[];
   invoices: Invoice[];
-  defaultRateCents: number;
 }
-
-type GroupByOption = 'collaborator' | 'client' | 'matter';
 
 interface KPIRow {
   key: string;
-  collaboratorId?: string;
-  collaboratorName?: string;
   clientId?: string;
   clientCode?: string;
   clientName?: string;
   matterId?: string;
   matterCode?: string;
   matterLabel?: string;
-  billableMinutes: number;
-  billableRevenueCents: number;
+  flatFeeCents: number;
   invoicedRevenueCents: number;
 }
 
 function formatCents(cents: number): string {
   return (cents / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' MAD';
-}
-
-function formatMinutes(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${h}h${m.toString().padStart(2, '0')}`;
 }
 
 function escapeCSV(value: string | number | undefined | null): string {
@@ -129,14 +100,11 @@ function downloadCSV(content: string, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-export function KPIAnalytics({ 
-  entries, 
-  profiles, 
+export function KPIAnalyticsFlatFee({ 
   matters, 
   clients, 
   invoices,
-  defaultRateCents 
-}: KPIAnalyticsProps) {
+}: KPIAnalyticsFlatFeeProps) {
   const [periodFrom, setPeriodFrom] = useState<Date>(() => {
     const d = new Date();
     d.setDate(1);
@@ -144,57 +112,33 @@ export function KPIAnalytics({
   });
   const [periodTo, setPeriodTo] = useState<Date>(() => new Date());
   
-  // Grouping options
-  const [groupByCollaborator, setGroupByCollaborator] = useState(true);
-  const [groupByClient, setGroupByClient] = useState(false);
+  // Grouping options (no collaborator for flat fee)
+  const [groupByClient, setGroupByClient] = useState(true);
   const [groupByMatter, setGroupByMatter] = useState(false);
   
   // Filters
-  const [filterCollaborator, setFilterCollaborator] = useState<string>('all');
   const [filterClient, setFilterClient] = useState<string>('all');
   const [filterMatter, setFilterMatter] = useState<string>('all');
   
   const [showPreview, setShowPreview] = useState(false);
 
-  // Filter entries by period and filters - ONLY time-based matters
-  const filteredEntries = useMemo(() => {
-    const fromStr = format(periodFrom, 'yyyy-MM-dd');
-    const toStr = format(periodTo, 'yyyy-MM-dd');
-    
-    // Get time-based matter IDs
-    const timeBasedMatterIds = new Set(
-      matters.filter(m => m.billing_type !== 'flat_fee').map(m => m.id)
-    );
-    
-    return entries.filter(e => {
-      if (!e.billable) return false;
-      if (e.date < fromStr || e.date > toStr) return false;
-      if (!timeBasedMatterIds.has(e.matter_id)) return false;
-      if (filterCollaborator !== 'all' && e.user_id !== filterCollaborator) return false;
-      
-      const matter = matters.find(m => m.id === e.matter_id);
-      if (filterClient !== 'all' && matter?.client_id !== filterClient) return false;
-      if (filterMatter !== 'all' && e.matter_id !== filterMatter) return false;
-      
-      return true;
-    });
-  }, [entries, periodFrom, periodTo, filterCollaborator, filterClient, filterMatter, matters]);
+  // Get only flat-fee matters
+  const flatFeeMatters = useMemo(() => {
+    return matters.filter(m => m.billing_type === 'flat_fee');
+  }, [matters]);
 
-  // Filter invoices by period - ONLY time-based matters
+  // Filter invoices by period and flat-fee matters only
   const filteredInvoices = useMemo(() => {
     const fromStr = format(periodFrom, 'yyyy-MM-dd');
     const toStr = format(periodTo, 'yyyy-MM-dd');
     
-    // Get time-based matter IDs
-    const timeBasedMatterIds = new Set(
-      matters.filter(m => m.billing_type !== 'flat_fee').map(m => m.id)
-    );
+    const flatFeeMatterIds = new Set(flatFeeMatters.map(m => m.id));
     
     return invoices.filter(inv => {
       if (inv.status !== 'issued') return false;
       if (!inv.issue_date) return false;
       if (inv.issue_date < fromStr || inv.issue_date > toStr) return false;
-      if (!timeBasedMatterIds.has(inv.matter_id)) return false;
+      if (!flatFeeMatterIds.has(inv.matter_id)) return false;
       
       const matter = matters.find(m => m.id === inv.matter_id);
       if (filterClient !== 'all' && matter?.client_id !== filterClient) return false;
@@ -202,52 +146,44 @@ export function KPIAnalytics({
       
       return true;
     });
-  }, [invoices, periodFrom, periodTo, filterClient, filterMatter, matters]);
+  }, [invoices, periodFrom, periodTo, filterClient, filterMatter, matters, flatFeeMatters]);
 
   // Calculate KPI data with grouping
   const kpiData = useMemo<KPIRow[]>(() => {
     const grouped = new Map<string, KPIRow>();
     
-    // Ensure at least one grouping is selected
-    const hasGrouping = groupByCollaborator || groupByClient || groupByMatter;
+    const hasGrouping = groupByClient || groupByMatter;
     
-    filteredEntries.forEach(entry => {
-      const matter = matters.find(m => m.id === entry.matter_id);
-      const client = matter ? clients.find(c => c.id === matter.client_id) : null;
-      const profile = profiles.find(p => p.id === entry.user_id);
+    // First, add all flat-fee matters (for forfait amount)
+    flatFeeMatters.forEach(matter => {
+      const client = clients.find(c => c.id === matter.client_id);
       
-      // Build key based on grouping
+      // Apply filters
+      if (filterClient !== 'all' && matter.client_id !== filterClient) return;
+      if (filterMatter !== 'all' && matter.id !== filterMatter) return;
+      
       const keyParts: string[] = [];
-      if (groupByCollaborator) keyParts.push(entry.user_id);
       if (groupByClient) keyParts.push(client?.id || 'unknown');
-      if (groupByMatter) keyParts.push(entry.matter_id);
+      if (groupByMatter) keyParts.push(matter.id);
       
       const key = hasGrouping ? keyParts.join('|') : 'total';
-      
-      // Calculate rate
-      const rateCents = profile?.rate_cents || matter?.rate_cents || defaultRateCents;
-      const revenueCents = Math.round((entry.minutes_rounded * rateCents) / 60);
       
       if (!grouped.has(key)) {
         grouped.set(key, {
           key,
-          collaboratorId: groupByCollaborator ? entry.user_id : undefined,
-          collaboratorName: groupByCollaborator ? (profile?.name || 'Inconnu') : undefined,
           clientId: groupByClient ? client?.id : undefined,
           clientCode: groupByClient ? (client?.code || '-') : undefined,
           clientName: groupByClient ? (client?.name || '-') : undefined,
-          matterId: groupByMatter ? entry.matter_id : undefined,
-          matterCode: groupByMatter ? (matter?.code || '-') : undefined,
-          matterLabel: groupByMatter ? (matter?.label || '-') : undefined,
-          billableMinutes: 0,
-          billableRevenueCents: 0,
+          matterId: groupByMatter ? matter.id : undefined,
+          matterCode: groupByMatter ? matter.code : undefined,
+          matterLabel: groupByMatter ? matter.label : undefined,
+          flatFeeCents: 0,
           invoicedRevenueCents: 0,
         });
       }
       
       const row = grouped.get(key)!;
-      row.billableMinutes += entry.minutes_rounded;
-      row.billableRevenueCents += revenueCents;
+      row.flatFeeCents += matter.flat_fee_cents || 0;
     });
 
     // Add invoiced revenue
@@ -255,53 +191,26 @@ export function KPIAnalytics({
       const matter = matters.find(m => m.id === inv.matter_id);
       const client = matter ? clients.find(c => c.id === matter.client_id) : null;
       
-      // For invoiced revenue, we need to match with entries' collaborators if grouped
-      if (groupByCollaborator) {
-        // Distribute invoice to matching rows (simplified - add to all collaborators for that matter)
-        grouped.forEach((row, key) => {
-          if (groupByMatter && row.matterId === inv.matter_id) {
-            row.invoicedRevenueCents += inv.total_ht_cents;
-          } else if (!groupByMatter && groupByClient && row.clientId === client?.id) {
-            row.invoicedRevenueCents += inv.total_ht_cents;
-          }
-        });
-      } else {
-        const keyParts: string[] = [];
-        if (groupByClient) keyParts.push(client?.id || 'unknown');
-        if (groupByMatter) keyParts.push(inv.matter_id);
-        
-        const key = keyParts.length > 0 ? keyParts.join('|') : 'total';
-        
-        if (grouped.has(key)) {
-          grouped.get(key)!.invoicedRevenueCents += inv.total_ht_cents;
-        } else if (!groupByCollaborator) {
-          // Create row for invoice-only data
-          grouped.set(key, {
-            key,
-            clientId: groupByClient ? client?.id : undefined,
-            clientCode: groupByClient ? (client?.code || '-') : undefined,
-            clientName: groupByClient ? (client?.name || '-') : undefined,
-            matterId: groupByMatter ? inv.matter_id : undefined,
-            matterCode: groupByMatter ? (matter?.code || '-') : undefined,
-            matterLabel: groupByMatter ? (matter?.label || '-') : undefined,
-            billableMinutes: 0,
-            billableRevenueCents: 0,
-            invoicedRevenueCents: inv.total_ht_cents,
-          });
-        }
+      const keyParts: string[] = [];
+      if (groupByClient) keyParts.push(client?.id || 'unknown');
+      if (groupByMatter) keyParts.push(inv.matter_id);
+      
+      const key = hasGrouping ? keyParts.join('|') : 'total';
+      
+      if (grouped.has(key)) {
+        grouped.get(key)!.invoicedRevenueCents += inv.total_ht_cents;
       }
     });
     
-    return Array.from(grouped.values()).sort((a, b) => b.billableRevenueCents - a.billableRevenueCents);
-  }, [filteredEntries, filteredInvoices, groupByCollaborator, groupByClient, groupByMatter, matters, clients, profiles, defaultRateCents]);
+    return Array.from(grouped.values()).sort((a, b) => b.flatFeeCents - a.flatFeeCents);
+  }, [flatFeeMatters, filteredInvoices, groupByClient, groupByMatter, matters, clients, filterClient, filterMatter]);
 
   // Totals
   const totals = useMemo(() => {
     return kpiData.reduce((acc, row) => ({
-      billableMinutes: acc.billableMinutes + row.billableMinutes,
-      billableRevenueCents: acc.billableRevenueCents + row.billableRevenueCents,
+      flatFeeCents: acc.flatFeeCents + row.flatFeeCents,
       invoicedRevenueCents: acc.invoicedRevenueCents + row.invoicedRevenueCents,
-    }), { billableMinutes: 0, billableRevenueCents: 0, invoicedRevenueCents: 0 });
+    }), { flatFeeCents: 0, invoicedRevenueCents: 0 });
   }, [kpiData]);
 
   // Export CSV
@@ -312,14 +221,12 @@ export function KPIAnalytics({
     }
 
     const headers: string[] = [];
-    if (groupByCollaborator) headers.push('Collaborateur');
     if (groupByClient) headers.push('Code Client', 'Nom Client');
     if (groupByMatter) headers.push('Code Dossier', 'Libellé Dossier');
-    headers.push('Minutes Facturables', 'Heures', 'CA Facturable (MAD)', 'CA Facturé (MAD)');
+    headers.push('Forfait HT (MAD)', 'CA Facturé (MAD)');
     
     const rows = kpiData.map(row => {
       const r: (string | number)[] = [];
-      if (groupByCollaborator) r.push(row.collaboratorName || '');
       if (groupByClient) {
         r.push(row.clientCode || '');
         r.push(row.clientName || '');
@@ -328,9 +235,7 @@ export function KPIAnalytics({
         r.push(row.matterCode || '');
         r.push(row.matterLabel || '');
       }
-      r.push(row.billableMinutes);
-      r.push((row.billableMinutes / 60).toFixed(2));
-      r.push((row.billableRevenueCents / 100).toFixed(2));
+      r.push((row.flatFeeCents / 100).toFixed(2));
       r.push((row.invoicedRevenueCents / 100).toFixed(2));
       return r;
     });
@@ -340,21 +245,26 @@ export function KPIAnalytics({
       ...rows.map(r => r.map(escapeCSV).join(';'))
     ].join('\n');
 
-    const groupingParts: string[] = [];
-    if (groupByCollaborator) groupingParts.push('collab');
+    const groupingParts: string[] = ['forfait'];
     if (groupByClient) groupingParts.push('client');
     if (groupByMatter) groupingParts.push('dossier');
     
     const filename = `kpi_${groupingParts.join('_')}_${format(periodFrom, 'yyyy-MM-dd')}_${format(periodTo, 'yyyy-MM-dd')}.csv`;
     downloadCSV(csvContent, filename);
-    toast.success('Export KPI téléchargé');
+    toast.success('Export KPI forfait téléchargé');
   };
 
-  // Get matters filtered by client
+  // Get flat-fee matters filtered by client
   const filteredMattersForSelect = useMemo(() => {
-    if (filterClient === 'all') return matters;
-    return matters.filter(m => m.client_id === filterClient);
-  }, [matters, filterClient]);
+    if (filterClient === 'all') return flatFeeMatters;
+    return flatFeeMatters.filter(m => m.client_id === filterClient);
+  }, [flatFeeMatters, filterClient]);
+
+  // Get clients that have flat-fee matters
+  const clientsWithFlatFee = useMemo(() => {
+    const clientIds = new Set(flatFeeMatters.map(m => m.client_id));
+    return clients.filter(c => clientIds.has(c.id));
+  }, [clients, flatFeeMatters]);
 
   return (
     <Card>
@@ -362,8 +272,8 @@ export function KPIAnalytics({
         <div className="flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-primary" />
           <div>
-            <CardTitle>KPI Chiffre d'Affaires - Facturation au temps passé</CardTitle>
-            <CardDescription>Analyse CA facturable et facturé (dossiers au temps passé)</CardDescription>
+            <CardTitle>KPI Chiffre d'Affaires - Facturation au forfait</CardTitle>
+            <CardDescription>Analyse CA forfaitaire et facturé (dossiers au forfait uniquement)</CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -418,33 +328,25 @@ export function KPIAnalytics({
           </div>
         </div>
 
-        {/* Grouping Options */}
+        {/* Grouping Options (no collaborator) */}
         <div className="space-y-2">
           <Label className="text-sm font-medium">Regrouper par</Label>
           <div className="flex flex-wrap gap-4">
             <div className="flex items-center space-x-2">
               <Checkbox 
-                id="groupCollab" 
-                checked={groupByCollaborator}
-                onCheckedChange={(checked) => setGroupByCollaborator(checked === true)}
-              />
-              <label htmlFor="groupCollab" className="text-sm cursor-pointer">Collaborateur</label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="groupClient" 
+                id="groupClientForfait" 
                 checked={groupByClient}
                 onCheckedChange={(checked) => setGroupByClient(checked === true)}
               />
-              <label htmlFor="groupClient" className="text-sm cursor-pointer">Client</label>
+              <label htmlFor="groupClientForfait" className="text-sm cursor-pointer">Client</label>
             </div>
             <div className="flex items-center space-x-2">
               <Checkbox 
-                id="groupMatter" 
+                id="groupMatterForfait" 
                 checked={groupByMatter}
                 onCheckedChange={(checked) => setGroupByMatter(checked === true)}
               />
-              <label htmlFor="groupMatter" className="text-sm cursor-pointer">Dossier</label>
+              <label htmlFor="groupMatterForfait" className="text-sm cursor-pointer">Dossier</label>
             </div>
           </div>
         </div>
@@ -452,32 +354,17 @@ export function KPIAnalytics({
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
           <div className="grid gap-2">
-            <Label className="text-sm">Filtrer par collaborateur</Label>
-            <Select value={filterCollaborator} onValueChange={setFilterCollaborator}>
-              <SelectTrigger className="w-[220px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous</SelectItem>
-                {profiles.map(p => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="grid gap-2">
             <Label className="text-sm">Filtrer par client</Label>
             <Select value={filterClient} onValueChange={(v) => {
               setFilterClient(v);
-              setFilterMatter('all'); // Reset matter when client changes
+              setFilterMatter('all');
             }}>
               <SelectTrigger className="w-[220px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous</SelectItem>
-                {clients.map(c => (
+                {clientsWithFlatFee.map(c => (
                   <SelectItem key={c.id} value={c.id}>{c.code} - {c.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -501,16 +388,10 @@ export function KPIAnalytics({
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-muted/50 rounded-lg p-4">
-            <div className="text-sm text-muted-foreground">Total Heures Facturables</div>
-            <div className="text-2xl font-bold">{formatMinutes(totals.billableMinutes)}</div>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="bg-accent/10 rounded-lg p-4">
-            <div className="text-sm text-muted-foreground flex items-center gap-1">
-              <TrendingUp className="h-3 w-3" /> CA Facturable
-            </div>
-            <div className="text-2xl font-bold text-accent">{formatCents(totals.billableRevenueCents)}</div>
+            <div className="text-sm text-muted-foreground">Total Forfaits HT</div>
+            <div className="text-2xl font-bold text-accent">{formatCents(totals.flatFeeCents)}</div>
           </div>
           <div className="bg-primary/10 rounded-lg p-4">
             <div className="text-sm text-muted-foreground">CA Facturé</div>
@@ -539,11 +420,9 @@ export function KPIAnalytics({
             <Table>
               <TableHeader>
                 <TableRow>
-                  {groupByCollaborator && <TableHead>Collaborateur</TableHead>}
                   {groupByClient && <TableHead>Client</TableHead>}
                   {groupByMatter && <TableHead>Dossier</TableHead>}
-                  <TableHead className="text-right">Heures</TableHead>
-                  <TableHead className="text-right">CA Facturable</TableHead>
+                  <TableHead className="text-right">Forfait HT</TableHead>
                   <TableHead className="text-right">CA Facturé</TableHead>
                 </TableRow>
               </TableHeader>
@@ -551,19 +430,16 @@ export function KPIAnalytics({
                 {kpiData.length === 0 ? (
                   <TableRow>
                     <TableCell 
-                      colSpan={(groupByCollaborator ? 1 : 0) + (groupByClient ? 1 : 0) + (groupByMatter ? 1 : 0) + 3} 
+                      colSpan={(groupByClient ? 1 : 0) + (groupByMatter ? 1 : 0) + 2} 
                       className="text-center text-muted-foreground py-8"
                     >
-                      Aucune donnée pour cette sélection
+                      Aucun dossier au forfait
                     </TableCell>
                   </TableRow>
                 ) : (
                   <>
                     {kpiData.slice(0, 50).map((row) => (
                       <TableRow key={row.key}>
-                        {groupByCollaborator && (
-                          <TableCell className="font-medium">{row.collaboratorName}</TableCell>
-                        )}
                         {groupByClient && (
                           <TableCell>
                             <Badge variant="outline">{row.clientCode}</Badge>
@@ -578,9 +454,8 @@ export function KPIAnalytics({
                             </span>
                           </TableCell>
                         )}
-                        <TableCell className="text-right">{formatMinutes(row.billableMinutes)}</TableCell>
                         <TableCell className="text-right font-medium text-accent">
-                          {formatCents(row.billableRevenueCents)}
+                          {formatCents(row.flatFeeCents)}
                         </TableCell>
                         <TableCell className="text-right font-medium text-primary">
                           {formatCents(row.invoicedRevenueCents)}
@@ -590,12 +465,11 @@ export function KPIAnalytics({
                     {/* Total Row */}
                     <TableRow className="bg-muted/50 font-bold">
                       <TableCell 
-                        colSpan={(groupByCollaborator ? 1 : 0) + (groupByClient ? 1 : 0) + (groupByMatter ? 1 : 0)}
+                        colSpan={(groupByClient ? 1 : 0) + (groupByMatter ? 1 : 0)}
                       >
                         TOTAL
                       </TableCell>
-                      <TableCell className="text-right">{formatMinutes(totals.billableMinutes)}</TableCell>
-                      <TableCell className="text-right text-accent">{formatCents(totals.billableRevenueCents)}</TableCell>
+                      <TableCell className="text-right text-accent">{formatCents(totals.flatFeeCents)}</TableCell>
                       <TableCell className="text-right text-primary">{formatCents(totals.invoicedRevenueCents)}</TableCell>
                     </TableRow>
                   </>
