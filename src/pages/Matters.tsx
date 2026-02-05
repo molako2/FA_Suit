@@ -60,6 +60,31 @@ export default function Matters() {
   const [formVatRate, setFormVatRate] = useState<'0' | '20'>('20');
   const [formBillingType, setFormBillingType] = useState<'time_based' | 'flat_fee'>('time_based');
   const [formFlatFeeCents, setFormFlatFeeCents] = useState('');
+  const [formInterventionNature, setFormInterventionNature] = useState('');
+  const [formClientSector, setFormClientSector] = useState('');
+
+  // Dropdown options
+  const interventionNatureOptions = [
+    'Audit contractuel',
+    'Autres',
+    'CAC',
+    'Conseil financier',
+    'Conseil fiscal',
+    'Externalisation',
+    'Expertise Comptable',
+    'Formation',
+  ];
+
+  const clientSectorOptions = [
+    'Agriculture',
+    'Agroalimentaire',
+    'Autres',
+    'Collectivités locales',
+    'Etablissement public',
+    'Industrie manufacturière',
+    'Pêche',
+    'Services',
+  ];
 
   // Supabase hooks
   const { data: matters = [], isLoading: mattersLoading } = useMatters();
@@ -81,6 +106,8 @@ export default function Matters() {
     setFormVatRate('20');
     setFormBillingType('time_based');
     setFormFlatFeeCents('');
+    setFormInterventionNature('');
+    setFormClientSector('');
     setEditingMatter(null);
   };
 
@@ -93,6 +120,8 @@ export default function Matters() {
       setFormVatRate(String(matter.vat_rate) as '0' | '20');
       setFormBillingType(matter.billing_type || 'time_based');
       setFormFlatFeeCents(matter.flat_fee_cents ? String(matter.flat_fee_cents / 100) : '');
+      setFormInterventionNature(matter.intervention_nature || '');
+      setFormClientSector(matter.client_sector || '');
     } else {
       resetForm();
     }
@@ -127,6 +156,8 @@ export default function Matters() {
           vat_rate: parseInt(formVatRate),
           billing_type: formBillingType,
           flat_fee_cents: flatFeeCents,
+          intervention_nature: formInterventionNature || null,
+          client_sector: formClientSector || null,
         });
         toast.success('Dossier modifié');
       } else {
@@ -144,6 +175,8 @@ export default function Matters() {
           vat_rate: parseInt(formVatRate),
           billing_type: formBillingType,
           flat_fee_cents: flatFeeCents,
+          intervention_nature: formInterventionNature || null,
+          client_sector: formClientSector || null,
         });
         toast.success('Dossier créé');
       }
@@ -268,6 +301,38 @@ export default function Matters() {
                     value={formLabel}
                     onChange={(e) => setFormLabel(e.target.value)}
                   />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="interventionNature">Nature de l'intervention</Label>
+                  <Select value={formInterventionNature} onValueChange={setFormInterventionNature}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionnez une nature" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {interventionNatureOptions.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="clientSector">Secteur d'activité du client</Label>
+                  <Select value={formClientSector} onValueChange={setFormClientSector}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionnez un secteur" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clientSectorOptions.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Billing Type */}
