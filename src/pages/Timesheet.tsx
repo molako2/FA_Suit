@@ -43,11 +43,12 @@ import {
 import { useMatters } from '@/hooks/useMatters';
 import { useClients } from '@/hooks/useClients';
 import { useAssignments } from '@/hooks/useAssignments';
+import { useProfiles } from '@/hooks/useProfiles';
 import { Plus, Pencil, Trash2, Clock, Lock, Calendar, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Timesheet() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const [periodFrom, setPeriodFrom] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 7);
@@ -63,6 +64,10 @@ export default function Timesheet() {
   const [formDuration, setFormDuration] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formBillable, setFormBillable] = useState(true);
+  const [formUserId, setFormUserId] = useState('');
+
+  // Check if user can add for others
+  const canAddForOthers = role === 'owner' || role === 'sysadmin';
 
   // Supabase hooks
   const { data: entries = [], isLoading: entriesLoading } = useTimesheetEntries(
@@ -73,23 +78,26 @@ export default function Timesheet() {
   const { data: allMatters = [], isLoading: mattersLoading } = useMatters();
   const { data: clients = [], isLoading: clientsLoading } = useClients();
   const { data: assignments = [], isLoading: assignmentsLoading } = useAssignments();
+  const { data: profiles = [] } = useProfiles();
   
   const createEntry = useCreateTimesheetEntry();
   const updateEntry = useUpdateTimesheetEntry();
   const deleteEntry = useDeleteTimesheetEntry();
 
-  // Get user's assigned matters
+  // Get selected user's assigned matters (or current user if not admin)
+  const selectedUserId = canAddForOthers && formUserId ? formUserId : user?.id;
+  
   const assignedMatters = useMemo(() => {
-    if (!user) return [];
+    if (!selectedUserId) return [];
     const today = new Date().toISOString().split('T')[0];
     const userAssignments = assignments.filter(a => 
-      a.user_id === user.id &&
+      a.user_id === selectedUserId &&
       a.start_date <= today &&
       (!a.end_date || a.end_date >= today)
     );
     const assignedMatterIds = new Set(userAssignments.map(a => a.matter_id));
     return allMatters.filter(m => assignedMatterIds.has(m.id) && m.status === 'open');
-  }, [user, assignments, allMatters]);
+  }, [selectedUserId, assignments, allMatters]);
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -109,6 +117,7 @@ export default function Timesheet() {
     setFormDescription('');
     setFormBillable(true);
     setEditingEntry(null);
+    setFormUserId(user?.id || '');
   };
 
   const openDialog = (entry?: TimesheetEntry) => {
@@ -119,6 +128,7 @@ export default function Timesheet() {
       setFormDuration(String(entry.minutes_rounded));
       setFormDescription(entry.description);
       setFormBillable(entry.billable);
+      setFormUserId(entry.user_id);
     } else {
       resetForm();
     }
@@ -139,6 +149,8 @@ export default function Timesheet() {
 
     const roundedMinutes = roundMinutes(durationMinutes);
 
+    const targetUserId = canAddForOthers && formUserId ? formUserId : user.id;
+
     try {
       if (editingEntry) {
         await updateEntry.mutateAsync({
@@ -152,7 +164,7 @@ export default function Timesheet() {
         toast.success('Entrée modifiée');
       } else {
         await createEntry.mutateAsync({
-          user_id: user.id,
+          user_id: targetUserId,
           matter_id: formMatterId,
           date: formDate,
           minutes_rounded: roundedMinutes,
@@ -222,6 +234,27 @@ export default function Timesheet() {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
+              {canAddForOthers && (
+                <div className="grid gap-2">
+                  <Label htmlFor="user">Collaborateur</Label>
+                  <Select value={formUserId} onValueChange={(value) => {
+                    setFormUserId(value);
+                    setFormMatterId(''); // Reset matter when user changes
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionnez un collaborateur" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {profiles.filter(p => p.active).map((profile) => (
+                        <SelectItem key={profile.id} value={profile.id}>
+                          {profile.name} ({profile.email})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div className="grid gap-2">
                 <Label htmlFor="date">Date</Label>
                 <Input
