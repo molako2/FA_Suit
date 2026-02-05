@@ -32,11 +32,12 @@
  import { useExpenses, useCreateExpense, useDeleteExpense, formatCentsTTC } from '@/hooks/useExpenses';
  import { useClients } from '@/hooks/useClients';
  import { useMatters } from '@/hooks/useMatters';
- import { Plus, Trash2, Loader2, Receipt } from 'lucide-react';
+import { useProfiles } from '@/hooks/useProfiles';
+import { Plus, Trash2, Loader2, Receipt, Download } from 'lucide-react';
  import { toast } from 'sonner';
  
  export default function Expenses() {
-   const { user } = useAuth();
+  const { user, role } = useAuth();
    const [isDialogOpen, setIsDialogOpen] = useState(false);
    
    // Form state
@@ -48,9 +49,11 @@
    const [billable, setBillable] = useState(true);
  
    // Data hooks
-   const { data: expenses = [], isLoading: expensesLoading } = useExpenses(user?.id);
+  const canViewAll = role === 'owner' || role === 'sysadmin';
+  const { data: expenses = [], isLoading: expensesLoading } = useExpenses(canViewAll ? undefined : user?.id);
    const { data: clients = [], isLoading: clientsLoading } = useClients();
    const { data: matters = [], isLoading: mattersLoading } = useMatters();
+  const { data: profiles = [] } = useProfiles();
    const createExpense = useCreateExpense();
    const deleteExpense = useDeleteExpense();
  
@@ -67,6 +70,7 @@
    const getClientCode = (clientId: string) => clients.find(c => c.id === clientId)?.code || '';
    const getMatterLabel = (matterId: string) => matters.find(m => m.id === matterId)?.label || '';
    const getMatterCode = (matterId: string) => matters.find(m => m.id === matterId)?.code || '';
+  const getUserName = (userId: string) => profiles.find(p => p.id === userId)?.name || '';
  
    const resetForm = () => {
      setSelectedClientId('');
@@ -130,6 +134,42 @@
      }
    };
  
+  // Export to CSV
+  const handleExportCSV = () => {
+    if (expenses.length === 0) {
+      toast.error('Aucun frais à exporter');
+      return;
+    }
+
+    const headers = ['Date', 'Collaborateur', 'Code Client', 'Client', 'Code Dossier', 'Dossier', 'Nature', 'Montant TTC', 'Facturable', 'Verrouillé'];
+    const rows = expenses.map(exp => [
+      exp.expense_date,
+      getUserName(exp.user_id),
+      getClientCode(exp.client_id),
+      getClientName(exp.client_id),
+      getMatterCode(exp.matter_id),
+      getMatterLabel(exp.matter_id),
+      exp.nature,
+      (exp.amount_ttc_cents / 100).toFixed(2),
+      exp.billable ? 'Oui' : 'Non',
+      exp.locked ? 'Oui' : 'Non',
+    ]);
+
+    const csvContent = [
+      headers.join(';'),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
+    ].join('\n');
+
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `frais_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success('Export CSV téléchargé');
+  };
+
    // When client changes, reset matter
    const handleClientChange = (clientId: string) => {
      setSelectedClientId(clientId);
@@ -148,17 +188,22 @@
      <div className="space-y-6 animate-fade-in">
        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
          <div>
-           <h1 className="text-3xl font-bold">Mes frais</h1>
+            <h1 className="text-3xl font-bold">{canViewAll ? 'Gestion des frais' : 'Mes frais'}</h1>
            <p className="text-muted-foreground">Gérez vos notes de frais</p>
          </div>
          
-         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-           <DialogTrigger asChild>
-             <Button>
-               <Plus className="w-4 h-4 mr-2" />
-               Nouveau frais
-             </Button>
-           </DialogTrigger>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleExportCSV}>
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nouveau frais
+                </Button>
+              </DialogTrigger>
            <DialogContent className="sm:max-w-[500px]">
              <DialogHeader>
                <DialogTitle>Ajouter un frais</DialogTitle>
@@ -283,7 +328,8 @@
                </DialogFooter>
              </form>
            </DialogContent>
-         </Dialog>
+            </Dialog>
+          </div>
        </div>
  
        {/* Expenses Table */}
@@ -302,18 +348,20 @@
              <TableHeader>
                <TableRow>
                  <TableHead>Date</TableHead>
+                  {canViewAll && <TableHead>Collaborateur</TableHead>}
                  <TableHead>Client</TableHead>
                  <TableHead>Dossier</TableHead>
                  <TableHead>Nature</TableHead>
                  <TableHead className="text-right">Montant TTC</TableHead>
                  <TableHead className="text-center">Facturable</TableHead>
+                  <TableHead className="text-center">Statut</TableHead>
                  <TableHead></TableHead>
                </TableRow>
              </TableHeader>
              <TableBody>
                {expenses.length === 0 ? (
                  <TableRow>
-                   <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={canViewAll ? 9 : 8} className="text-center text-muted-foreground py-8">
                      Aucun frais enregistré
                    </TableCell>
                  </TableRow>
@@ -321,6 +369,9 @@
                  expenses.map((expense) => (
                    <TableRow key={expense.id}>
                      <TableCell>{new Date(expense.expense_date).toLocaleDateString('fr-FR')}</TableCell>
+                      {canViewAll && (
+                        <TableCell className="font-medium">{getUserName(expense.user_id)}</TableCell>
+                      )}
                      <TableCell>
                        <div className="text-sm">
                          <span className="font-medium">{getClientCode(expense.client_id)}</span>
@@ -340,8 +391,15 @@
                      <TableCell className="text-center">
                        {expense.billable ? '✓' : '—'}
                      </TableCell>
+                      <TableCell className="text-center">
+                        {expense.locked ? (
+                          <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">Facturé</span>
+                        ) : (
+                          <span className="text-xs text-primary bg-primary/10 px-2 py-1 rounded">Disponible</span>
+                        )}
+                      </TableCell>
                      <TableCell>
-                       {!expense.locked && (
+                        {!expense.locked && (canViewAll || expense.user_id === user?.id) && (
                          <Button
                            variant="ghost"
                            size="icon"
