@@ -120,8 +120,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="container flex h-16 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center overflow-hidden">
-              <img src={appLogo} alt="FlowAssist" className="w-6 h-6 object-contain" />
+            <div className="w-10 h-10 rounded-lg bg-white border border-border flex items-center justify-center overflow-hidden p-1">
+              <img src={appLogo} alt="FlowAssist" className="w-full h-full object-contain" />
             </div>
             <span className="font-semibold text-lg">FlowAssist</span>
           </Link>
