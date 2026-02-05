@@ -11,6 +11,7 @@ export interface InvoiceLine {
   amount_ht_cents: number;
   vat_cents: number;
   amount_ttc_cents: number;
+  expense_id?: string;
 }
 
 export interface Invoice {
