@@ -130,6 +130,8 @@ export type Database = {
           address: string | null
           billing_email: string | null
           code: string
+          contact_name: string | null
+          contact_phone: string | null
           created_at: string
           id: string
           name: string
@@ -141,6 +143,8 @@ export type Database = {
           address?: string | null
           billing_email?: string | null
           code: string
+          contact_name?: string | null
+          contact_phone?: string | null
           created_at?: string
           id?: string
           name: string
@@ -152,6 +156,8 @@ export type Database = {
           address?: string | null
           billing_email?: string | null
           code?: string
+          contact_name?: string | null
+          contact_phone?: string | null
           created_at?: string
           id?: string
           name?: string

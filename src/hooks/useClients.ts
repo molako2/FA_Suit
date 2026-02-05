@@ -8,6 +8,8 @@ export interface Client {
   address: string | null;
   billing_email: string | null;
   vat_number: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
   active: boolean;
   created_at: string;
   updated_at: string;
