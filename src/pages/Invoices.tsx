@@ -51,11 +51,15 @@ import { FileText, Plus, Download, Eye, Send, Trash2, Printer } from 'lucide-rea
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { Currency, formatAmount } from '@/components/ui/currency';
 
 // Format cents to currency
-function formatCents(cents: number): string {
-  return (cents / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' MAD';
+function formatCentsText(cents: number): string {
+  return formatAmount(cents) + ' MAD';
 }
+
+// Alias for backwards compatibility
+const formatCents = formatCentsText;
 
 export default function Invoices() {
   const { role } = useAuth();
@@ -566,7 +570,7 @@ export default function Invoices() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCents(invoices.filter(i => i.status === 'issued').reduce((sum, i) => sum + i.total_ht_cents, 0))}
+              <Currency cents={invoices.filter(i => i.status === 'issued').reduce((sum, i) => sum + i.total_ht_cents, 0)} />
             </div>
           </CardContent>
         </Card>
@@ -576,7 +580,7 @@ export default function Invoices() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCents(invoices.filter(i => i.status === 'issued' && i.paid).reduce((sum, i) => sum + i.total_ht_cents, 0))}
+              <Currency cents={invoices.filter(i => i.status === 'issued' && i.paid).reduce((sum, i) => sum + i.total_ht_cents, 0)} />
             </div>
           </CardContent>
         </Card>
@@ -629,10 +633,10 @@ export default function Invoices() {
                       {invoice.period_from} → {invoice.period_to}
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatCents(invoice.total_ht_cents)}
+                      <Currency cents={invoice.total_ht_cents} />
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {formatCents(invoice.total_ttc_cents)}
+                      <Currency cents={invoice.total_ttc_cents} />
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge className={statusColors[invoice.status]}>
