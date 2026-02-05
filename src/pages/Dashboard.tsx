@@ -31,6 +31,7 @@ import { toast } from 'sonner';
 import { TimesheetExport } from '@/components/dashboard/TimesheetExport';
 import { KPIAnalytics } from '@/components/dashboard/KPIAnalytics';
 import { KPIAnalyticsFlatFee } from '@/components/dashboard/KPIAnalyticsFlatFee';
+import { UnpaidInvoicesKPI } from '@/components/dashboard/UnpaidInvoicesKPI';
 import type { KPIByUser, KPIByMatter } from '@/types';
 
 // Format cents to MAD
@@ -375,6 +376,13 @@ export default function Dashboard() {
         matters={matters}
         clients={clients}
         invoices={invoices}
+      />
+
+      {/* Unpaid Invoices KPI */}
+      <UnpaidInvoicesKPI
+        invoices={invoices}
+        matters={matters}
+        clients={clients}
       />
 
       {/* Timesheet Export */}
