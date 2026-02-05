@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Clock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
+ import cm2aBanner from '@/assets/cm2a-banner.png';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -66,15 +67,30 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-6">
+    <div className="min-h-screen flex flex-col bg-background">
+      {/* CM2A Banner */}
+      <a 
+        href="https://www.cm2a.ma" 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="w-full flex justify-center py-4 bg-background hover:opacity-90 transition-opacity"
+      >
+        <img 
+          src={cm2aBanner} 
+          alt="CM2A Consulting" 
+          className="h-16 md:h-20 object-contain"
+        />
+      </a>
+
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="w-full max-w-md space-y-6">
         {/* Logo & Title */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-primary text-primary-foreground">
             <Clock className="w-8 h-8" />
           </div>
           <h1 className="text-3xl font-bold text-foreground">FlowAssist</h1>
-          <p className="text-muted-foreground">Gestion du temps facturable</p>
+          <p className="text-muted-foreground">Outil de gestion de votre société</p>
         </div>
 
         {/* Auth Card */}
@@ -230,7 +246,23 @@ export default function LoginPage() {
         <p className="text-center text-sm text-muted-foreground">
           En vous inscrivant, vous acceptez nos conditions d'utilisation.
         </p>
+        </div>
       </div>
+
+      {/* Footer */}
+      <footer className="w-full py-4 text-center border-t border-border bg-card">
+        <p className="text-sm text-muted-foreground">
+          Développé par l'équipe <span className="font-semibold">CM2A Consulting™</span> - Votre partenaire de réussite - {' '}
+          <a 
+            href="https://www.cm2a.ma" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            www.cm2a.ma
+          </a>
+        </p>
+      </footer>
     </div>
   );
 }
