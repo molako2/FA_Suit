@@ -42,6 +42,45 @@
    });
  }
  
+ export function useExpensesByMatter(matterId?: string) {
+   return useQuery({
+     queryKey: ['expenses', 'matter', matterId],
+     queryFn: async () => {
+       if (!matterId) return [];
+       
+       const { data, error } = await supabase
+         .from('expenses')
+         .select('*')
+         .eq('matter_id', matterId)
+         .eq('billable', true)
+         .eq('locked', false)
+         .order('expense_date', { ascending: false });
+       
+       if (error) throw error;
+       return data as Expense[];
+     },
+     enabled: !!matterId
+   });
+ }
+ 
+ export function useLockExpenses() {
+   const queryClient = useQueryClient();
+   
+   return useMutation({
+     mutationFn: async (expenseIds: string[]) => {
+       const { error } = await supabase
+         .from('expenses')
+         .update({ locked: true })
+         .in('id', expenseIds);
+       
+       if (error) throw error;
+     },
+     onSuccess: () => {
+       queryClient.invalidateQueries({ queryKey: ['expenses'] });
+     }
+   });
+ }
+ 
  export function useCreateExpense() {
    const queryClient = useQueryClient();
    

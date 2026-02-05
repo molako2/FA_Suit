@@ -44,6 +44,7 @@ import { useInvoices, useCreateInvoice, useUpdateInvoice, useDeleteInvoice, type
 import { useCabinetSettings, useIncrementInvoiceSeq } from '@/hooks/useCabinetSettings';
 import { useTimesheetEntries, useLockTimesheetEntries, formatMinutesToHours } from '@/hooks/useTimesheet';
 import { useProfiles } from '@/hooks/useProfiles';
+ import { useExpensesByMatter, useLockExpenses, formatCentsTTC, type Expense } from '@/hooks/useExpenses';
 import { printInvoicePDF } from '@/lib/pdf';
 import { exportInvoicesCSV } from '@/lib/exports';
 import { FileText, Plus, Download, Eye, Send, Trash2, Printer } from 'lucide-react';
@@ -86,8 +87,15 @@ export default function Invoices() {
   const [periodTo, setPeriodTo] = useState(() => new Date().toISOString().split('T')[0]);
   const [groupByCollaborator, setGroupByCollaborator] = useState(false);
 
+   // Expense selection state
+   const [selectedExpenses, setSelectedExpenses] = useState<Record<string, { selected: boolean; customAmount: number | null }>>({});
+ 
   // Fetch timesheet entries for preview
   const { data: allTimesheetEntries = [] } = useTimesheetEntries(undefined, periodFrom, periodTo);
+ 
+   // Fetch expenses for selected matter
+   const { data: matterExpenses = [] } = useExpensesByMatter(selectedMatterId);
+   const lockExpensesMutation = useLockExpenses();
 
   const canEdit = role === 'owner' || role === 'assistant' || role === 'sysadmin';
 
@@ -104,6 +112,38 @@ export default function Invoices() {
   }, [selectedMatterId, periodFrom, periodTo, allTimesheetEntries]);
 
   const previewTotalMinutes = previewEntries.reduce((sum, e) => sum + e.minutes_rounded, 0);
+ 
+   // Calculate selected expenses total
+   const selectedExpensesTotal = useMemo(() => {
+     return matterExpenses.reduce((sum, exp) => {
+       const selection = selectedExpenses[exp.id];
+       if (!selection?.selected) return sum;
+       const amount = selection.customAmount !== null ? selection.customAmount : exp.amount_ttc_cents;
+       return sum + amount;
+     }, 0);
+   }, [matterExpenses, selectedExpenses]);
+ 
+   // Handle expense selection
+   const handleExpenseToggle = (expenseId: string, checked: boolean) => {
+     setSelectedExpenses(prev => ({
+       ...prev,
+       [expenseId]: { selected: checked, customAmount: prev[expenseId]?.customAmount ?? null }
+     }));
+   };
+ 
+   const handleExpenseAmountChange = (expenseId: string, amount: string) => {
+     const cents = amount ? Math.round(parseFloat(amount) * 100) : null;
+     setSelectedExpenses(prev => ({
+       ...prev,
+       [expenseId]: { selected: prev[expenseId]?.selected ?? false, customAmount: cents }
+     }));
+   };
+ 
+   // Reset expense selection when matter changes
+   const handleMatterChange = (matterId: string) => {
+     setSelectedMatterId(matterId);
+     setSelectedExpenses({});
+   };
 
   const getMatterInfo = (matterId: string) => {
     const matter = matters.find(m => m.id === matterId);
@@ -221,6 +261,34 @@ export default function Invoices() {
       }];
     }
 
+     // Add expense lines if any selected
+     const expenseLinesToAdd: InvoiceLine[] = [];
+     const expenseIdsToLock: string[] = [];
+     
+     matterExpenses.forEach(exp => {
+       const selection = selectedExpenses[exp.id];
+       if (selection?.selected) {
+         const amountTTC = selection.customAmount !== null ? selection.customAmount : exp.amount_ttc_cents;
+         // Convert TTC to HT (assuming expenses are TTC and we back-calculate HT)
+         const amountHt = Math.round(amountTTC / (1 + vatRate / 100));
+         const vatCents = amountTTC - amountHt;
+         
+         expenseLinesToAdd.push({
+           id: crypto.randomUUID(),
+           label: `Frais - ${exp.nature}`,
+           minutes: 0,
+           rate_cents: 0,
+           vat_rate: vatRate,
+           amount_ht_cents: amountHt,
+           vat_cents: vatCents,
+           amount_ttc_cents: amountTTC,
+         });
+         expenseIdsToLock.push(exp.id);
+       }
+     });
+     
+     lines = [...lines, ...expenseLinesToAdd];
+ 
     const totalHt = lines.reduce((sum, l) => sum + l.amount_ht_cents, 0);
     const totalVat = lines.reduce((sum, l) => sum + l.vat_cents, 0);
     const totalTtc = lines.reduce((sum, l) => sum + l.amount_ttc_cents, 0);
@@ -243,6 +311,12 @@ export default function Invoices() {
       toast.success('Brouillon de facture créé');
       setIsCreateDialogOpen(false);
       setSelectedMatterId('');
+       setSelectedExpenses({});
+ 
+       // Lock the selected expenses
+       if (expenseIdsToLock.length > 0) {
+         await lockExpensesMutation.mutateAsync(expenseIdsToLock);
+       }
     } catch (error) {
       toast.error('Erreur lors de la création de la facture');
     }
@@ -639,7 +713,7 @@ export default function Invoices() {
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label>Dossier</Label>
-              <Select value={selectedMatterId} onValueChange={setSelectedMatterId}>
+              <Select value={selectedMatterId} onValueChange={handleMatterChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionnez un dossier" />
                 </SelectTrigger>
@@ -711,6 +785,53 @@ export default function Invoices() {
                       )}
                     </>
                   )}
+               
+               {/* Expenses Section */}
+               {matterExpenses.length > 0 && (
+                 <div className="mt-4 pt-4 border-t">
+                   <p className="text-sm font-medium mb-2">Frais disponibles ({matterExpenses.length})</p>
+                   <div className="space-y-2 max-h-48 overflow-y-auto">
+                     {matterExpenses.map(exp => {
+                       const selection = selectedExpenses[exp.id];
+                       const isSelected = selection?.selected ?? false;
+                       const customAmount = selection?.customAmount;
+                       return (
+                         <div key={exp.id} className="flex items-center gap-2 p-2 rounded border bg-background">
+                           <Checkbox
+                             checked={isSelected}
+                             onCheckedChange={(checked) => handleExpenseToggle(exp.id, checked === true)}
+                           />
+                           <div className="flex-1 min-w-0">
+                             <p className="text-sm font-medium truncate">{exp.nature}</p>
+                             <p className="text-xs text-muted-foreground">
+                               {new Date(exp.expense_date).toLocaleDateString('fr-FR')} - Original: {formatCentsTTC(exp.amount_ttc_cents)}
+                             </p>
+                           </div>
+                           {isSelected && (
+                             <div className="flex items-center gap-1">
+                               <Input
+                                 type="number"
+                                 step="0.01"
+                                 min="0"
+                                 placeholder="100%"
+                                 value={customAmount !== null ? (customAmount / 100).toFixed(2) : ''}
+                                 onChange={(e) => handleExpenseAmountChange(exp.id, e.target.value)}
+                                 className="w-24 h-8 text-sm"
+                               />
+                               <span className="text-xs text-muted-foreground">MAD</span>
+                             </div>
+                           )}
+                         </div>
+                       );
+                     })}
+                   </div>
+                   {selectedExpensesTotal > 0 && (
+                     <p className="text-sm mt-2 text-right">
+                       Total frais sélectionnés: <span className="font-semibold">{formatCentsTTC(selectedExpensesTotal)}</span>
+                     </p>
+                   )}
+                 </div>
+               )}
                 </CardContent>
               </Card>
             )}
