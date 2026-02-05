@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,6 +22,13 @@ import {
 
 export default function LoginPage() {
   const { t, i18n } = useTranslation();
+  
+  // Get current language code (handle full locale like 'fr-FR' -> 'fr')
+  const currentLanguage = useMemo(() => {
+    const lang = i18n.language || 'fr';
+    return lang.split('-')[0];
+  }, [i18n.language]);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -84,7 +92,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col bg-background">
       {/* Language Selector */}
       <div className="absolute top-4 right-4 z-10">
-        <Select value={i18n.language} onValueChange={changeLanguage}>
+        <Select value={currentLanguage} onValueChange={changeLanguage}>
           <SelectTrigger className="w-[140px] bg-card">
             <Globe className="w-4 h-4 mr-2" />
             <SelectValue />
