@@ -138,7 +138,7 @@ function generateInvoiceHTML(data: InvoicePDFData): string {
           display: flex;
         }
         .top-bar-blue { background: #1e3a8a; flex: 1; }
-        .top-bar-yellow { background: #fbbf24; flex: 1; }
+        .top-bar-gray { background: #6b7280; flex: 1; }
         .top-bar-red { background: #dc2626; flex: 1; }
         
         /* Header */
@@ -151,15 +151,16 @@ function generateInvoiceHTML(data: InvoicePDFData): string {
         .logo-section {
           display: flex;
           align-items: center;
-          gap: 15px;
+          gap: 10px;
         }
         .logo-img {
-          height: 80px;
+          height: 70px;
           width: auto;
         }
         .company-name {
-          font-size: 28pt;
+          font-size: 24pt;
           font-weight: bold;
+          line-height: 1.1;
         }
         .company-name .cm2a { color: #1e3a8a; }
         .company-name .consulting { color: #dc2626; }
@@ -330,14 +331,15 @@ function generateInvoiceHTML(data: InvoicePDFData): string {
         
         /* Payment info */
         .payment-section {
-          margin-top: 40px;
+          margin-top: 20px;
           text-align: center;
-          font-size: 10pt;
+          font-size: 8pt;
           position: relative;
           z-index: 1;
+          line-height: 1.3;
         }
         .payment-section p {
-          margin: 5px 0;
+          margin: 2px 0;
         }
         .payment-bold {
           font-weight: bold;
@@ -352,13 +354,14 @@ function generateInvoiceHTML(data: InvoicePDFData): string {
         }
         .footer-content {
           background: white;
-          padding: 15px 40px;
+          padding: 8px 40px;
           text-align: center;
-          font-size: 9pt;
+          font-size: 7pt;
           color: #dc2626;
+          line-height: 1.2;
         }
         .footer-content p {
-          margin: 2px 0;
+          margin: 1px 0;
         }
         .footer-company {
           font-weight: bold;
@@ -368,7 +371,7 @@ function generateInvoiceHTML(data: InvoicePDFData): string {
           display: flex;
         }
         .bottom-bar-blue { background: #1e3a8a; flex: 1; }
-        .bottom-bar-yellow { background: #fbbf24; flex: 1; }
+        .bottom-bar-gray { background: #6b7280; flex: 1; }
         .bottom-bar-red { background: #dc2626; flex: 1; }
         
         @media print {
@@ -382,13 +385,14 @@ function generateInvoiceHTML(data: InvoicePDFData): string {
         <!-- Top bar -->
         <div class="top-bar">
           <div class="top-bar-blue"></div>
-          <div class="top-bar-yellow"></div>
+          <div class="top-bar-gray"></div>
           <div class="top-bar-red"></div>
         </div>
         
         <!-- Header -->
         <div class="header">
           <div class="logo-section">
+            <img class="logo-img" src="${window.location.origin}/cm2a-logo-icon.png" alt="CM2A Logo" />
             <div class="company-name">
               <span class="cm2a">CM2A</span><br>
               <span class="consulting">Consulting</span>
@@ -512,7 +516,7 @@ function generateInvoiceHTML(data: InvoicePDFData): string {
           </div>
           <div class="bottom-bar">
             <div class="bottom-bar-blue"></div>
-            <div class="bottom-bar-yellow"></div>
+            <div class="bottom-bar-gray"></div>
             <div class="bottom-bar-red"></div>
           </div>
         </div>
@@ -557,7 +561,7 @@ function generateCreditNoteHTML(data: CreditNotePDFData): string {
           display: flex;
         }
         .top-bar-blue { background: #1e3a8a; flex: 1; }
-        .top-bar-yellow { background: #fbbf24; flex: 1; }
+        .top-bar-gray { background: #6b7280; flex: 1; }
         .top-bar-red { background: #dc2626; flex: 1; }
         
         /* Header */
@@ -570,11 +574,16 @@ function generateCreditNoteHTML(data: CreditNotePDFData): string {
         .logo-section {
           display: flex;
           align-items: center;
-          gap: 15px;
+          gap: 10px;
+        }
+        .logo-img {
+          height: 70px;
+          width: auto;
         }
         .company-name {
-          font-size: 28pt;
+          font-size: 24pt;
           font-weight: bold;
+          line-height: 1.1;
         }
         .company-name .cm2a { color: #1e3a8a; }
         .company-name .consulting { color: #dc2626; }
@@ -734,13 +743,14 @@ function generateCreditNoteHTML(data: CreditNotePDFData): string {
         }
         .footer-content {
           background: white;
-          padding: 15px 40px;
+          padding: 8px 40px;
           text-align: center;
-          font-size: 9pt;
+          font-size: 7pt;
           color: #dc2626;
+          line-height: 1.2;
         }
         .footer-content p {
-          margin: 2px 0;
+          margin: 1px 0;
         }
         .footer-company {
           font-weight: bold;
@@ -750,7 +760,7 @@ function generateCreditNoteHTML(data: CreditNotePDFData): string {
           display: flex;
         }
         .bottom-bar-blue { background: #1e3a8a; flex: 1; }
-        .bottom-bar-yellow { background: #fbbf24; flex: 1; }
+        .bottom-bar-gray { background: #6b7280; flex: 1; }
         .bottom-bar-red { background: #dc2626; flex: 1; }
         
         @media print {
@@ -764,13 +774,14 @@ function generateCreditNoteHTML(data: CreditNotePDFData): string {
         <!-- Top bar -->
         <div class="top-bar">
           <div class="top-bar-blue"></div>
-          <div class="top-bar-yellow"></div>
+          <div class="top-bar-gray"></div>
           <div class="top-bar-red"></div>
         </div>
         
         <!-- Header -->
         <div class="header">
           <div class="logo-section">
+            <img class="logo-img" src="${window.location.origin}/cm2a-logo-icon.png" alt="CM2A Logo" />
             <div class="company-name">
               <span class="cm2a">CM2A</span><br>
               <span class="consulting">Consulting</span>
@@ -862,7 +873,7 @@ function generateCreditNoteHTML(data: CreditNotePDFData): string {
           </div>
           <div class="bottom-bar">
             <div class="bottom-bar-blue"></div>
-            <div class="bottom-bar-yellow"></div>
+            <div class="bottom-bar-gray"></div>
             <div class="bottom-bar-red"></div>
           </div>
         </div>
