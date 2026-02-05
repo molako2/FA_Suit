@@ -25,6 +25,8 @@ export interface Invoice {
   total_ht_cents: number;
   total_vat_cents: number;
   total_ttc_cents: number;
+  paid: boolean;
+  payment_date: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -41,6 +43,8 @@ interface DbInvoice {
   total_ht_cents: number;
   total_vat_cents: number;
   total_ttc_cents: number;
+  paid: boolean;
+  payment_date: string | null;
   created_at: string;
   updated_at: string;
 }

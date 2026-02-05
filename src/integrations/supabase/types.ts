@@ -212,6 +212,8 @@ export type Database = {
           lines: Json
           matter_id: string
           number: string | null
+          paid: boolean
+          payment_date: string | null
           period_from: string
           period_to: string
           status: string
@@ -227,6 +229,8 @@ export type Database = {
           lines?: Json
           matter_id: string
           number?: string | null
+          paid?: boolean
+          payment_date?: string | null
           period_from: string
           period_to: string
           status?: string
@@ -242,6 +246,8 @@ export type Database = {
           lines?: Json
           matter_id?: string
           number?: string | null
+          paid?: boolean
+          payment_date?: string | null
           period_from?: string
           period_to?: string
           status?: string
