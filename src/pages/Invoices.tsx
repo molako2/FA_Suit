@@ -539,7 +539,7 @@ export default function Invoices() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Brouillons</CardTitle>
@@ -566,7 +566,17 @@ export default function Invoices() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCents(invoices.filter(i => i.status === 'issued').reduce((sum, i) => sum + i.total_ttc_cents, 0))}
+              {formatCents(invoices.filter(i => i.status === 'issued').reduce((sum, i) => sum + i.total_ht_cents, 0))}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">CA Encaissé</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCents(invoices.filter(i => i.status === 'issued' && i.paid).reduce((sum, i) => sum + i.total_ht_cents, 0))}
             </div>
           </CardContent>
         </Card>
