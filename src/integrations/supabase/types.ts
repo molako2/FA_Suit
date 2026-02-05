@@ -204,6 +204,63 @@ export type Database = {
           },
         ]
       }
+      expenses: {
+        Row: {
+          amount_ttc_cents: number
+          billable: boolean
+          client_id: string
+          created_at: string
+          expense_date: string
+          id: string
+          locked: boolean
+          matter_id: string
+          nature: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_ttc_cents: number
+          billable?: boolean
+          client_id: string
+          created_at?: string
+          expense_date: string
+          id?: string
+          locked?: boolean
+          matter_id: string
+          nature: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_ttc_cents?: number
+          billable?: boolean
+          client_id?: string
+          created_at?: string
+          expense_date?: string
+          id?: string
+          locked?: boolean
+          matter_id?: string
+          nature?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_matter_id_fkey"
+            columns: ["matter_id"]
+            isOneToOne: false
+            referencedRelation: "matters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           created_at: string
