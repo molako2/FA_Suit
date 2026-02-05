@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import {
@@ -26,76 +27,69 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
-interface NavItem {
-  label: string;
+interface NavItemConfig {
+  labelKey: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   roles: ('sysadmin' | 'owner' | 'assistant' | 'collaborator')[];
 }
 
-const navItems: NavItem[] = [
+const navItemsConfig: NavItemConfig[] = [
   {
-    label: 'Dashboard',
+    labelKey: 'nav.dashboard',
     href: '/',
     icon: LayoutDashboard,
     roles: ['sysadmin', 'owner'],
   },
   {
-    label: 'Mes temps',
+    labelKey: 'nav.timesheet',
     href: '/timesheet',
     icon: Clock,
     roles: ['sysadmin', 'owner', 'assistant', 'collaborator'],
   },
    {
-     label: 'Mes frais',
+     labelKey: 'nav.expenses',
      href: '/expenses',
      icon: Receipt,
      roles: ['sysadmin', 'owner', 'assistant', 'collaborator'],
    },
   {
-    label: 'Clients',
+    labelKey: 'nav.clients',
     href: '/clients',
     icon: Building2,
     roles: ['sysadmin', 'owner', 'assistant'],
   },
   {
-    label: 'Dossiers',
+    labelKey: 'nav.matters',
     href: '/matters',
     icon: FolderOpen,
     roles: ['sysadmin', 'owner', 'assistant'],
   },
   {
-    label: 'Collaborateurs',
+    labelKey: 'nav.collaborators',
     href: '/collaborators',
     icon: Users,
     roles: ['sysadmin', 'owner'],
   },
   {
-    label: 'Factures',
+    labelKey: 'nav.invoices',
     href: '/invoices',
     icon: FileText,
     roles: ['sysadmin', 'owner', 'assistant'],
   },
   {
-    label: 'Avoirs',
+    labelKey: 'nav.creditNotes',
     href: '/credit-notes',
     icon: FileMinus2,
     roles: ['sysadmin', 'owner', 'assistant'],
   },
   {
-    label: 'Paramètres',
+    labelKey: 'nav.settings',
     href: '/settings',
     icon: Settings,
     roles: ['sysadmin', 'owner'],
   },
 ];
-
-const roleLabels = {
-  sysadmin: 'Sysadmin',
-  owner: 'Associé',
-  assistant: 'Assistant',
-  collaborator: 'Collaborateur',
-};
 
 const roleColors = {
   sysadmin: 'bg-destructive text-destructive-foreground',
@@ -105,13 +99,21 @@ const roleColors = {
 };
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const { user, profile, role, signOut } = useAuth();
   const location = useLocation();
 
   if (!user || !role) return null;
 
-  const filteredNavItems = navItems.filter(item => item.roles.includes(role));
-  const displayName = profile?.name || user.email?.split('@')[0] || 'Utilisateur';
+  const filteredNavItems = navItemsConfig.filter(item => item.roles.includes(role));
+  const displayName = profile?.name || user.email?.split('@')[0] || t('common.user');
+
+  const roleLabels: Record<string, string> = {
+    sysadmin: t('collaborators.sysadmin'),
+    owner: t('collaborators.owner'),
+    assistant: t('collaborators.assistant'),
+    collaborator: t('collaborators.collaborator'),
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -143,7 +145,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   )}
                 >
                   <Icon className="w-4 h-4 mr-2" />
-                  {item.label}
+                  {t(item.labelKey)}
                 </Link>
               );
             })}
@@ -177,7 +179,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={signOut} className="text-destructive">
                 <LogOut className="w-4 h-4 mr-2" />
-                Déconnexion
+                {t('auth.logout')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -200,7 +202,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 )}
               >
                 <Icon className="w-5 h-5 mb-1" />
-                {item.label}
+                  {t(item.labelKey)}
               </Link>
             );
           })}

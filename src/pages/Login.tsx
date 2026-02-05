@@ -1,17 +1,26 @@
 import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
- import { Loader2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Globe } from 'lucide-react';
 import { toast } from 'sonner';
- import cm2aBanner from '@/assets/cm2a-banner.png';
-  import appLogo from '@/assets/flowassist-logo.png';
+import cm2aBanner from '@/assets/cm2a-banner.png';
+import appLogo from '@/assets/flowassist-logo.png';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export default function LoginPage() {
+  const { t, i18n } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -33,9 +42,9 @@ export default function LoginPage() {
     const { error } = await signIn(email, password);
     
     if (error) {
-      toast.error(error.message || 'Erreur de connexion');
+      toast.error(error.message || t('auth.loginError'));
     } else {
-      toast.success('Connexion réussie');
+      toast.success(t('auth.loginSuccess'));
       navigate('/');
     }
     
@@ -47,7 +56,7 @@ export default function LoginPage() {
     if (!email || !password || !name) return;
 
     if (password.length < 6) {
-      toast.error('Le mot de passe doit contenir au moins 6 caractères');
+      toast.error(t('errors.fillRequired'));
       return;
     }
 
@@ -56,19 +65,37 @@ export default function LoginPage() {
     
     if (error) {
       if (error.message.includes('already registered')) {
-        toast.error('Un compte existe déjà avec cet email');
+        toast.error(t('auth.signUpError'));
       } else {
-        toast.error(error.message || 'Erreur lors de l\'inscription');
+        toast.error(error.message || t('auth.signUpError'));
       }
     } else {
-      toast.success('Inscription réussie ! Vérifiez votre email pour confirmer votre compte.');
+      toast.success(t('auth.signUpSuccess'));
     }
     
     setIsLoading(false);
   };
 
+  const changeLanguage = (lng: string) => {
+    i18n.changeLanguage(lng);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {/* Language Selector */}
+      <div className="absolute top-4 right-4 z-10">
+        <Select value={i18n.language} onValueChange={changeLanguage}>
+          <SelectTrigger className="w-[140px] bg-card">
+            <Globe className="w-4 h-4 mr-2" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="fr">{t('auth.french')}</SelectItem>
+            <SelectItem value="en">{t('auth.english')}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* CM2A Banner */}
       <a 
         href="https://www.cm2a.ma" 
@@ -91,7 +118,7 @@ export default function LoginPage() {
             <img src={appLogo} alt="FlowAssist" className="w-full h-full object-cover scale-125" />
           </div>
           <h1 className="text-3xl font-bold text-foreground">FlowAssist</h1>
-          <p className="text-muted-foreground">Suite de Gestion Intégrée - version 1.0</p>
+          <p className="text-muted-foreground">{i18n.language === 'fr' ? 'Suite de Gestion Intégrée - version 1.0' : 'Integrated Management Suite - version 1.0'}</p>
         </div>
 
         {/* Auth Card */}
@@ -99,19 +126,19 @@ export default function LoginPage() {
           <Tabs defaultValue="signin" className="w-full">
             <CardHeader className="space-y-1">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">Connexion</TabsTrigger>
-                <TabsTrigger value="signup">Inscription</TabsTrigger>
+                <TabsTrigger value="signin">{t('auth.signIn')}</TabsTrigger>
+                <TabsTrigger value="signup">{t('auth.signUp')}</TabsTrigger>
               </TabsList>
             </CardHeader>
             <CardContent>
               <TabsContent value="signin">
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email</Label>
+                    <Label htmlFor="signin-email">{t('auth.email')}</Label>
                     <Input
                       id="signin-email"
                       type="email"
-                      placeholder="vous@cabinet.fr"
+                      placeholder={i18n.language === 'fr' ? 'vous@cabinet.fr' : 'you@firm.com'}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
@@ -120,7 +147,7 @@ export default function LoginPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signin-password">Mot de passe</Label>
+                    <Label htmlFor="signin-password">{t('auth.password')}</Label>
                     <div className="relative">
                       <Input
                         id="signin-password"
@@ -155,10 +182,10 @@ export default function LoginPage() {
                     {isLoading ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                        Connexion...
+                        {t('common.loading')}
                       </>
                     ) : (
-                      'Se connecter'
+                      t('auth.signIn')
                     )}
                   </Button>
                 </form>
@@ -167,11 +194,11 @@ export default function LoginPage() {
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-name">Nom complet</Label>
+                    <Label htmlFor="signup-name">{t('auth.fullName')}</Label>
                     <Input
                       id="signup-name"
                       type="text"
-                      placeholder="Marie Dupont"
+                      placeholder={i18n.language === 'fr' ? 'Marie Dupont' : 'John Doe'}
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       required
@@ -180,11 +207,11 @@ export default function LoginPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
+                    <Label htmlFor="signup-email">{t('auth.email')}</Label>
                     <Input
                       id="signup-email"
                       type="email"
-                      placeholder="vous@cabinet.fr"
+                      placeholder={i18n.language === 'fr' ? 'vous@cabinet.fr' : 'you@firm.com'}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
@@ -193,7 +220,7 @@ export default function LoginPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password">Mot de passe</Label>
+                    <Label htmlFor="signup-password">{t('auth.password')}</Label>
                     <div className="relative">
                       <Input
                         id="signup-password"
@@ -221,7 +248,7 @@ export default function LoginPage() {
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Minimum 6 caractères
+                      {i18n.language === 'fr' ? 'Minimum 6 caractères' : 'Minimum 6 characters'}
                     </p>
                   </div>
                   <Button
@@ -232,10 +259,10 @@ export default function LoginPage() {
                     {isLoading ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                        Inscription...
+                        {t('common.loading')}
                       </>
                     ) : (
-                      'Créer un compte'
+                      t('auth.createAccount')
                     )}
                   </Button>
                 </form>
@@ -245,7 +272,7 @@ export default function LoginPage() {
         </Card>
 
         <p className="text-center text-sm text-muted-foreground">
-          En vous inscrivant, vous acceptez nos conditions d'utilisation.
+          {i18n.language === 'fr' ? "En vous inscrivant, vous acceptez nos conditions d'utilisation." : 'By signing up, you agree to our terms of use.'}
         </p>
         </div>
       </div>
@@ -253,7 +280,7 @@ export default function LoginPage() {
       {/* Footer */}
       <footer className="w-full py-4 text-center border-t border-border bg-card">
         <p className="text-sm text-muted-foreground">
-          Développé par l'équipe <span className="font-semibold">CM2A Consulting™</span> - Votre partenaire de réussite - {' '}
+          {i18n.language === 'fr' ? 'Développé par l\'équipe' : 'Developed by'} <span className="font-semibold">CM2A Consulting™</span> - {i18n.language === 'fr' ? 'Votre partenaire de réussite' : 'Your success partner'} - {' '}
           <a 
             href="https://www.cm2a.ma" 
             target="_blank" 
