@@ -216,8 +216,8 @@ function generateInvoiceHTML(data: InvoicePDFData): string {
         }
         .invoice-badge {
           display: inline-block;
-          background: #fbbf24;
-          color: #000;
+          background: #6b7280;
+          color: #fff;
           padding: 5px 15px;
           font-weight: bold;
           font-size: 11pt;
@@ -339,15 +339,15 @@ function generateInvoiceHTML(data: InvoicePDFData): string {
         
         /* Payment info */
         .payment-section {
-          margin-top: 20px;
+          margin-top: 15px;
           text-align: center;
-          font-size: 8pt;
+          font-size: 7pt;
           position: relative;
           z-index: 1;
-          line-height: 1.3;
+          line-height: 1.2;
         }
         .payment-section p {
-          margin: 2px 0;
+          margin: 1px 0;
         }
         .payment-bold {
           font-weight: bold;
@@ -362,14 +362,14 @@ function generateInvoiceHTML(data: InvoicePDFData): string {
         }
         .footer-content {
           background: white;
-          padding: 8px 40px;
+          padding: 5px 40px;
           text-align: center;
-          font-size: 7pt;
+          font-size: 6pt;
           color: #dc2626;
-          line-height: 1.2;
+          line-height: 1.1;
         }
         .footer-content p {
-          margin: 1px 0;
+          margin: 0;
         }
         .footer-company {
           font-weight: bold;
@@ -751,14 +751,14 @@ function generateCreditNoteHTML(data: CreditNotePDFData): string {
         }
         .footer-content {
           background: white;
-          padding: 8px 40px;
+          padding: 5px 40px;
           text-align: center;
-          font-size: 7pt;
+          font-size: 6pt;
           color: #dc2626;
-          line-height: 1.2;
+          line-height: 1.1;
         }
         .footer-content p {
-          margin: 1px 0;
+          margin: 0;
         }
         .footer-company {
           font-weight: bold;
