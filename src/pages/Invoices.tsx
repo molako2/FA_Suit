@@ -54,7 +54,7 @@ import { toast } from 'sonner';
 
 // Format cents to currency
 function formatCents(cents: number): string {
-  return (cents / 100).toFixed(2).replace('.', ',') + ' MAD';
+  return (cents / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' MAD';
 }
 
 export default function Invoices() {
