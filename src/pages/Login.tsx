@@ -91,7 +91,7 @@ export default function LoginPage() {
             <img src={appLogo} alt="FlowAssist" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-foreground">FlowAssist</h1>
-          <p className="text-muted-foreground">Outil de gestion de votre société</p>
+          <p className="text-muted-foreground">Suite de Gestion Intégrée</p>
         </div>
 
         {/* Auth Card */}
