@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
  import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
  import cm2aBanner from '@/assets/cm2a-banner.png';
- import appLogo from '@/assets/logo.png';
+  import appLogo from '@/assets/flowassist-logo.png';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');

@@ -14,7 +14,7 @@ import {
    Receipt,
   Clock,
 } from 'lucide-react';
- import appLogo from '@/assets/logo.png';
+  import appLogo from '@/assets/flowassist-logo.png';
 import {
   DropdownMenu,
   DropdownMenuContent,
