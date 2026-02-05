@@ -8,7 +8,15 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Eye, EyeOff, Globe } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Loader2, Eye, EyeOff, Globe, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import cm2aBanner from '@/assets/cm2a-banner.png';
 import appLogo from '@/assets/flowassist-logo.png';
@@ -34,7 +42,10 @@ export default function LoginPage() {
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { signIn, signUp, user } = useAuth();
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [isSendingReset, setIsSendingReset] = useState(false);
+  const { signIn, signUp, resetPassword, user } = useAuth();
   const navigate = useNavigate();
 
   // Redirect if already logged in
@@ -86,6 +97,37 @@ export default function LoginPage() {
 
   const changeLanguage = (lng: string) => {
     i18n.changeLanguage(lng);
+  };
+
+  const handleForgotPassword = async () => {
+    if (!forgotPasswordEmail.trim()) {
+      toast.error(i18n.language === 'fr' ? 'Veuillez entrer votre email' : 'Please enter your email');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(forgotPasswordEmail.trim())) {
+      toast.error(i18n.language === 'fr' ? 'Format d\'email invalide' : 'Invalid email format');
+      return;
+    }
+
+    setIsSendingReset(true);
+    const { error } = await resetPassword(forgotPasswordEmail.trim());
+    
+    if (error) {
+      toast.error(error.message || (i18n.language === 'fr' 
+        ? 'Erreur lors de l\'envoi de l\'email' 
+        : 'Error sending email'));
+    } else {
+      toast.success(i18n.language === 'fr' 
+        ? 'Un email de réinitialisation a été envoyé à votre adresse' 
+        : 'A password reset email has been sent to your address');
+      setIsForgotPasswordOpen(false);
+      setForgotPasswordEmail('');
+    }
+    
+    setIsSendingReset(false);
   };
 
   return (
@@ -158,7 +200,20 @@ export default function LoginPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signin-password">{t('auth.password')}</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="signin-password">{t('auth.password')}</Label>
+                      <Button
+                        type="button"
+                        variant="link"
+                        className="px-0 h-auto text-sm text-primary"
+                        onClick={() => {
+                          setForgotPasswordEmail(email);
+                          setIsForgotPasswordOpen(true);
+                        }}
+                      >
+                        {i18n.language === 'fr' ? 'Mot de passe oublié ?' : 'Forgot password?'}
+                      </Button>
+                    </div>
                     <div className="relative">
                       <Input
                         id="signin-password"
@@ -287,6 +342,61 @@ export default function LoginPage() {
         </p>
         </div>
       </div>
+
+      {/* Forgot Password Dialog */}
+      <Dialog open={isForgotPasswordOpen} onOpenChange={setIsForgotPasswordOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>
+              {i18n.language === 'fr' ? 'Mot de passe oublié' : 'Forgot password'}
+            </DialogTitle>
+            <DialogDescription>
+              {i18n.language === 'fr' 
+                ? 'Entrez votre adresse email pour recevoir un lien de réinitialisation.' 
+                : 'Enter your email address to receive a reset link.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="forgot-email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  placeholder={i18n.language === 'fr' ? 'vous@cabinet.fr' : 'you@firm.com'}
+                  value={forgotPasswordEmail}
+                  onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                  disabled={isSendingReset}
+                  className="pl-9 h-11"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsForgotPasswordOpen(false)}
+              disabled={isSendingReset}
+            >
+              {i18n.language === 'fr' ? 'Annuler' : 'Cancel'}
+            </Button>
+            <Button 
+              onClick={handleForgotPassword}
+              disabled={isSendingReset || !forgotPasswordEmail.trim()}
+            >
+              {isSendingReset ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  {i18n.language === 'fr' ? 'Envoi...' : 'Sending...'}
+                </>
+              ) : (
+                i18n.language === 'fr' ? 'Envoyer le lien' : 'Send reset link'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Footer */}
       <footer className="w-full py-4 text-center border-t border-border bg-card">
