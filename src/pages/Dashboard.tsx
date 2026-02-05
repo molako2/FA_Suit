@@ -26,7 +26,7 @@ import { useMatters } from '@/hooks/useMatters';
 import { useClients } from '@/hooks/useClients';
 import { useInvoices } from '@/hooks/useInvoices';
 import { useCabinetSettings } from '@/hooks/useCabinetSettings';
-import { Clock, Users, FolderOpen, TrendingUp, Download, Loader2 } from 'lucide-react';
+import { Clock, Users, FolderOpen, TrendingUp, Download, Loader2, Banknote } from 'lucide-react';
 import { toast } from 'sonner';
 import { TimesheetExport } from '@/components/dashboard/TimesheetExport';
 import { KPIAnalytics } from '@/components/dashboard/KPIAnalytics';
@@ -147,6 +147,13 @@ export default function Dashboard() {
       .reduce((sum, inv) => sum + inv.total_ht_cents, 0);
   }, [invoices, periodFrom, periodTo]);
 
+  // Total paid revenue (paid invoices in period based on payment_date)
+  const totalPaidRevenue = useMemo(() => {
+    return invoices
+      .filter(inv => inv.paid && inv.payment_date && inv.payment_date >= periodFrom && inv.payment_date <= periodTo)
+      .reduce((sum, inv) => sum + inv.total_ht_cents, 0);
+  }, [invoices, periodFrom, periodTo]);
+
   if (role !== 'owner' && role !== 'sysadmin') {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -211,7 +218,7 @@ export default function Dashboard() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Heures facturables</CardTitle>
@@ -234,6 +241,19 @@ export default function Dashboard() {
             <div className="text-2xl font-bold">{formatCents(totalInvoicedRevenue)}</div>
             <p className="text-xs text-muted-foreground">
               factures émises sur la période
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">CA encaissé</CardTitle>
+            <Banknote className="h-4 w-4 text-success" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCents(totalPaidRevenue)}</div>
+            <p className="text-xs text-muted-foreground">
+              factures payées sur la période
             </p>
           </CardContent>
         </Card>
