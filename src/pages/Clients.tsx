@@ -82,6 +82,11 @@ export default function Clients() {
       return;
     }
 
+    if (formVatNumber && formVatNumber.length !== 15) {
+      toast.error('Le numéro ICE doit contenir exactement 15 chiffres');
+      return;
+    }
+
     try {
       if (editingClient) {
         await updateClient.mutateAsync({
@@ -211,13 +216,20 @@ export default function Clients() {
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="vat">N° TVA intracommunautaire</Label>
+                  <Label htmlFor="ice">Numéro ICE</Label>
                   <Input
-                    id="vat"
-                    placeholder="FR12345678901"
+                    id="ice"
+                    placeholder="000000000000000"
                     value={formVatNumber}
-                    onChange={(e) => setFormVatNumber(e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 15);
+                      setFormVatNumber(value);
+                    }}
+                    maxLength={15}
                   />
+                  {formVatNumber && formVatNumber.length !== 15 && (
+                    <p className="text-xs text-destructive">Le numéro ICE doit contenir exactement 15 chiffres</p>
+                  )}
                 </div>
               </div>
               <DialogFooter>
