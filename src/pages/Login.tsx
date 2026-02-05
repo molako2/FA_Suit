@@ -91,7 +91,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Language Selector */}
-      <div className="absolute top-4 right-4 z-10">
+      <div className="absolute top-4 right-4 z-10 flex flex-col items-end">
         <Select value={currentLanguage} onValueChange={changeLanguage}>
           <SelectTrigger className="w-[140px] bg-card">
             <Globe className="w-4 h-4 mr-2" />
@@ -102,6 +102,9 @@ export default function LoginPage() {
             <SelectItem value="en">{t('auth.english')}</SelectItem>
           </SelectContent>
         </Select>
+        <p className="text-xs text-muted-foreground mt-1">
+          {currentLanguage === 'fr' ? 'Sélectionner votre langue' : 'Select your language'}
+        </p>
       </div>
 
       {/* CM2A Banner */}
