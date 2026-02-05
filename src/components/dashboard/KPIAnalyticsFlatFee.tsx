@@ -70,7 +70,7 @@ interface KPIRow {
   matterId?: string;
   matterCode?: string;
   matterLabel?: string;
-  flatFeeCents: number;
+  billableFlatFeeCents: number;
   invoicedRevenueCents: number;
 }
 
@@ -127,6 +127,15 @@ export function KPIAnalyticsFlatFee({
     return matters.filter(m => m.billing_type === 'flat_fee');
   }, [matters]);
 
+  // Get matter IDs that have already been invoiced (issued invoices)
+  const invoicedMatterIds = useMemo(() => {
+    return new Set(
+      invoices
+        .filter(inv => inv.status === 'issued')
+        .map(inv => inv.matter_id)
+    );
+  }, [invoices]);
+
   // Filter invoices by period and flat-fee matters only
   const filteredInvoices = useMemo(() => {
     const fromStr = format(periodFrom, 'yyyy-MM-dd');
@@ -177,13 +186,16 @@ export function KPIAnalyticsFlatFee({
           matterId: groupByMatter ? matter.id : undefined,
           matterCode: groupByMatter ? matter.code : undefined,
           matterLabel: groupByMatter ? matter.label : undefined,
-          flatFeeCents: 0,
+          billableFlatFeeCents: 0,
           invoicedRevenueCents: 0,
         });
       }
       
       const row = grouped.get(key)!;
-      row.flatFeeCents += matter.flat_fee_cents || 0;
+      // Only add flat fee if this matter has NOT been invoiced yet
+      if (!invoicedMatterIds.has(matter.id)) {
+        row.billableFlatFeeCents += matter.flat_fee_cents || 0;
+      }
     });
 
     // Add invoiced revenue
@@ -202,15 +214,15 @@ export function KPIAnalyticsFlatFee({
       }
     });
     
-    return Array.from(grouped.values()).sort((a, b) => b.flatFeeCents - a.flatFeeCents);
-  }, [flatFeeMatters, filteredInvoices, groupByClient, groupByMatter, matters, clients, filterClient, filterMatter]);
+    return Array.from(grouped.values()).sort((a, b) => b.billableFlatFeeCents - a.billableFlatFeeCents);
+  }, [flatFeeMatters, filteredInvoices, groupByClient, groupByMatter, matters, clients, filterClient, filterMatter, invoicedMatterIds]);
 
   // Totals
   const totals = useMemo(() => {
     return kpiData.reduce((acc, row) => ({
-      flatFeeCents: acc.flatFeeCents + row.flatFeeCents,
+      billableFlatFeeCents: acc.billableFlatFeeCents + row.billableFlatFeeCents,
       invoicedRevenueCents: acc.invoicedRevenueCents + row.invoicedRevenueCents,
-    }), { flatFeeCents: 0, invoicedRevenueCents: 0 });
+    }), { billableFlatFeeCents: 0, invoicedRevenueCents: 0 });
   }, [kpiData]);
 
   // Export CSV
@@ -223,7 +235,7 @@ export function KPIAnalyticsFlatFee({
     const headers: string[] = [];
     if (groupByClient) headers.push('Code Client', 'Nom Client');
     if (groupByMatter) headers.push('Code Dossier', 'Libellé Dossier');
-    headers.push('Forfait HT (MAD)', 'CA Facturé (MAD)');
+    headers.push('Forfait HT Facturable (MAD)', 'CA Facturé (MAD)');
     
     const rows = kpiData.map(row => {
       const r: (string | number)[] = [];
@@ -235,7 +247,7 @@ export function KPIAnalyticsFlatFee({
         r.push(row.matterCode || '');
         r.push(row.matterLabel || '');
       }
-      r.push((row.flatFeeCents / 100).toFixed(2));
+      r.push((row.billableFlatFeeCents / 100).toFixed(2));
       r.push((row.invoicedRevenueCents / 100).toFixed(2));
       return r;
     });
@@ -390,8 +402,8 @@ export function KPIAnalyticsFlatFee({
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="bg-accent/10 rounded-lg p-4">
-            <div className="text-sm text-muted-foreground">Total Forfaits HT</div>
-            <div className="text-2xl font-bold text-accent">{formatCents(totals.flatFeeCents)}</div>
+            <div className="text-sm text-muted-foreground">Total Forfaits HT Facturable</div>
+            <div className="text-2xl font-bold text-accent">{formatCents(totals.billableFlatFeeCents)}</div>
           </div>
           <div className="bg-primary/10 rounded-lg p-4">
             <div className="text-sm text-muted-foreground">CA Facturé</div>
@@ -422,7 +434,7 @@ export function KPIAnalyticsFlatFee({
                 <TableRow>
                   {groupByClient && <TableHead>Client</TableHead>}
                   {groupByMatter && <TableHead>Dossier</TableHead>}
-                  <TableHead className="text-right">Forfait HT</TableHead>
+                  <TableHead className="text-right">Forfait HT Facturable</TableHead>
                   <TableHead className="text-right">CA Facturé</TableHead>
                 </TableRow>
               </TableHeader>
@@ -455,7 +467,7 @@ export function KPIAnalyticsFlatFee({
                           </TableCell>
                         )}
                         <TableCell className="text-right font-medium text-accent">
-                          {formatCents(row.flatFeeCents)}
+                          {formatCents(row.billableFlatFeeCents)}
                         </TableCell>
                         <TableCell className="text-right font-medium text-primary">
                           {formatCents(row.invoicedRevenueCents)}
@@ -469,7 +481,7 @@ export function KPIAnalyticsFlatFee({
                       >
                         TOTAL
                       </TableCell>
-                      <TableCell className="text-right text-accent">{formatCents(totals.flatFeeCents)}</TableCell>
+                      <TableCell className="text-right text-accent">{formatCents(totals.billableFlatFeeCents)}</TableCell>
                       <TableCell className="text-right text-primary">{formatCents(totals.invoicedRevenueCents)}</TableCell>
                     </TableRow>
                   </>
