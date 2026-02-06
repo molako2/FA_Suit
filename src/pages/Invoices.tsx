@@ -1,18 +1,11 @@
-import { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { useState, useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -20,14 +13,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,26 +24,33 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { useMatters } from '@/hooks/useMatters';
-import { useClients } from '@/hooks/useClients';
-import { useInvoices, useCreateInvoice, useUpdateInvoice, useDeleteInvoice, type Invoice, type InvoiceLine } from '@/hooks/useInvoices';
-import { useCabinetSettings, useIncrementInvoiceSeq } from '@/hooks/useCabinetSettings';
-import { useTimesheetEntries, useLockTimesheetEntries, formatMinutesToHours } from '@/hooks/useTimesheet';
-import { useProfiles } from '@/hooks/useProfiles';
- import { useExpensesByMatter, useLockExpenses, formatCentsTTC, type Expense } from '@/hooks/useExpenses';
-import { printInvoicePDF } from '@/lib/pdf';
-import { exportInvoicesCSV } from '@/lib/exports';
-import { FileText, Plus, Download, Eye, Send, Trash2, Printer } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
-import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
-import { Currency, formatAmount } from '@/components/ui/currency';
-import DateRangeFilter from '@/components/DateRangeFilter';
+} from "@/components/ui/alert-dialog";
+import { useMatters } from "@/hooks/useMatters";
+import { useClients } from "@/hooks/useClients";
+import {
+  useInvoices,
+  useCreateInvoice,
+  useUpdateInvoice,
+  useDeleteInvoice,
+  type Invoice,
+  type InvoiceLine,
+} from "@/hooks/useInvoices";
+import { useCabinetSettings, useIncrementInvoiceSeq } from "@/hooks/useCabinetSettings";
+import { useTimesheetEntries, useLockTimesheetEntries, formatMinutesToHours } from "@/hooks/useTimesheet";
+import { useProfiles } from "@/hooks/useProfiles";
+import { useExpensesByMatter, useLockExpenses, formatCentsTTC, type Expense } from "@/hooks/useExpenses";
+import { printInvoicePDF } from "@/lib/pdf";
+import { exportInvoicesCSV } from "@/lib/exports";
+import { FileText, Plus, Download, Eye, Send, Trash2, Printer } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import { Currency, formatAmount } from "@/components/ui/currency";
+import DateRangeFilter from "@/components/DateRangeFilter";
 
 // Format cents to currency
 function formatCentsText(cents: number): string {
-  return formatAmount(cents) + ' MAD';
+  return formatAmount(cents) + " MAD";
 }
 
 // Alias for backwards compatibility
@@ -80,11 +74,11 @@ export default function Invoices() {
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [isIssueDialogOpen, setIsIssueDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
-  const [filterDateFrom, setFilterDateFrom] = useState('');
-  const [filterDateTo, setFilterDateTo] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
 
   const filteredInvoices = useMemo(() => {
-    return invoices.filter(inv => {
+    return invoices.filter((inv) => {
       const dateRef = inv.issue_date || inv.period_from;
       const matchesFrom = !filterDateFrom || dateRef >= filterDateFrom;
       const matchesTo = !filterDateTo || dateRef <= filterDateTo;
@@ -93,123 +87,121 @@ export default function Invoices() {
   }, [invoices, filterDateFrom, filterDateTo]);
 
   // Create form state
-  const [selectedMatterId, setSelectedMatterId] = useState('');
+  const [selectedMatterId, setSelectedMatterId] = useState("");
   const [periodFrom, setPeriodFrom] = useState(() => {
     const d = new Date();
     d.setMonth(d.getMonth() - 1);
     d.setDate(1);
-    return d.toISOString().split('T')[0];
+    return d.toISOString().split("T")[0];
   });
-  const [periodTo, setPeriodTo] = useState(() => new Date().toISOString().split('T')[0]);
+  const [periodTo, setPeriodTo] = useState(() => new Date().toISOString().split("T")[0]);
   const [groupByCollaborator, setGroupByCollaborator] = useState(false);
 
-   // Expense selection state
-   const [selectedExpenses, setSelectedExpenses] = useState<Record<string, { selected: boolean; customAmount: number | null }>>({});
- 
+  // Expense selection state
+  const [selectedExpenses, setSelectedExpenses] = useState<
+    Record<string, { selected: boolean; customAmount: number | null }>
+  >({});
+
   // Fetch timesheet entries for preview
   const { data: allTimesheetEntries = [] } = useTimesheetEntries(undefined, periodFrom, periodTo);
- 
-   // Fetch expenses for selected matter
-   const { data: matterExpenses = [] } = useExpensesByMatter(selectedMatterId);
-   const lockExpensesMutation = useLockExpenses();
 
-  const canEdit = role === 'owner' || role === 'assistant' || role === 'sysadmin';
+  // Fetch expenses for selected matter
+  const { data: matterExpenses = [] } = useExpensesByMatter(selectedMatterId);
+  const lockExpensesMutation = useLockExpenses();
+
+  const canEdit = role === "owner" || role === "assistant" || role === "sysadmin";
 
   // Preview billable entries for selected matter/period
   const previewEntries = useMemo(() => {
     if (!selectedMatterId) return [];
-    return allTimesheetEntries.filter(e => 
-      e.matter_id === selectedMatterId &&
-      e.billable &&
-      !e.locked &&
-      e.date >= periodFrom &&
-      e.date <= periodTo
+    return allTimesheetEntries.filter(
+      (e) => e.matter_id === selectedMatterId && e.billable && !e.locked && e.date >= periodFrom && e.date <= periodTo,
     );
   }, [selectedMatterId, periodFrom, periodTo, allTimesheetEntries]);
 
   const previewTotalMinutes = previewEntries.reduce((sum, e) => sum + e.minutes_rounded, 0);
- 
-   // Calculate selected expenses total
-   const selectedExpensesTotal = useMemo(() => {
-     return matterExpenses.reduce((sum, exp) => {
-       const selection = selectedExpenses[exp.id];
-       if (!selection?.selected) return sum;
-       const amount = selection.customAmount !== null ? selection.customAmount : exp.amount_ttc_cents;
-       return sum + amount;
-     }, 0);
-   }, [matterExpenses, selectedExpenses]);
- 
-   // Handle expense selection
-   const handleExpenseToggle = (expenseId: string, checked: boolean) => {
-     setSelectedExpenses(prev => ({
-       ...prev,
-       [expenseId]: { selected: checked, customAmount: prev[expenseId]?.customAmount ?? null }
-     }));
-   };
- 
-   const handleExpenseAmountChange = (expenseId: string, amount: string) => {
-     const cents = amount ? Math.round(parseFloat(amount) * 100) : null;
-     setSelectedExpenses(prev => ({
-       ...prev,
-       [expenseId]: { selected: prev[expenseId]?.selected ?? false, customAmount: cents }
-     }));
-   };
- 
-   // Reset expense selection when matter changes
-   const handleMatterChange = (matterId: string) => {
-     setSelectedMatterId(matterId);
-     setSelectedExpenses({});
-   };
+
+  // Calculate selected expenses total
+  const selectedExpensesTotal = useMemo(() => {
+    return matterExpenses.reduce((sum, exp) => {
+      const selection = selectedExpenses[exp.id];
+      if (!selection?.selected) return sum;
+      const amount = selection.customAmount !== null ? selection.customAmount : exp.amount_ttc_cents;
+      return sum + amount;
+    }, 0);
+  }, [matterExpenses, selectedExpenses]);
+
+  // Handle expense selection
+  const handleExpenseToggle = (expenseId: string, checked: boolean) => {
+    setSelectedExpenses((prev) => ({
+      ...prev,
+      [expenseId]: { selected: checked, customAmount: prev[expenseId]?.customAmount ?? null },
+    }));
+  };
+
+  const handleExpenseAmountChange = (expenseId: string, amount: string) => {
+    const cents = amount ? Math.round(parseFloat(amount) * 100) : null;
+    setSelectedExpenses((prev) => ({
+      ...prev,
+      [expenseId]: { selected: prev[expenseId]?.selected ?? false, customAmount: cents },
+    }));
+  };
+
+  // Reset expense selection when matter changes
+  const handleMatterChange = (matterId: string) => {
+    setSelectedMatterId(matterId);
+    setSelectedExpenses({});
+  };
 
   const getMatterInfo = (matterId: string) => {
-    const matter = matters.find(m => m.id === matterId);
-    return matter ? `${matter.code} - ${matter.label}` : 'Inconnu';
+    const matter = matters.find((m) => m.id === matterId);
+    return matter ? `${matter.code} - ${matter.label}` : "Inconnu";
   };
 
   const getClientInfo = (clientId: string) => {
-    const client = clients.find(c => c.id === clientId);
-    return client?.name || 'Inconnu';
+    const client = clients.find((c) => c.id === clientId);
+    return client?.name || "Inconnu";
   };
 
   const getClientIdFromMatter = (matterId: string) => {
-    const matter = matters.find(m => m.id === matterId);
-    return matter?.client_id || '';
+    const matter = matters.find((m) => m.id === matterId);
+    return matter?.client_id || "";
   };
 
-  const getSelectedMatter = () => matters.find(m => m.id === selectedMatterId);
+  const getSelectedMatter = () => matters.find((m) => m.id === selectedMatterId);
 
   const statusColors: Record<string, string> = {
-    draft: 'bg-secondary text-secondary-foreground',
-    issued: 'bg-green-500/20 text-green-700',
-    cancelled: 'bg-destructive text-destructive-foreground',
+    draft: "bg-secondary text-secondary-foreground",
+    issued: "bg-green-500/20 text-green-700",
+    cancelled: "bg-destructive text-destructive-foreground",
   };
 
   const statusLabels: Record<string, string> = {
-    draft: 'Brouillon',
-    issued: 'Émise',
-    cancelled: 'Annulée',
+    draft: "Brouillon",
+    issued: "Émise",
+    cancelled: "Annulée",
   };
 
   const handleCreateDraft = async () => {
     if (!selectedMatterId) {
-      toast.error('Veuillez sélectionner un dossier');
+      toast.error("Veuillez sélectionner un dossier");
       return;
     }
 
     const matter = getSelectedMatter();
     if (!matter || !settings) return;
 
-    const isFlatFee = matter.billing_type === 'flat_fee';
+    const isFlatFee = matter.billing_type === "flat_fee";
 
     // For time-based billing, require entries
     if (!isFlatFee && previewEntries.length === 0) {
-      toast.error('Aucune entrée facturable pour cette période');
+      toast.error("Aucune entrée facturable pour cette période");
       return;
     }
 
     // For flat fee, require flat_fee_cents to be set
     if (isFlatFee && !matter.flat_fee_cents) {
-      toast.error('Le montant du forfait n\'est pas défini pour ce dossier');
+      toast.error("Le montant du forfait n'est pas défini pour ce dossier");
       return;
     }
 
@@ -221,37 +213,42 @@ export default function Invoices() {
     if (isFlatFee) {
       // Flat fee billing - single line with fixed amount
       const amountHt = matter.flat_fee_cents!;
-      const vatCents = Math.round(amountHt * vatRate / 100);
-      lines = [{
-        id: crypto.randomUUID(),
-        label: `Forfait - ${matter.label}`,
-        minutes: 0,
-        rate_cents: 0,
-        vat_rate: vatRate,
-        amount_ht_cents: amountHt,
-        vat_cents: vatCents,
-        amount_ttc_cents: amountHt + vatCents,
-      }];
+      const vatCents = Math.round((amountHt * vatRate) / 100);
+      lines = [
+        {
+          id: crypto.randomUUID(),
+          label: `Forfait - ${matter.label}`,
+          minutes: 0,
+          rate_cents: 0,
+          vat_rate: vatRate,
+          amount_ht_cents: amountHt,
+          vat_cents: vatCents,
+          amount_ttc_cents: amountHt + vatCents,
+        },
+      ];
     } else if (groupByCollaborator) {
       // Group by collaborator (time-based)
-      const grouped = previewEntries.reduce((acc, entry) => {
-        const userId = entry.user_id;
-        if (!acc[userId]) {
-          acc[userId] = { minutes: 0, entries: [] };
-        }
-        acc[userId].minutes += entry.minutes_rounded;
-        acc[userId].entries.push(entry);
-        return acc;
-      }, {} as Record<string, { minutes: number; entries: typeof previewEntries }>);
+      const grouped = previewEntries.reduce(
+        (acc, entry) => {
+          const userId = entry.user_id;
+          if (!acc[userId]) {
+            acc[userId] = { minutes: 0, entries: [] };
+          }
+          acc[userId].minutes += entry.minutes_rounded;
+          acc[userId].entries.push(entry);
+          return acc;
+        },
+        {} as Record<string, { minutes: number; entries: typeof previewEntries }>,
+      );
 
       lines = Object.entries(grouped).map(([userId, data]) => {
-        const profile = profiles.find(p => p.id === userId);
+        const profile = profiles.find((p) => p.id === userId);
         const userRate = profile?.rate_cents || rateCents;
         const amountHt = Math.round((data.minutes / 60) * userRate);
-        const vatCents = Math.round(amountHt * vatRate / 100);
+        const vatCents = Math.round((amountHt * vatRate) / 100);
         return {
           id: crypto.randomUUID(),
-          label: `Prestations - ${profile?.name || 'Collaborateur'}`,
+          label: `Prestations - ${profile?.name || "Collaborateur"}`,
           minutes: data.minutes,
           rate_cents: userRate,
           vat_rate: vatRate,
@@ -264,46 +261,48 @@ export default function Invoices() {
       // Single line (time-based)
       const totalMinutes = previewEntries.reduce((sum, e) => sum + e.minutes_rounded, 0);
       const amountHt = Math.round((totalMinutes / 60) * rateCents);
-      const vatCents = Math.round(amountHt * vatRate / 100);
-      lines = [{
-        id: crypto.randomUUID(),
-        label: `Prestations juridiques - ${matter.label}`,
-        minutes: totalMinutes,
-        rate_cents: rateCents,
-        vat_rate: vatRate,
-        amount_ht_cents: amountHt,
-        vat_cents: vatCents,
-        amount_ttc_cents: amountHt + vatCents,
-      }];
+      const vatCents = Math.round((amountHt * vatRate) / 100);
+      lines = [
+        {
+          id: crypto.randomUUID(),
+          label: `Prestations juridiques - ${matter.label}`,
+          minutes: totalMinutes,
+          rate_cents: rateCents,
+          vat_rate: vatRate,
+          amount_ht_cents: amountHt,
+          vat_cents: vatCents,
+          amount_ttc_cents: amountHt + vatCents,
+        },
+      ];
     }
 
-     // Add expense lines if any selected
-     const expenseLinesToAdd: InvoiceLine[] = [];
-     
-     matterExpenses.forEach(exp => {
-       const selection = selectedExpenses[exp.id];
-       if (selection?.selected) {
-         const amountTTC = selection.customAmount !== null ? selection.customAmount : exp.amount_ttc_cents;
-         // Convert TTC to HT (assuming expenses are TTC and we back-calculate HT)
-         const amountHt = Math.round(amountTTC / (1 + vatRate / 100));
-         const vatCents = amountTTC - amountHt;
-         
-         expenseLinesToAdd.push({
-           id: crypto.randomUUID(),
-           label: `Frais - ${exp.nature}`,
-           minutes: 0,
-           rate_cents: 0,
-           vat_rate: vatRate,
-           amount_ht_cents: amountHt,
-           vat_cents: vatCents,
-           amount_ttc_cents: amountTTC,
-            expense_id: exp.id,
-         });
-       }
-     });
-     
-     lines = [...lines, ...expenseLinesToAdd];
- 
+    // Add expense lines if any selected
+    const expenseLinesToAdd: InvoiceLine[] = [];
+
+    matterExpenses.forEach((exp) => {
+      const selection = selectedExpenses[exp.id];
+      if (selection?.selected) {
+        const amountTTC = selection.customAmount !== null ? selection.customAmount : exp.amount_ttc_cents;
+        // Convert TTC to HT (assuming expenses are TTC and we back-calculate HT)
+        const amountHt = Math.round(amountTTC / (1 + vatRate / 100));
+        const vatCents = amountTTC - amountHt;
+
+        expenseLinesToAdd.push({
+          id: crypto.randomUUID(),
+          label: `Frais - ${exp.nature}`,
+          minutes: 0,
+          rate_cents: 0,
+          vat_rate: vatRate,
+          amount_ht_cents: amountHt,
+          vat_cents: vatCents,
+          amount_ttc_cents: amountTTC,
+          expense_id: exp.id,
+        });
+      }
+    });
+
+    lines = [...lines, ...expenseLinesToAdd];
+
     const totalHt = lines.reduce((sum, l) => sum + l.amount_ht_cents, 0);
     const totalVat = lines.reduce((sum, l) => sum + l.vat_cents, 0);
     const totalTtc = lines.reduce((sum, l) => sum + l.amount_ttc_cents, 0);
@@ -311,7 +310,7 @@ export default function Invoices() {
     try {
       await createInvoiceMutation.mutateAsync({
         matter_id: selectedMatterId,
-        status: 'draft',
+        status: "draft",
         period_from: periodFrom,
         period_to: periodTo,
         issue_date: null,
@@ -323,17 +322,17 @@ export default function Invoices() {
         paid: false,
         payment_date: null,
       });
-      toast.success('Brouillon de facture créé');
+      toast.success("Brouillon de facture créé");
       setIsCreateDialogOpen(false);
-      setSelectedMatterId('');
-       setSelectedExpenses({});
+      setSelectedMatterId("");
+      setSelectedExpenses({});
     } catch (error) {
-      toast.error('Erreur lors de la création de la facture');
+      toast.error("Erreur lors de la création de la facture");
     }
   };
 
   const handleIssueInvoice = async (invoiceId: string) => {
-    const invoice = invoices.find(i => i.id === invoiceId);
+    const invoice = invoices.find((i) => i.id === invoiceId);
     if (!invoice) return;
 
     try {
@@ -343,29 +342,28 @@ export default function Invoices() {
       // Update invoice to issued status
       await updateInvoiceMutation.mutateAsync({
         id: invoiceId,
-        status: 'issued',
+        status: "issued",
         number: invoiceNumber,
-        issue_date: new Date().toISOString().split('T')[0],
+        issue_date: new Date().toISOString().split("T")[0],
       });
 
       // Lock the associated timesheet entries
-      const entriesToLock = allTimesheetEntries.filter(e =>
-        e.matter_id === invoice.matter_id &&
-        e.billable &&
-        !e.locked &&
-        e.date >= invoice.period_from &&
-        e.date <= invoice.period_to
+      const entriesToLock = allTimesheetEntries.filter(
+        (e) =>
+          e.matter_id === invoice.matter_id &&
+          e.billable &&
+          !e.locked &&
+          e.date >= invoice.period_from &&
+          e.date <= invoice.period_to,
       );
 
       if (entriesToLock.length > 0) {
-        await lockEntriesMutation.mutateAsync(entriesToLock.map(e => e.id));
+        await lockEntriesMutation.mutateAsync(entriesToLock.map((e) => e.id));
       }
 
       // Lock the associated expenses (from invoice lines with expense_id)
-      const expenseIdsToLock = invoice.lines
-        .filter(l => l.expense_id)
-        .map(l => l.expense_id!);
-      
+      const expenseIdsToLock = invoice.lines.filter((l) => l.expense_id).map((l) => l.expense_id!);
+
       if (expenseIdsToLock.length > 0) {
         await lockExpensesMutation.mutateAsync(expenseIdsToLock);
       }
@@ -374,30 +372,30 @@ export default function Invoices() {
       setIsIssueDialogOpen(false);
       setSelectedInvoice(null);
     } catch (error) {
-      toast.error('Erreur lors de l\'émission de la facture');
+      toast.error("Erreur lors de l'émission de la facture");
     }
   };
 
   const handleDeleteDraft = async (invoiceId: string) => {
-    const invoice = invoices.find(i => i.id === invoiceId);
-    if (invoice?.status !== 'draft') {
-      toast.error('Seuls les brouillons peuvent être supprimés');
+    const invoice = invoices.find((i) => i.id === invoiceId);
+    if (invoice?.status !== "draft") {
+      toast.error("Seuls les brouillons peuvent être supprimés");
       return;
     }
     try {
       await deleteInvoiceMutation.mutateAsync(invoiceId);
-      toast.success('Brouillon supprimé');
+      toast.success("Brouillon supprimé");
     } catch (error) {
-      toast.error('Erreur lors de la suppression');
+      toast.error("Erreur lors de la suppression");
     }
   };
 
   const handlePrintPDF = async (invoiceId: string) => {
-    const invoice = invoices.find(i => i.id === invoiceId);
+    const invoice = invoices.find((i) => i.id === invoiceId);
     if (!invoice || !settings) return;
 
-    const matter = matters.find(m => m.id === invoice.matter_id);
-    const client = clients.find(c => c.id === matter?.client_id);
+    const matter = matters.find((m) => m.id === invoice.matter_id);
+    const client = clients.find((c) => c.id === matter?.client_id);
     if (!matter || !client) return;
 
     // Map to the format expected by printInvoicePDF (camelCase)
@@ -411,7 +409,7 @@ export default function Invoices() {
       periodFrom: invoice.period_from,
       periodTo: invoice.period_to,
       issueDate: invoice.issue_date,
-      lines: invoice.lines.map(l => ({
+      lines: invoice.lines.map((l) => ({
         id: l.id,
         invoiceId: invoice.id,
         label: l.label,
@@ -458,7 +456,7 @@ export default function Invoices() {
       code: matter.code,
       label: matter.label,
       clientId: matter.client_id,
-      status: matter.status as 'open' | 'closed',
+      status: matter.status as "open" | "closed",
       rateCents: matter.rate_cents,
       vatRate: matter.vat_rate as 0 | 20,
       createdAt: matter.created_at,
@@ -468,7 +466,7 @@ export default function Invoices() {
   };
 
   const handleExportCSV = () => {
-    const exportData = invoices.map(inv => ({
+    const exportData = invoices.map((inv) => ({
       id: inv.id,
       number: inv.number,
       year: new Date().getFullYear(),
@@ -478,7 +476,7 @@ export default function Invoices() {
       periodFrom: inv.period_from,
       periodTo: inv.period_to,
       issueDate: inv.issue_date,
-      lines: inv.lines.map(l => ({
+      lines: inv.lines.map((l) => ({
         id: l.id,
         invoiceId: inv.id,
         label: l.label,
@@ -494,19 +492,19 @@ export default function Invoices() {
       totalTtcCents: inv.total_ttc_cents,
       createdAt: inv.created_at,
     }));
-    
-    const mappedMatters = matters.map(m => ({
+
+    const mappedMatters = matters.map((m) => ({
       id: m.id,
       code: m.code,
       label: m.label,
       clientId: m.client_id,
-      status: m.status as 'open' | 'closed',
+      status: m.status as "open" | "closed",
       rateCents: m.rate_cents,
       vatRate: m.vat_rate as 0 | 20,
       createdAt: m.created_at,
     }));
-    
-    const mappedClients = clients.map(c => ({
+
+    const mappedClients = clients.map((c) => ({
       id: c.id,
       code: c.code,
       name: c.name,
@@ -516,9 +514,9 @@ export default function Invoices() {
       active: c.active,
       createdAt: c.created_at,
     }));
-    
+
     exportInvoicesCSV(exportData, mappedMatters, mappedClients);
-    toast.success('Export CSV téléchargé');
+    toast.success("Export CSV téléchargé");
   };
 
   const openPreview = (invoiceId: string) => {
@@ -526,7 +524,7 @@ export default function Invoices() {
     setIsPreviewDialogOpen(true);
   };
 
-  const getPreviewInvoice = () => invoices.find(i => i.id === selectedInvoice);
+  const getPreviewInvoice = () => invoices.find((i) => i.id === selectedInvoice);
 
   if (isLoadingInvoices) {
     return <div className="flex items-center justify-center h-64">Chargement...</div>;
@@ -534,30 +532,31 @@ export default function Invoices() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Factures</h1>
           <p className="text-muted-foreground">Facturation des prestations par dossier</p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <DateRangeFilter
             dateFrom={filterDateFrom}
             dateTo={filterDateTo}
             onDateFromChange={setFilterDateFrom}
             onDateToChange={setFilterDateTo}
-            onClear={() => { setFilterDateFrom(''); setFilterDateTo(''); }}
+            onClear={() => {
+              setFilterDateFrom("");
+              setFilterDateTo("");
+            }}
           />
-          <Button variant="outline" onClick={handleExportCSV}>
+          <Button variant="outline" onClick={() => handleExportCSV()} disabled={filteredInvoices.length === 0}>
             <Download className="w-4 h-4 mr-2" />
             Export CSV
           </Button>
-          {canEdit && (
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Nouvelle facture
-            </Button>
-          )}
+          <Button onClick={() => setIsDialogOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nouvelle facture
+          </Button>
         </div>
       </div>
 
@@ -568,9 +567,7 @@ export default function Invoices() {
             <CardTitle className="text-sm font-medium">Brouillons</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {filteredInvoices.filter(i => i.status === 'draft').length}
-            </div>
+            <div className="text-2xl font-bold">{filteredInvoices.filter((i) => i.status === "draft").length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -578,9 +575,7 @@ export default function Invoices() {
             <CardTitle className="text-sm font-medium">Émises</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {filteredInvoices.filter(i => i.status === 'issued').length}
-            </div>
+            <div className="text-2xl font-bold">{filteredInvoices.filter((i) => i.status === "issued").length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -589,7 +584,11 @@ export default function Invoices() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              <Currency cents={filteredInvoices.filter(i => i.status === 'issued').reduce((sum, i) => sum + i.total_ht_cents, 0)} />
+              <Currency
+                cents={filteredInvoices
+                  .filter((i) => i.status === "issued")
+                  .reduce((sum, i) => sum + i.total_ht_cents, 0)}
+              />
             </div>
           </CardContent>
         </Card>
@@ -599,7 +598,11 @@ export default function Invoices() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              <Currency cents={filteredInvoices.filter(i => i.status === 'issued' && i.paid).reduce((sum, i) => sum + i.total_ht_cents, 0)} />
+              <Currency
+                cents={filteredInvoices
+                  .filter((i) => i.status === "issued" && i.paid)
+                  .reduce((sum, i) => sum + i.total_ht_cents, 0)}
+              />
             </div>
           </CardContent>
         </Card>
@@ -629,22 +632,16 @@ export default function Invoices() {
                   <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                     <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     <p>Aucune facture</p>
-                    <p className="text-sm mt-1">
-                      Créez une facture à partir des temps saisis sur un dossier.
-                    </p>
+                    <p className="text-sm mt-1">Créez une facture à partir des temps saisis sur un dossier.</p>
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredInvoices.map((invoice) => (
                   <TableRow key={invoice.id}>
                     <TableCell>
-                      <Badge variant="outline">
-                        {invoice.number || 'Brouillon'}
-                      </Badge>
+                      <Badge variant="outline">{invoice.number || "Brouillon"}</Badge>
                     </TableCell>
-                    <TableCell className="font-medium">
-                      {getMatterInfo(invoice.matter_id)}
-                    </TableCell>
+                    <TableCell className="font-medium">{getMatterInfo(invoice.matter_id)}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {getClientInfo(getClientIdFromMatter(invoice.matter_id))}
                     </TableCell>
@@ -658,28 +655,26 @@ export default function Invoices() {
                       <Currency cents={invoice.total_ttc_cents} />
                     </TableCell>
                     <TableCell className="text-center">
-                      <Badge className={statusColors[invoice.status]}>
-                        {statusLabels[invoice.status]}
-                      </Badge>
+                      <Badge className={statusColors[invoice.status]}>{statusLabels[invoice.status]}</Badge>
                     </TableCell>
                     <TableCell className="text-center">
                       <Checkbox
                         checked={invoice.paid}
-                        disabled={!canEdit || invoice.status !== 'issued'}
+                        disabled={!canEdit || invoice.status !== "issued"}
                         onCheckedChange={(checked) => {
                           updateInvoiceMutation.mutate({
                             id: invoice.id,
                             paid: checked === true,
-                            payment_date: checked === true ? new Date().toISOString().split('T')[0] : null,
+                            payment_date: checked === true ? new Date().toISOString().split("T")[0] : null,
                           });
                         }}
                       />
                     </TableCell>
                     <TableCell>
-                      {invoice.status === 'issued' && canEdit ? (
+                      {invoice.status === "issued" && canEdit ? (
                         <Input
                           type="date"
-                          value={invoice.payment_date || ''}
+                          value={invoice.payment_date || ""}
                           className="w-36"
                           onChange={(e) => {
                             updateInvoiceMutation.mutate({
@@ -690,9 +685,7 @@ export default function Invoices() {
                           }}
                         />
                       ) : (
-                        <span className="text-muted-foreground text-sm">
-                          {invoice.payment_date || '-'}
-                        </span>
+                        <span className="text-muted-foreground text-sm">{invoice.payment_date || "-"}</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
@@ -700,7 +693,7 @@ export default function Invoices() {
                         <Button variant="ghost" size="icon" onClick={() => openPreview(invoice.id)}>
                           <Eye className="w-4 h-4" />
                         </Button>
-                        {invoice.status === 'draft' && canEdit && (
+                        {invoice.status === "draft" && canEdit && (
                           <>
                             <Button
                               variant="ghost"
@@ -722,7 +715,7 @@ export default function Invoices() {
                             </Button>
                           </>
                         )}
-                        {invoice.status === 'issued' && (
+                        {invoice.status === "issued" && (
                           <Button variant="ghost" size="icon" onClick={() => handlePrintPDF(invoice.id)}>
                             <Printer className="w-4 h-4" />
                           </Button>
@@ -754,14 +747,16 @@ export default function Invoices() {
                   <SelectValue placeholder="Sélectionnez un dossier" />
                 </SelectTrigger>
                 <SelectContent>
-                  {matters.filter(m => m.status === 'open').map((matter) => {
-                    const client = clients.find(c => c.id === matter.client_id);
-                    return (
-                      <SelectItem key={matter.id} value={matter.id}>
-                        {matter.code} - {matter.label} ({client?.name})
-                      </SelectItem>
-                    );
-                  })}
+                  {matters
+                    .filter((m) => m.status === "open")
+                    .map((matter) => {
+                      const client = clients.find((c) => c.id === matter.client_id);
+                      return (
+                        <SelectItem key={matter.id} value={matter.id}>
+                          {matter.code} - {matter.label} ({client?.name})
+                        </SelectItem>
+                      );
+                    })}
                 </SelectContent>
               </Select>
             </div>
@@ -769,19 +764,11 @@ export default function Invoices() {
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>Période du</Label>
-                <Input
-                  type="date"
-                  value={periodFrom}
-                  onChange={(e) => setPeriodFrom(e.target.value)}
-                />
+                <Input type="date" value={periodFrom} onChange={(e) => setPeriodFrom(e.target.value)} />
               </div>
               <div className="grid gap-2">
                 <Label>Au</Label>
-                <Input
-                  type="date"
-                  value={periodTo}
-                  onChange={(e) => setPeriodTo(e.target.value)}
-                />
+                <Input type="date" value={periodTo} onChange={(e) => setPeriodTo(e.target.value)} />
               </div>
             </div>
 
@@ -790,7 +777,7 @@ export default function Invoices() {
               <Switch
                 checked={groupByCollaborator}
                 onCheckedChange={setGroupByCollaborator}
-                disabled={getSelectedMatter()?.billing_type === 'flat_fee'}
+                disabled={getSelectedMatter()?.billing_type === "flat_fee"}
               />
             </div>
 
@@ -798,20 +785,24 @@ export default function Invoices() {
               <Card className="bg-muted">
                 <CardContent className="p-4">
                   <div className="text-sm font-medium mb-2">Aperçu</div>
-                  {getSelectedMatter()?.billing_type === 'flat_fee' ? (
+                  {getSelectedMatter()?.billing_type === "flat_fee" ? (
                     <>
                       <p className="text-muted-foreground text-sm">
-                        <Badge variant="secondary" className="mr-2">Forfait</Badge>
-                        Montant HT : <span className="font-semibold">{formatCents(getSelectedMatter()?.flat_fee_cents || 0)}</span>
+                        <Badge variant="secondary" className="mr-2">
+                          Forfait
+                        </Badge>
+                        Montant HT :{" "}
+                        <span className="font-semibold">{formatCents(getSelectedMatter()?.flat_fee_cents || 0)}</span>
                       </p>
                       <p className="text-muted-foreground text-xs mt-2">
-                        Ce dossier est facturé au forfait. Le montant défini lors de la création du dossier sera utilisé.
+                        Ce dossier est facturé au forfait. Le montant défini lors de la création du dossier sera
+                        utilisé.
                       </p>
                     </>
                   ) : (
                     <>
                       <p className="text-muted-foreground text-sm">
-                        {previewEntries.length} entrée(s) facturable(s) pour un total de{' '}
+                        {previewEntries.length} entrée(s) facturable(s) pour un total de{" "}
                         <span className="font-semibold">{formatMinutesToHours(previewTotalMinutes)}</span>
                       </p>
                       {previewEntries.length === 0 && (
@@ -821,53 +812,55 @@ export default function Invoices() {
                       )}
                     </>
                   )}
-               
-               {/* Expenses Section */}
-               {matterExpenses.length > 0 && (
-                 <div className="mt-4 pt-4 border-t">
-                   <p className="text-sm font-medium mb-2">Frais disponibles ({matterExpenses.length})</p>
-                   <div className="space-y-2 max-h-48 overflow-y-auto">
-                     {matterExpenses.map(exp => {
-                       const selection = selectedExpenses[exp.id];
-                       const isSelected = selection?.selected ?? false;
-                       const customAmount = selection?.customAmount;
-                       return (
-                         <div key={exp.id} className="flex items-center gap-2 p-2 rounded border bg-background">
-                           <Checkbox
-                             checked={isSelected}
-                             onCheckedChange={(checked) => handleExpenseToggle(exp.id, checked === true)}
-                           />
-                           <div className="flex-1 min-w-0">
-                             <p className="text-sm font-medium truncate">{exp.nature}</p>
-                             <p className="text-xs text-muted-foreground">
-                               {new Date(exp.expense_date).toLocaleDateString('fr-FR')} - Original: {formatCentsTTC(exp.amount_ttc_cents)}
-                             </p>
-                           </div>
-                           {isSelected && (
-                             <div className="flex items-center gap-1">
-                               <Input
-                                 type="number"
-                                 step="0.01"
-                                 min="0"
-                                 placeholder="100%"
-                                 value={customAmount !== null ? (customAmount / 100).toFixed(2) : ''}
-                                 onChange={(e) => handleExpenseAmountChange(exp.id, e.target.value)}
-                                 className="w-24 h-8 text-sm"
-                               />
-                               <span className="text-xs text-muted-foreground">MAD</span>
-                             </div>
-                           )}
-                         </div>
-                       );
-                     })}
-                   </div>
-                   {selectedExpensesTotal > 0 && (
-                     <p className="text-sm mt-2 text-right">
-                       Total frais sélectionnés: <span className="font-semibold">{formatCentsTTC(selectedExpensesTotal)}</span>
-                     </p>
-                   )}
-                 </div>
-               )}
+
+                  {/* Expenses Section */}
+                  {matterExpenses.length > 0 && (
+                    <div className="mt-4 pt-4 border-t">
+                      <p className="text-sm font-medium mb-2">Frais disponibles ({matterExpenses.length})</p>
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {matterExpenses.map((exp) => {
+                          const selection = selectedExpenses[exp.id];
+                          const isSelected = selection?.selected ?? false;
+                          const customAmount = selection?.customAmount;
+                          return (
+                            <div key={exp.id} className="flex items-center gap-2 p-2 rounded border bg-background">
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={(checked) => handleExpenseToggle(exp.id, checked === true)}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{exp.nature}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(exp.expense_date).toLocaleDateString("fr-FR")} - Original:{" "}
+                                  {formatCentsTTC(exp.amount_ttc_cents)}
+                                </p>
+                              </div>
+                              {isSelected && (
+                                <div className="flex items-center gap-1">
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    placeholder="100%"
+                                    value={customAmount !== null ? (customAmount / 100).toFixed(2) : ""}
+                                    onChange={(e) => handleExpenseAmountChange(exp.id, e.target.value)}
+                                    className="w-24 h-8 text-sm"
+                                  />
+                                  <span className="text-xs text-muted-foreground">MAD</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {selectedExpensesTotal > 0 && (
+                        <p className="text-sm mt-2 text-right">
+                          Total frais sélectionnés:{" "}
+                          <span className="font-semibold">{formatCentsTTC(selectedExpensesTotal)}</span>
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -876,15 +869,15 @@ export default function Invoices() {
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
               Annuler
             </Button>
-            <Button 
-              onClick={handleCreateDraft} 
+            <Button
+              onClick={handleCreateDraft}
               disabled={
                 !selectedMatterId ||
-                (getSelectedMatter()?.billing_type !== 'flat_fee' && previewEntries.length === 0) ||
+                (getSelectedMatter()?.billing_type !== "flat_fee" && previewEntries.length === 0) ||
                 createInvoiceMutation.isPending
               }
             >
-              {createInvoiceMutation.isPending ? 'Création...' : 'Créer le brouillon'}
+              {createInvoiceMutation.isPending ? "Création..." : "Créer le brouillon"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -900,22 +893,24 @@ export default function Invoices() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-muted-foreground">N° Facture:</span>{' '}
-                  <span className="font-medium">{getPreviewInvoice()!.number || 'Brouillon'}</span>
+                  <span className="text-muted-foreground">N° Facture:</span>{" "}
+                  <span className="font-medium">{getPreviewInvoice()!.number || "Brouillon"}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Statut:</span>{' '}
+                  <span className="text-muted-foreground">Statut:</span>{" "}
                   <Badge className={statusColors[getPreviewInvoice()!.status]}>
                     {statusLabels[getPreviewInvoice()!.status]}
                   </Badge>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Dossier:</span>{' '}
+                  <span className="text-muted-foreground">Dossier:</span>{" "}
                   <span className="font-medium">{getMatterInfo(getPreviewInvoice()!.matter_id)}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Client:</span>{' '}
-                  <span className="font-medium">{getClientInfo(getClientIdFromMatter(getPreviewInvoice()!.matter_id))}</span>
+                  <span className="text-muted-foreground">Client:</span>{" "}
+                  <span className="font-medium">
+                    {getClientInfo(getClientIdFromMatter(getPreviewInvoice()!.matter_id))}
+                  </span>
                 </div>
               </div>
 
@@ -945,15 +940,15 @@ export default function Invoices() {
               <div className="flex justify-end">
                 <div className="space-y-1 text-right">
                   <div className="text-sm">
-                    <span className="text-muted-foreground">Total HT:</span>{' '}
+                    <span className="text-muted-foreground">Total HT:</span>{" "}
                     {formatCents(getPreviewInvoice()!.total_ht_cents)}
                   </div>
                   <div className="text-sm">
-                    <span className="text-muted-foreground">TVA:</span>{' '}
+                    <span className="text-muted-foreground">TVA:</span>{" "}
                     {formatCents(getPreviewInvoice()!.total_vat_cents)}
                   </div>
                   <div className="text-lg font-bold">
-                    <span className="text-muted-foreground">TTC:</span>{' '}
+                    <span className="text-muted-foreground">TTC:</span>{" "}
                     {formatCents(getPreviewInvoice()!.total_ttc_cents)}
                   </div>
                 </div>
@@ -964,7 +959,7 @@ export default function Invoices() {
             <Button variant="outline" onClick={() => setIsPreviewDialogOpen(false)}>
               Fermer
             </Button>
-            {getPreviewInvoice()?.status === 'issued' && (
+            {getPreviewInvoice()?.status === "issued" && (
               <Button onClick={() => handlePrintPDF(selectedInvoice!)}>
                 <Printer className="w-4 h-4 mr-2" />
                 Imprimer PDF
