@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -12,49 +12,48 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { useProfiles, useUpdateProfile, useUpdateUserRole, type ProfileWithRole } from '@/hooks/useProfiles';
-import { useMatters } from '@/hooks/useMatters';
-import { useAssignments, useCreateAssignment, useDeleteAssignment } from '@/hooks/useAssignments';
-import { supabase } from '@/integrations/supabase/client';
-import { Plus, Pencil, Users, UserPlus, Trash2, Search, Loader2, Key, Download } from 'lucide-react';
-import { toast } from 'sonner';
-import type { UserRole } from '@/types';
-import { exportCollaboratorsCSV } from '@/lib/exports';
+} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useProfiles, useUpdateProfile, useUpdateUserRole, type ProfileWithRole } from "@/hooks/useProfiles";
+import { useMatters } from "@/hooks/useMatters";
+import { useAssignments, useCreateAssignment, useDeleteAssignment } from "@/hooks/useAssignments";
+import { supabase } from "@/integrations/supabase/client";
+import { Plus, Pencil, Users, UserPlus, Trash2, Search, Loader2, Key, Download } from "lucide-react";
+import { toast } from "sonner";
+import type { UserRole } from "@/types";
+import { exportCollaboratorsCSV } from "@/lib/exports";
 
 export default function Collaborators() {
   const { role } = useAuth();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<ProfileWithRole | null>(null);
-  const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
 
   // User form state
-  const [formName, setFormName] = useState('');
-  const [formEmail, setFormEmail] = useState('');
-  const [formRole, setFormRole] = useState<UserRole>('collaborator');
-  const [formRateCents, setFormRateCents] = useState('');
+  const [formName, setFormName] = useState("");
+  const [formEmail, setFormEmail] = useState("");
+  const [formRole, setFormRole] = useState<UserRole>("collaborator");
+  const [formRateCents, setFormRateCents] = useState("");
   const [isCreatingUser, setIsCreatingUser] = useState(false);
 
   // Assignment form state
-  const [assignMatterId, setAssignMatterId] = useState('');
-  const [assignStartDate, setAssignStartDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [assignMatterId, setAssignMatterId] = useState("");
+  const [assignStartDate, setAssignStartDate] = useState(() => new Date().toISOString().split("T")[0]);
 
   // Password reset state
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
-  const [passwordUserId, setPasswordUserId] = useState<string>('');
-  const [passwordUserName, setPasswordUserName] = useState<string>('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordUserId, setPasswordUserId] = useState<string>("");
+  const [passwordUserName, setPasswordUserName] = useState<string>("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isResettingPassword, setIsResettingPassword] = useState(false);
+
+  // Delete collaborator state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteTargetUser, setDeleteTargetUser] = useState<ProfileWithRole | null>(null);
+  const [isDeletingCollaborator, setIsDeletingCollaborator] = useState(false);
 
   // Hooks for data
   const { data: profiles = [], isLoading: profilesLoading } = useProfiles();
@@ -65,12 +64,13 @@ export default function Collaborators() {
   const createAssignment = useCreateAssignment();
   const deleteAssignment = useDeleteAssignment();
 
-  const filteredUsers = profiles.filter(u =>
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredUsers = profiles.filter(
+    (u) =>
+      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  if (role !== 'owner' && role !== 'sysadmin') {
+  if (role !== "owner" && role !== "sysadmin") {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <Card>
@@ -93,10 +93,10 @@ export default function Collaborators() {
   }
 
   const resetUserForm = () => {
-    setFormName('');
-    setFormEmail('');
-    setFormRole('collaborator');
-    setFormRateCents('');
+    setFormName("");
+    setFormEmail("");
+    setFormRole("collaborator");
+    setFormRateCents("");
     setEditingUser(null);
   };
 
@@ -105,8 +105,8 @@ export default function Collaborators() {
       setEditingUser(u);
       setFormName(u.name);
       setFormEmail(u.email);
-      setFormRole(u.role || 'collaborator');
-      setFormRateCents(u.rate_cents ? String(u.rate_cents / 100) : '');
+      setFormRole(u.role || "collaborator");
+      setFormRateCents(u.rate_cents ? String(u.rate_cents / 100) : "");
     } else {
       resetUserForm();
     }
@@ -115,7 +115,7 @@ export default function Collaborators() {
 
   const handleSaveUser = async () => {
     if (!formName.trim()) {
-      toast.error('Le nom est obligatoire');
+      toast.error("Le nom est obligatoire");
       return;
     }
 
@@ -138,28 +138,28 @@ export default function Collaborators() {
           });
         }
 
-        toast.success('Utilisateur modifié');
+        toast.success("Utilisateur modifié");
       } else {
         // Create new user
         if (!formEmail.trim()) {
-          toast.error('L\'email est obligatoire');
+          toast.error("L'email est obligatoire");
           return;
         }
 
         // Validate email format
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(formEmail.trim())) {
-          toast.error('Format d\'email invalide');
+          toast.error("Format d'email invalide");
           return;
         }
 
         setIsCreatingUser(true);
-        
+
         // Generate a random password for the new user
-        const tempPassword = Math.random().toString(36).slice(-12) + 'A1!';
+        const tempPassword = Math.random().toString(36).slice(-12) + "A1!";
 
         // Create user via Supabase Auth (requires edge function with admin privileges)
-        const { data, error } = await supabase.functions.invoke('admin-create-user', {
+        const { data, error } = await supabase.functions.invoke("admin-create-user", {
           body: {
             email: formEmail.trim(),
             password: tempPassword,
@@ -174,12 +174,12 @@ export default function Collaborators() {
 
         toast.success(`Utilisateur créé. Un email d'invitation a été envoyé à ${formEmail.trim()}`);
       }
-      
+
       setIsUserDialogOpen(false);
       resetUserForm();
     } catch (error: any) {
-      console.error('Error saving user:', error);
-      toast.error(error.message || 'Erreur lors de la sauvegarde');
+      console.error("Error saving user:", error);
+      toast.error(error.message || "Erreur lors de la sauvegarde");
     } finally {
       setIsCreatingUser(false);
     }
@@ -191,23 +191,23 @@ export default function Collaborators() {
         id: u.id,
         active: !u.active,
       });
-      toast.success(u.active ? 'Utilisateur désactivé' : 'Utilisateur activé');
+      toast.success(u.active ? "Utilisateur désactivé" : "Utilisateur activé");
     } catch (error) {
-      toast.error('Erreur lors de la modification');
+      toast.error("Erreur lors de la modification");
       console.error(error);
     }
   };
 
   const openAssignDialog = (userId: string) => {
     setSelectedUserId(userId);
-    setAssignMatterId('');
-    setAssignStartDate(new Date().toISOString().split('T')[0]);
+    setAssignMatterId("");
+    setAssignStartDate(new Date().toISOString().split("T")[0]);
     setIsAssignDialogOpen(true);
   };
 
   const handleSaveAssignment = async () => {
     if (!assignMatterId) {
-      toast.error('Veuillez sélectionner un dossier');
+      toast.error("Veuillez sélectionner un dossier");
       return;
     }
 
@@ -218,10 +218,10 @@ export default function Collaborators() {
         start_date: assignStartDate,
         end_date: null,
       });
-      toast.success('Affectation créée');
+      toast.success("Affectation créée");
       setIsAssignDialogOpen(false);
     } catch (error) {
-      toast.error('Erreur lors de la création de l\'affectation');
+      toast.error("Erreur lors de la création de l'affectation");
       console.error(error);
     }
   };
@@ -229,40 +229,67 @@ export default function Collaborators() {
   const handleDeleteAssignment = async (assignmentId: string) => {
     try {
       await deleteAssignment.mutateAsync(assignmentId);
-      toast.success('Affectation supprimée');
+      toast.success("Affectation supprimée");
     } catch (error) {
-      toast.error('Erreur lors de la suppression');
+      toast.error("Erreur lors de la suppression");
       console.error(error);
+    }
+  };
+
+  const handleDeleteCollaborator = async () => {
+    if (!deleteTargetUser) return;
+    setIsDeletingCollaborator(true);
+    try {
+      // Delete the user's profile
+      const { error: profileError } = await supabase.from("profiles").delete().eq("id", deleteTargetUser.id);
+
+      if (profileError) throw profileError;
+
+      // Delete from user_roles
+      const { error: roleError } = await supabase.from("user_roles").delete().eq("user_id", deleteTargetUser.id);
+
+      if (roleError) throw roleError;
+
+      toast.success("Collaborateur supprimé avec succès");
+      setIsDeleteDialogOpen(false);
+      setDeleteTargetUser(null);
+      // Refresh profiles list
+      window.location.reload();
+    } catch (error) {
+      console.error(error);
+      toast.error("Erreur lors de la suppression du collaborateur");
+    } finally {
+      setIsDeletingCollaborator(false);
     }
   };
 
   const openPasswordDialog = (userId: string, userName: string) => {
     setPasswordUserId(userId);
     setPasswordUserName(userName);
-    setNewPassword('');
-    setConfirmPassword('');
+    setNewPassword("");
+    setConfirmPassword("");
     setIsPasswordDialogOpen(true);
   };
 
   const handleResetPassword = async () => {
     if (!newPassword || !confirmPassword) {
-      toast.error('Veuillez remplir les deux champs');
+      toast.error("Veuillez remplir les deux champs");
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      toast.error('Les mots de passe ne correspondent pas');
+      toast.error("Les mots de passe ne correspondent pas");
       return;
     }
 
     if (newPassword.length < 6) {
-      toast.error('Le mot de passe doit contenir au moins 6 caractères');
+      toast.error("Le mot de passe doit contenir au moins 6 caractères");
       return;
     }
 
     setIsResettingPassword(true);
     try {
-      const { data, error } = await supabase.functions.invoke('admin-reset-password', {
+      const { data, error } = await supabase.functions.invoke("admin-reset-password", {
         body: { userId: passwordUserId, newPassword },
       });
 
@@ -272,44 +299,44 @@ export default function Collaborators() {
       toast.success(`Mot de passe modifié pour ${passwordUserName}`);
       setIsPasswordDialogOpen(false);
     } catch (error: any) {
-      console.error('Password reset error:', error);
-      toast.error(error.message || 'Erreur lors de la modification du mot de passe');
+      console.error("Password reset error:", error);
+      toast.error(error.message || "Erreur lors de la modification du mot de passe");
     } finally {
       setIsResettingPassword(false);
     }
   };
 
   const getUserAssignments = (userId: string) => {
-    return assignments.filter(a => a.user_id === userId);
+    return assignments.filter((a) => a.user_id === userId);
   };
 
   const getMatterLabel = (matterId: string) => {
-    const matter = matters.find(m => m.id === matterId);
-    return matter ? `${matter.code} - ${matter.label}` : 'Inconnu';
+    const matter = matters.find((m) => m.id === matterId);
+    return matter ? `${matter.code} - ${matter.label}` : "Inconnu";
   };
 
   const formatCents = (cents: number) => {
-    return new Intl.NumberFormat('fr-MA', {
-      style: 'currency',
-      currency: 'MAD',
+    return new Intl.NumberFormat("fr-MA", {
+      style: "currency",
+      currency: "MAD",
     }).format(cents / 100);
   };
 
   const roleLabels: Record<UserRole, string> = {
-    sysadmin: 'Sysadmin',
-    owner: 'Associé',
-    assistant: 'Assistant',
-    collaborator: 'Collaborateur',
+    sysadmin: "Sysadmin",
+    owner: "Associé",
+    assistant: "Assistant",
+    collaborator: "Collaborateur",
   };
 
   const roleColors: Record<UserRole, string> = {
-    sysadmin: 'bg-destructive text-destructive-foreground',
-    owner: 'bg-accent text-accent-foreground',
-    assistant: 'bg-primary text-primary-foreground',
-    collaborator: 'bg-secondary text-secondary-foreground',
+    sysadmin: "bg-destructive text-destructive-foreground",
+    owner: "bg-accent text-accent-foreground",
+    assistant: "bg-primary text-primary-foreground",
+    collaborator: "bg-secondary text-secondary-foreground",
   };
 
-  const openMatters = matters.filter(m => m.status === 'open');
+  const openMatters = matters.filter((m) => m.status === "open");
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -323,14 +350,16 @@ export default function Collaborators() {
           <Button
             variant="outline"
             onClick={() => {
-              exportCollaboratorsCSV(profiles.map(p => ({
-                email: p.email,
-                name: p.name,
-                role: p.role || 'collaborator',
-                rateCents: p.rate_cents,
-                active: p.active,
-              })));
-              toast.success('Export CSV téléchargé');
+              exportCollaboratorsCSV(
+                profiles.map((p) => ({
+                  email: p.email,
+                  name: p.name,
+                  role: p.role || "collaborator",
+                  rateCents: p.rate_cents,
+                  active: p.active,
+                })),
+              );
+              toast.success("Export CSV téléchargé");
             }}
             disabled={profiles.length === 0}
           >
@@ -346,11 +375,11 @@ export default function Collaborators() {
         <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>{editingUser ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur'}</DialogTitle>
+              <DialogTitle>{editingUser ? "Modifier l'utilisateur" : "Nouvel utilisateur"}</DialogTitle>
               <DialogDescription>
-                {editingUser 
-                  ? 'Modifiez les informations et le rôle de l\'utilisateur.'
-                  : 'Créez un nouveau compte utilisateur. Un email d\'invitation sera envoyé.'}
+                {editingUser
+                  ? "Modifiez les informations et le rôle de l'utilisateur."
+                  : "Créez un nouveau compte utilisateur. Un email d'invitation sera envoyé."}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -365,7 +394,7 @@ export default function Collaborators() {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="email">Email {!editingUser && '*'}</Label>
+                <Label htmlFor="email">Email {!editingUser && "*"}</Label>
                 <Input
                   id="email"
                   type="email"
@@ -373,7 +402,7 @@ export default function Collaborators() {
                   value={editingUser ? editingUser.email : formEmail}
                   onChange={(e) => setFormEmail(e.target.value)}
                   disabled={!!editingUser}
-                  className={editingUser ? 'bg-muted' : ''}
+                  className={editingUser ? "bg-muted" : ""}
                 />
               </div>
 
@@ -411,14 +440,14 @@ export default function Collaborators() {
               <Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>
                 Annuler
               </Button>
-              <Button 
+              <Button
                 onClick={handleSaveUser}
                 disabled={updateProfile.isPending || updateUserRole.isPending || isCreatingUser}
               >
                 {(updateProfile.isPending || updateUserRole.isPending || isCreatingUser) && (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 )}
-                {editingUser ? 'Enregistrer' : 'Créer'}
+                {editingUser ? "Enregistrer" : "Créer"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -441,9 +470,7 @@ export default function Collaborators() {
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>Nouvelle affectation</DialogTitle>
-            <DialogDescription>
-              Affectez un dossier à cet utilisateur.
-            </DialogDescription>
+            <DialogDescription>Affectez un dossier à cet utilisateur.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
@@ -454,9 +481,7 @@ export default function Collaborators() {
                 </SelectTrigger>
                 <SelectContent>
                   {openMatters.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground text-center">
-                      Aucun dossier ouvert disponible
-                    </div>
+                    <div className="p-2 text-sm text-muted-foreground text-center">Aucun dossier ouvert disponible</div>
                   ) : (
                     openMatters.map((matter) => (
                       <SelectItem key={matter.id} value={matter.id}>
@@ -482,13 +507,8 @@ export default function Collaborators() {
             <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
               Annuler
             </Button>
-            <Button 
-              onClick={handleSaveAssignment}
-              disabled={createAssignment.isPending || !assignMatterId}
-            >
-              {createAssignment.isPending && (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              )}
+            <Button onClick={handleSaveAssignment} disabled={createAssignment.isPending || !assignMatterId}>
+              {createAssignment.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Affecter
             </Button>
           </DialogFooter>
@@ -496,14 +516,12 @@ export default function Collaborators() {
       </Dialog>
 
       {/* Password Reset Dialog - Sysadmin only */}
-      {role === 'sysadmin' && (
+      {role === "sysadmin" && (
         <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
           <DialogContent className="sm:max-w-[400px]">
             <DialogHeader>
               <DialogTitle>Modifier le mot de passe</DialogTitle>
-              <DialogDescription>
-                Définissez un nouveau mot de passe pour {passwordUserName}.
-              </DialogDescription>
+              <DialogDescription>Définissez un nouveau mot de passe pour {passwordUserName}.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
@@ -531,19 +549,36 @@ export default function Collaborators() {
               <Button variant="outline" onClick={() => setIsPasswordDialogOpen(false)}>
                 Annuler
               </Button>
-              <Button 
-                onClick={handleResetPassword}
-                disabled={isResettingPassword || !newPassword || !confirmPassword}
-              >
-                {isResettingPassword && (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                )}
+              <Button onClick={handleResetPassword} disabled={isResettingPassword || !newPassword || !confirmPassword}>
+                {isResettingPassword && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Modifier
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Delete Collaborator Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Supprimer le collaborateur</DialogTitle>
+            <DialogDescription>
+              Êtes-vous sûr de vouloir supprimer le collaborateur <strong>{deleteTargetUser?.name}</strong> ? Cette
+              action est irréversible.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteCollaborator} disabled={isDeletingCollaborator}>
+              {isDeletingCollaborator && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Supprimer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Users List */}
       <div className="space-y-4">
@@ -564,43 +599,34 @@ export default function Collaborators() {
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                         <span className="text-sm font-medium text-primary">
-                          {u.name.split(' ').map(n => n[0]).join('')}
+                          {u.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")}
                         </span>
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{u.name}</span>
-                          {u.role && (
-                            <Badge className={roleColors[u.role]}>{roleLabels[u.role]}</Badge>
-                          )}
+                          {u.role && <Badge className={roleColors[u.role]}>{roleLabels[u.role]}</Badge>}
                           {!u.active && <Badge variant="secondary">Inactif</Badge>}
                         </div>
                         <p className="text-sm text-muted-foreground">{u.email}</p>
                         {u.rate_cents && (
-                          <p className="text-xs text-muted-foreground">
-                            Taux: {formatCents(u.rate_cents)}/h
-                          </p>
+                          <p className="text-xs text-muted-foreground">Taux: {formatCents(u.rate_cents)}/h</p>
                         )}
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openAssignDialog(u.id)}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => openAssignDialog(u.id)}>
                         <UserPlus className="w-4 h-4 mr-1" />
                         Affecter
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openUserDialog(u)}
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => openUserDialog(u)}>
                         <Pencil className="w-4 h-4" />
                       </Button>
-                      {role === 'sysadmin' && (
+                      {role === "sysadmin" && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -610,13 +636,23 @@ export default function Collaborators() {
                           <Key className="w-4 h-4" />
                         </Button>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleUserActive(u)}
-                      >
-                        {u.active ? 'Désactiver' : 'Activer'}
+                      <Button variant="ghost" size="sm" onClick={() => toggleUserActive(u)}>
+                        {u.active ? "Désactiver" : "Activer"}
                       </Button>
+                      {role === "sysadmin" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => {
+                            setDeleteTargetUser(u);
+                            setIsDeleteDialogOpen(true);
+                          }}
+                          title="Supprimer le collaborateur"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
 
