@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Plus, Pencil, Trash2, Search, Download } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePurchases, useCreatePurchase, useUpdatePurchase, useDeletePurchase, PAYMENT_MODES, formatCentsToMAD, type Purchase } from '@/hooks/usePurchases';
+import DateRangeFilter from '@/components/DateRangeFilter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -53,6 +54,8 @@ export default function Purchases() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPurchase, setEditingPurchase] = useState<Purchase | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
   
   // Form state
   const [formInvoiceNumber, setFormInvoiceNumber] = useState('');
@@ -74,11 +77,17 @@ export default function Purchases() {
   const updatePurchase = useUpdatePurchase();
   const deletePurchase = useDeletePurchase();
   
-  const filteredPurchases = purchases.filter(p => 
-    p.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.designation.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.supplier.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredPurchases = useMemo(() => {
+    return purchases.filter(p => {
+      const matchesSearch = 
+        p.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.designation.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.supplier.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesFrom = !filterDateFrom || p.invoice_date >= filterDateFrom;
+      const matchesTo = !filterDateTo || p.invoice_date <= filterDateTo;
+      return matchesSearch && matchesFrom && matchesTo;
+    });
+  }, [purchases, searchTerm, filterDateFrom, filterDateTo]);
   
   const resetForm = () => {
     setFormInvoiceNumber('');
@@ -223,17 +232,26 @@ export default function Purchases() {
       
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>{isFr ? 'Liste des achats' : 'Purchase list'}</CardTitle>
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder={isFr ? 'Rechercher...' : 'Search...'}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <CardTitle>{isFr ? 'Liste des achats' : 'Purchase list'}</CardTitle>
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder={isFr ? 'Rechercher...' : 'Search...'}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
             </div>
+            <DateRangeFilter
+              dateFrom={filterDateFrom}
+              dateTo={filterDateTo}
+              onDateFromChange={setFilterDateFrom}
+              onDateToChange={setFilterDateTo}
+              onClear={() => { setFilterDateFrom(''); setFilterDateTo(''); }}
+            />
           </div>
         </CardHeader>
         <CardContent>

@@ -52,6 +52,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Currency, formatAmount } from '@/components/ui/currency';
+import DateRangeFilter from '@/components/DateRangeFilter';
 
 // Format cents to currency
 function formatCentsText(cents: number): string {
@@ -79,6 +80,17 @@ export default function Invoices() {
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [isIssueDialogOpen, setIsIssueDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+
+  const filteredInvoices = useMemo(() => {
+    return invoices.filter(inv => {
+      const dateRef = inv.issue_date || inv.period_from;
+      const matchesFrom = !filterDateFrom || dateRef >= filterDateFrom;
+      const matchesTo = !filterDateTo || dateRef <= filterDateTo;
+      return matchesFrom && matchesTo;
+    });
+  }, [invoices, filterDateFrom, filterDateTo]);
 
   // Create form state
   const [selectedMatterId, setSelectedMatterId] = useState('');
@@ -528,7 +540,14 @@ export default function Invoices() {
           <p className="text-muted-foreground">Facturation des prestations par dossier</p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <DateRangeFilter
+            dateFrom={filterDateFrom}
+            dateTo={filterDateTo}
+            onDateFromChange={setFilterDateFrom}
+            onDateToChange={setFilterDateTo}
+            onClear={() => { setFilterDateFrom(''); setFilterDateTo(''); }}
+          />
           <Button variant="outline" onClick={handleExportCSV}>
             <Download className="w-4 h-4 mr-2" />
             Export CSV
@@ -550,7 +569,7 @@ export default function Invoices() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {invoices.filter(i => i.status === 'draft').length}
+              {filteredInvoices.filter(i => i.status === 'draft').length}
             </div>
           </CardContent>
         </Card>
@@ -560,7 +579,7 @@ export default function Invoices() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {invoices.filter(i => i.status === 'issued').length}
+              {filteredInvoices.filter(i => i.status === 'issued').length}
             </div>
           </CardContent>
         </Card>
@@ -570,7 +589,7 @@ export default function Invoices() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              <Currency cents={invoices.filter(i => i.status === 'issued').reduce((sum, i) => sum + i.total_ht_cents, 0)} />
+              <Currency cents={filteredInvoices.filter(i => i.status === 'issued').reduce((sum, i) => sum + i.total_ht_cents, 0)} />
             </div>
           </CardContent>
         </Card>
@@ -580,7 +599,7 @@ export default function Invoices() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              <Currency cents={invoices.filter(i => i.status === 'issued' && i.paid).reduce((sum, i) => sum + i.total_ht_cents, 0)} />
+              <Currency cents={filteredInvoices.filter(i => i.status === 'issued' && i.paid).reduce((sum, i) => sum + i.total_ht_cents, 0)} />
             </div>
           </CardContent>
         </Card>
@@ -605,7 +624,7 @@ export default function Invoices() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {invoices.length === 0 ? (
+              {filteredInvoices.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                     <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -616,7 +635,7 @@ export default function Invoices() {
                   </TableCell>
                 </TableRow>
               ) : (
-                invoices.map((invoice) => (
+                filteredInvoices.map((invoice) => (
                   <TableRow key={invoice.id}>
                     <TableCell>
                       <Badge variant="outline">
