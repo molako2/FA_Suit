@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Download } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePurchases, useCreatePurchase, useUpdatePurchase, useDeletePurchase, PAYMENT_MODES, formatCentsToMAD, type Purchase } from '@/hooks/usePurchases';
 import { Button } from '@/components/ui/button';
@@ -42,6 +42,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { exportPurchasesCSV } from '@/lib/exports';
 
 export default function Purchases() {
   const { t, i18n } = useTranslation();
@@ -197,10 +198,27 @@ export default function Purchases() {
             {isFr ? 'Gestion des factures fournisseurs' : 'Supplier invoice management'}
           </p>
         </div>
-        <Button onClick={() => openDialog()}>
-          <Plus className="w-4 h-4 mr-2" />
-          {isFr ? 'Nouvel achat' : 'New purchase'}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (filteredPurchases.length === 0) {
+                toast.info(isFr ? 'Aucun achat à exporter' : 'No purchases to export');
+                return;
+              }
+              exportPurchasesCSV(filteredPurchases, PAYMENT_MODES);
+              toast.success(isFr ? 'Export CSV téléchargé' : 'CSV export downloaded');
+            }}
+            disabled={filteredPurchases.length === 0}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            {isFr ? 'Exporter CSV' : 'Export CSV'}
+          </Button>
+          <Button onClick={() => openDialog()}>
+            <Plus className="w-4 h-4 mr-2" />
+            {isFr ? 'Nouvel achat' : 'New purchase'}
+          </Button>
+        </div>
       </div>
       
       <Card>
