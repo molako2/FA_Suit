@@ -381,3 +381,62 @@ export function exportDetailedTimesheetCSV(
   const userSuffix = userName ? `_${userName.replace(/\s+/g, '_')}` : '';
   downloadCSV(toCSV(headers, rows), `timesheet${userSuffix}_${periodFrom}_${periodTo}.csv`);
 }
+
+// Export Purchases
+export interface PurchaseExport {
+  invoice_number: string;
+  invoice_date: string;
+  designation: string;
+  supplier: string;
+  ice: string | null;
+  num_if: string | null;
+  amount_ht_cents: number;
+  amount_tva_cents: number;
+  amount_ttc_cents: number;
+  rate: number | null;
+  prorata: number | null;
+  payment_mode: number;
+  payment_date: string | null;
+}
+
+export function exportPurchasesCSV(
+  purchases: PurchaseExport[],
+  paymentModes: { id: number; label: string }[]
+): void {
+  const headers = [
+    'N° Facture',
+    'Date Facture',
+    'Fournisseur',
+    'Désignation',
+    'ICE',
+    'Num IF',
+    'Montant HT (MAD)',
+    'Montant TVA (MAD)',
+    'Montant TTC (MAD)',
+    'Taux',
+    'Prorata',
+    'Mode Paiement',
+    'Date Paiement',
+  ];
+
+  const rows = purchases.map(p => {
+    const modeLabel = paymentModes.find(m => m.id === p.payment_mode)?.label || '';
+    return [
+      p.invoice_number,
+      p.invoice_date,
+      p.supplier,
+      p.designation,
+      p.ice || '',
+      p.num_if || '',
+      (p.amount_ht_cents / 100).toFixed(2),
+      (p.amount_tva_cents / 100).toFixed(2),
+      (p.amount_ttc_cents / 100).toFixed(2),
+      p.rate ?? '',
+      p.prorata ?? '',
+      modeLabel,
+      p.payment_date || '',
+    ];
+  });
+
+  downloadCSV(toCSV(headers, rows), `achats_${new Date().toISOString().split('T')[0]}.csv`);
+}
