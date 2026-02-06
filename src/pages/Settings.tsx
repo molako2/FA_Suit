@@ -78,7 +78,7 @@ export default function Settings() {
     });
   }
 
-  if (role !== 'owner') {
+  if (role !== 'owner' && role !== 'sysadmin') {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <Card>
