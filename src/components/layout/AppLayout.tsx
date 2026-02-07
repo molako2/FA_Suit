@@ -17,7 +17,7 @@ import {
   ShoppingCart,
   CheckSquare,
 } from 'lucide-react';
-import { usePendingTodosCount } from '@/hooks/useTodos';
+import { usePendingTodosCount, useBlockedTodosCount } from '@/hooks/useTodos';
   import appLogo from '@/assets/flowassist-logo.png';
 import {
   DropdownMenu,
@@ -119,7 +119,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
 
   const showPendingBadge = role === 'collaborator' || role === 'assistant';
+  const showBlockedBadge = role === 'owner' || role === 'sysadmin';
   const { data: pendingCount } = usePendingTodosCount(showPendingBadge ? user?.id : undefined);
+  const { data: blockedCount } = useBlockedTodosCount(showBlockedBadge);
 
   if (!user || !role) return null;
 
@@ -151,7 +153,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             {filteredNavItems.map((item) => {
               const isActive = location.pathname === item.href;
               const Icon = item.icon;
-              const showBadge = item.href === '/todos' && showPendingBadge && pendingCount && pendingCount > 0;
+              const showBadge = item.href === '/todos' && (
+                (showPendingBadge && pendingCount && pendingCount > 0) ||
+                (showBlockedBadge && blockedCount && blockedCount > 0)
+              );
+              const badgeCount = showPendingBadge ? pendingCount : blockedCount;
               return (
                 <Link
                   key={item.href}
@@ -167,7 +173,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   {t(item.labelKey)}
                   {showBadge && (
                     <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-destructive rounded-full">
-                      {pendingCount}
+                      {badgeCount}
                     </span>
                   )}
                 </Link>
@@ -216,7 +222,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           {filteredNavItems.slice(0, 5).map((item) => {
             const isActive = location.pathname === item.href;
             const Icon = item.icon;
-            const showBadgeMobile = item.href === '/todos' && showPendingBadge && pendingCount && pendingCount > 0;
+            const showBadgeMobile = item.href === '/todos' && (
+              (showPendingBadge && pendingCount && pendingCount > 0) ||
+              (showBlockedBadge && blockedCount && blockedCount > 0)
+            );
+            const badgeCountMobile = showPendingBadge ? pendingCount : blockedCount;
             return (
               <Link
                 key={item.href}
@@ -230,7 +240,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   <Icon className="w-5 h-5 mb-1" />
                   {showBadgeMobile && (
                     <span className="absolute -top-1 -right-2 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-destructive rounded-full">
-                      {pendingCount}
+                      {badgeCountMobile}
                     </span>
                   )}
                 </div>
