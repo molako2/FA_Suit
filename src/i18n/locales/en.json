@@ -75,7 +75,8 @@
     "creditNotes": "Credit Notes",
     "purchases": "Purchases",
     "collaborators": "Collaborators",
-    "settings": "Settings"
+    "settings": "Settings",
+    "todos": "To Do"
   },
   "dashboard": {
     "title": "KPI Dashboard",
@@ -306,6 +307,29 @@
     "year": "Year",
     "nextNumber": "Next number",
     "saved": "Settings saved"
+  },
+  "todos": {
+    "title": "Task List",
+    "subtitle": "Manage team tasks",
+    "newTask": "New task",
+    "editTask": "Edit task",
+    "task": "Task",
+    "deadline": "Deadline",
+    "assignedTo": "Assigned to",
+    "status": "Status",
+    "pending": "Pending",
+    "inProgress": "In progress",
+    "done": "Done",
+    "blocked": "Blocked",
+    "blockedReason": "Blocked reason",
+    "noTasks": "No tasks",
+    "taskCreated": "Task created",
+    "taskUpdated": "Task updated",
+    "taskDeleted": "Task deleted",
+    "overdue": "Overdue",
+    "maxChars": "128 characters max",
+    "blockedReasonRequired": "Blocked reason is required",
+    "selectCollaborator": "Select a collaborator"
   },
   "errors": {
     "generic": "An error occurred",

@@ -15,6 +15,7 @@ import {
   Receipt,
   Clock,
   ShoppingCart,
+  CheckSquare,
 } from 'lucide-react';
   import appLogo from '@/assets/flowassist-logo.png';
 import {
@@ -89,6 +90,12 @@ const navItemsConfig: NavItemConfig[] = [
     href: '/purchases',
     icon: ShoppingCart,
     roles: ['sysadmin', 'owner', 'assistant'],
+  },
+  {
+    labelKey: 'nav.todos',
+    href: '/todos',
+    icon: CheckSquare,
+    roles: ['sysadmin', 'owner', 'assistant', 'collaborator'],
   },
   {
     labelKey: 'nav.settings',

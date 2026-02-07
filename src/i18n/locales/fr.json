@@ -75,7 +75,8 @@
     "creditNotes": "Avoirs",
     "purchases": "Achats",
     "collaborators": "Collaborateurs",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "todos": "To Do"
   },
   "dashboard": {
     "title": "Dashboard KPI",
@@ -306,6 +307,29 @@
     "year": "Année",
     "nextNumber": "Prochain numéro",
     "saved": "Paramètres enregistrés"
+  },
+  "todos": {
+    "title": "Liste des tâches",
+    "subtitle": "Gérez les tâches de l'équipe",
+    "newTask": "Nouvelle tâche",
+    "editTask": "Modifier la tâche",
+    "task": "Tâche",
+    "deadline": "Deadline",
+    "assignedTo": "Attribué à",
+    "status": "Statut",
+    "pending": "À faire",
+    "inProgress": "En cours",
+    "done": "Réalisé",
+    "blocked": "Bloqué",
+    "blockedReason": "Raison du blocage",
+    "noTasks": "Aucune tâche",
+    "taskCreated": "Tâche créée",
+    "taskUpdated": "Tâche mise à jour",
+    "taskDeleted": "Tâche supprimée",
+    "overdue": "En retard",
+    "maxChars": "128 caractères maximum",
+    "blockedReasonRequired": "La raison du blocage est obligatoire",
+    "selectCollaborator": "Sélectionnez un collaborateur"
   },
   "errors": {
     "generic": "Une erreur est survenue",

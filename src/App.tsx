@@ -20,6 +20,7 @@ import Invoices from "./pages/Invoices";
 import CreditNotes from "./pages/CreditNotes";
 import Purchases from "./pages/Purchases";
 import Settings from "./pages/Settings";
+import Todos from "./pages/Todos";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -116,6 +117,15 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={['sysadmin', 'owner', 'assistant']}>
             <AppLayout><Purchases /></AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/todos"
+        element={
+          <ProtectedRoute>
+            <AppLayout><Todos /></AppLayout>
           </ProtectedRoute>
         }
       />
