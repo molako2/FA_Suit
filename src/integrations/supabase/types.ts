@@ -522,6 +522,57 @@ export type Database = {
           },
         ]
       }
+      todos: {
+        Row: {
+          assigned_to: string
+          blocked_reason: string | null
+          created_at: string
+          created_by: string
+          deadline: string
+          id: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to: string
+          blocked_reason?: string | null
+          created_at?: string
+          created_by: string
+          deadline: string
+          id?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string
+          blocked_reason?: string | null
+          created_at?: string
+          created_by?: string
+          deadline?: string
+          id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "todos_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "todos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
