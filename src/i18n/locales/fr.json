@@ -329,7 +329,9 @@
     "overdue": "En retard",
     "maxChars": "128 caractères maximum",
     "blockedReasonRequired": "La raison du blocage est obligatoire",
-    "selectCollaborator": "Sélectionnez un collaborateur"
+    "selectCollaborator": "Sélectionnez un collaborateur",
+    "export": "Exporter",
+    "exportDownloaded": "Export tâches téléchargé"
   },
   "errors": {
     "generic": "Une erreur est survenue",

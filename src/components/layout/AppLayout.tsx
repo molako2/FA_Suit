@@ -17,6 +17,7 @@ import {
   ShoppingCart,
   CheckSquare,
 } from 'lucide-react';
+import { usePendingTodosCount } from '@/hooks/useTodos';
   import appLogo from '@/assets/flowassist-logo.png';
 import {
   DropdownMenu,
@@ -117,6 +118,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, profile, role, signOut } = useAuth();
   const location = useLocation();
 
+  const showPendingBadge = role === 'collaborator' || role === 'assistant';
+  const { data: pendingCount } = usePendingTodosCount(showPendingBadge ? user?.id : undefined);
+
   if (!user || !role) return null;
 
   const filteredNavItems = navItemsConfig.filter(item => item.roles.includes(role));
@@ -147,12 +151,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             {filteredNavItems.map((item) => {
               const isActive = location.pathname === item.href;
               const Icon = item.icon;
+              const showBadge = item.href === '/todos' && showPendingBadge && pendingCount && pendingCount > 0;
               return (
                 <Link
                   key={item.href}
                   to={item.href}
                   className={cn(
-                    'flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                    'flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors relative',
                     isActive
                       ? 'bg-primary text-primary-foreground'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -160,6 +165,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 >
                   <Icon className="w-4 h-4 mr-2" />
                   {t(item.labelKey)}
+                  {showBadge && (
+                    <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-destructive rounded-full">
+                      {pendingCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -206,16 +216,24 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           {filteredNavItems.slice(0, 5).map((item) => {
             const isActive = location.pathname === item.href;
             const Icon = item.icon;
+            const showBadgeMobile = item.href === '/todos' && showPendingBadge && pendingCount && pendingCount > 0;
             return (
               <Link
                 key={item.href}
                 to={item.href}
                 className={cn(
-                  'flex flex-col items-center p-2 text-xs',
+                  'flex flex-col items-center p-2 text-xs relative',
                   isActive ? 'text-primary' : 'text-muted-foreground'
                 )}
               >
-                <Icon className="w-5 h-5 mb-1" />
+                <div className="relative">
+                  <Icon className="w-5 h-5 mb-1" />
+                  {showBadgeMobile && (
+                    <span className="absolute -top-1 -right-2 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-destructive rounded-full">
+                      {pendingCount}
+                    </span>
+                  )}
+                </div>
                   {t(item.labelKey)}
               </Link>
             );

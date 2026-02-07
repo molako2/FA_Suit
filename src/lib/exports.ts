@@ -382,6 +382,42 @@ export function exportDetailedTimesheetCSV(
   downloadCSV(toCSV(headers, rows), `timesheet${userSuffix}_${periodFrom}_${periodTo}.csv`);
 }
 
+// Export Todos
+export interface TodoExport {
+  collaborator: string;
+  title: string;
+  deadline: string;
+  status: string;
+  blocked_reason: string | null;
+}
+
+export function exportTodosCSV(todos: TodoExport[]): void {
+  const statusLabels: Record<string, string> = {
+    pending: 'À faire',
+    in_progress: 'En cours',
+    done: 'Réalisé',
+    blocked: 'Bloqué',
+  };
+
+  const headers = [
+    'Collaborateur',
+    'Tâche',
+    'Deadline',
+    'Statut',
+    'Raison blocage',
+  ];
+
+  const rows = todos.map(t => [
+    t.collaborator,
+    t.title,
+    t.deadline,
+    statusLabels[t.status] || t.status,
+    t.blocked_reason || '',
+  ]);
+
+  downloadCSV(toCSV(headers, rows), `todos_${new Date().toISOString().split('T')[0]}.csv`);
+}
+
 // Export Purchases
 export interface PurchaseExport {
   invoice_number: string;

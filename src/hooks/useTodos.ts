@@ -88,3 +88,20 @@ export function useDeleteTodo() {
     },
   });
 }
+
+export function usePendingTodosCount(userId?: string) {
+  return useQuery({
+    queryKey: ['todos', 'pending-count', userId],
+    queryFn: async () => {
+      if (!userId) return 0;
+      const { count, error } = await supabase
+        .from('todos')
+        .select('*', { count: 'exact', head: true })
+        .eq('assigned_to', userId)
+        .eq('status', 'pending');
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!userId,
+  });
+}
