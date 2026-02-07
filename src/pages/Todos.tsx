@@ -5,7 +5,7 @@ import { useProfiles } from '@/hooks/useProfiles';
 import { useTodos, useCreateTodo, useUpdateTodo, useDeleteTodo } from '@/hooks/useTodos';
 import { format, isPast, parseISO } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
-import { CheckSquare, Plus, Pencil, Trash2, AlertCircle } from 'lucide-react';
+import { CheckSquare, Plus, Pencil, Trash2, AlertCircle, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -21,6 +21,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils';
 import { CalendarIcon } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { exportTodosCSV, type TodoExport } from '@/lib/exports';
 
 type TodoStatus = 'pending' | 'in_progress' | 'done' | 'blocked';
 
@@ -157,6 +158,22 @@ export default function Todos() {
     return map[status] || status;
   };
 
+  const handleExport = () => {
+    if (!todos?.length) {
+      toast({ title: t('errors.noDataToExport'), variant: 'destructive' });
+      return;
+    }
+    const exportData: TodoExport[] = todos.map(todo => ({
+      collaborator: profileMap.get(todo.assigned_to) || t('common.unknown'),
+      title: todo.title,
+      deadline: format(parseISO(todo.deadline), 'dd/MM/yyyy', { locale: dateLocale }),
+      status: todo.status,
+      blocked_reason: todo.blocked_reason,
+    }));
+    exportTodosCSV(exportData);
+    toast({ title: t('todos.exportDownloaded') });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -167,12 +184,18 @@ export default function Todos() {
           </h1>
           <p className="text-muted-foreground">{t('todos.subtitle')}</p>
         </div>
-        {isAdmin && (
-          <Button onClick={openCreateDialog}>
-            <Plus className="w-4 h-4 mr-2" />
-            {t('todos.newTask')}
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="w-4 h-4 mr-2" />
+            {t('todos.export')}
           </Button>
-        )}
+          {isAdmin && (
+            <Button onClick={openCreateDialog}>
+              <Plus className="w-4 h-4 mr-2" />
+              {t('todos.newTask')}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Filter for admins */}
@@ -239,25 +262,29 @@ export default function Todos() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {todo.status === 'blocked' && todo.blocked_reason ? (
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <Badge className={statusColors[todo.status as TodoStatus]}>
-                                {getStatusLabel(todo.status)}
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <div className="flex items-start gap-1 max-w-xs">
-                                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                                <span>{todo.blocked_reason}</span>
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        ) : (
+                        <div>
                           <Badge className={statusColors[todo.status as TodoStatus]}>
                             {getStatusLabel(todo.status)}
                           </Badge>
-                        )}
+                          {todo.status === 'blocked' && todo.blocked_reason && isAdmin && (
+                            <p className="mt-1 text-xs italic text-destructive">
+                              <AlertCircle className="w-3 h-3 inline mr-1" />
+                              {todo.blocked_reason}
+                            </p>
+                          )}
+                          {todo.status === 'blocked' && todo.blocked_reason && !isAdmin && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="ml-1 cursor-help">
+                                  <AlertCircle className="w-3.5 h-3.5 inline text-destructive" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <span className="max-w-xs">{todo.blocked_reason}</span>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {isAdmin ? (

@@ -329,7 +329,9 @@
     "overdue": "Overdue",
     "maxChars": "128 characters max",
     "blockedReasonRequired": "Blocked reason is required",
-    "selectCollaborator": "Select a collaborator"
+    "selectCollaborator": "Select a collaborator",
+    "export": "Export",
+    "exportDownloaded": "Tasks export downloaded"
   },
   "errors": {
     "generic": "An error occurred",
