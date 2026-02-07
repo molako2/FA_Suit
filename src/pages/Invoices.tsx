@@ -41,7 +41,8 @@ import { useProfiles } from "@/hooks/useProfiles";
 import { useExpensesByMatter, useLockExpenses, formatCentsTTC, type Expense } from "@/hooks/useExpenses";
 import { printInvoicePDF } from "@/lib/pdf";
 import { exportInvoicesCSV } from "@/lib/exports";
-import { FileText, Plus, Download, Eye, Send, Trash2, Printer } from "lucide-react";
+import { exportInvoiceWord } from "@/lib/word";
+import { FileText, Plus, Download, Eye, Send, Trash2, Printer, FileDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -96,6 +97,9 @@ export default function Invoices() {
   });
   const [periodTo, setPeriodTo] = useState(() => new Date().toISOString().split("T")[0]);
   const [groupByCollaborator, setGroupByCollaborator] = useState(false);
+
+  // Editable amount override (HT in cents, null = auto-calculated)
+  const [customAmountHtCents, setCustomAmountHtCents] = useState<number | null>(null);
 
   // Expense selection state
   const [selectedExpenses, setSelectedExpenses] = useState<
@@ -303,6 +307,19 @@ export default function Invoices() {
 
     lines = [...lines, ...expenseLinesToAdd];
 
+    const calculatedHt = lines.reduce((sum, l) => sum + l.amount_ht_cents, 0);
+    const finalHt = customAmountHtCents !== null ? customAmountHtCents : calculatedHt;
+
+    // If custom amount, adjust the first line proportionally
+    if (customAmountHtCents !== null && calculatedHt > 0 && lines.length > 0) {
+      const ratio = customAmountHtCents / calculatedHt;
+      lines = lines.map(l => {
+        const newHt = Math.round(l.amount_ht_cents * ratio);
+        const newVat = Math.round((newHt * l.vat_rate) / 100);
+        return { ...l, amount_ht_cents: newHt, vat_cents: newVat, amount_ttc_cents: newHt + newVat };
+      });
+    }
+
     const totalHt = lines.reduce((sum, l) => sum + l.amount_ht_cents, 0);
     const totalVat = lines.reduce((sum, l) => sum + l.vat_cents, 0);
     const totalTtc = lines.reduce((sum, l) => sum + l.amount_ttc_cents, 0);
@@ -326,6 +343,7 @@ export default function Invoices() {
       setIsCreateDialogOpen(false);
       setSelectedMatterId("");
       setSelectedExpenses({});
+      setCustomAmountHtCents(null);
     } catch (error) {
       toast.error("Erreur lors de la création de la facture");
     }
@@ -463,6 +481,28 @@ export default function Invoices() {
     };
 
     await printInvoicePDF({ invoice: invoiceData, settings: settingsData, client: clientData, matter: matterData });
+  };
+
+  const handleExportWord = async (invoiceId: string) => {
+    const invoice = invoices.find((i) => i.id === invoiceId);
+    if (!invoice || !settings) return;
+    const matter = matters.find((m) => m.id === invoice.matter_id);
+    const client = clients.find((c) => c.id === matter?.client_id);
+    if (!matter || !client) return;
+
+    await exportInvoiceWord({
+      invoice,
+      cabinetName: settings.name,
+      cabinetAddress: settings.address,
+      cabinetIban: settings.iban,
+      cabinetMentions: settings.mentions,
+      clientName: client.name,
+      clientAddress: client.address,
+      clientVatNumber: client.vat_number,
+      matterCode: matter.code,
+      matterLabel: matter.label,
+    });
+    toast.success("Export Word téléchargé");
   };
 
   const handleExportCSV = () => {
@@ -716,9 +756,14 @@ export default function Invoices() {
                           </>
                         )}
                         {invoice.status === "issued" && (
-                          <Button variant="ghost" size="icon" onClick={() => handlePrintPDF(invoice.id)}>
-                            <Printer className="w-4 h-4" />
-                          </Button>
+                          <>
+                            <Button variant="ghost" size="icon" onClick={() => handlePrintPDF(invoice.id)} title="PDF">
+                              <Printer className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleExportWord(invoice.id)} title="Word">
+                              <FileDown className="w-4 h-4" />
+                            </Button>
+                          </>
                         )}
                       </div>
                     </TableCell>
@@ -812,6 +857,26 @@ export default function Invoices() {
                       )}
                     </>
                   )}
+
+                  {/* Editable amount override */}
+                  <div className="mt-3 pt-3 border-t">
+                    <Label className="text-xs text-muted-foreground">Montant HT personnalisé (optionnel)</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="Laisser vide = montant calculé"
+                        value={customAmountHtCents !== null ? (customAmountHtCents / 100).toFixed(2) : ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCustomAmountHtCents(val ? Math.round(parseFloat(val) * 100) : null);
+                        }}
+                        className="w-48 h-8 text-sm"
+                      />
+                      <span className="text-xs text-muted-foreground">MAD</span>
+                    </div>
+                  </div>
 
                   {/* Expenses Section */}
                   {matterExpenses.length > 0 && (

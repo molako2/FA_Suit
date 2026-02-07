@@ -1,17 +1,11 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -48,16 +42,16 @@ function downloadCSV(content: string, filename: string) {
   link.click();
 }
 
-function exportKPIByUserCSV(data: KPIByUser[], from: string, to: string) {
-  const header = 'Collaborateur,Email,Minutes,Heures\n';
+function exportKPIByUserCSV(data: KPIByUser[], from: string, to: string, t: (key: string) => string) {
+  const header = `${t('dashboard.collaborator')},${t('common.email')},${t('dashboard.minutes')},${t('dashboard.hours')}\n`;
   const rows = data.map(r => 
     `"${r.userName}","${r.userEmail}",${r.billableMinutes},${(r.billableMinutes / 60).toFixed(2)}`
   ).join('\n');
   downloadCSV(header + rows, `kpi_collaborateurs_${from}_${to}.csv`);
 }
 
-function exportKPIByMatterCSV(data: KPIByMatter[], from: string, to: string) {
-  const header = 'Code,Dossier,Client,Minutes,Heures\n';
+function exportKPIByMatterCSV(data: KPIByMatter[], from: string, to: string, t: (key: string) => string) {
+  const header = `${t('dashboard.code')},${t('dashboard.matter')},${t('dashboard.client')},${t('dashboard.minutes')},${t('dashboard.hours')}\n`;
   const rows = data.map(r => 
     `"${r.matterCode}","${r.matterLabel}","${r.clientCode}",${r.billableMinutes},${(r.billableMinutes / 60).toFixed(2)}`
   ).join('\n');
@@ -65,20 +59,17 @@ function exportKPIByMatterCSV(data: KPIByMatter[], from: string, to: string) {
 }
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const { role } = useAuth();
   const [periodFrom, setPeriodFrom] = useState(() => {
     const d = new Date();
-    d.setDate(1); // First of month
+    d.setDate(1);
     return d.toISOString().split('T')[0];
   });
   const [periodTo, setPeriodTo] = useState(() => new Date().toISOString().split('T')[0]);
 
   // Supabase hooks
-  const { data: entries = [], isLoading: entriesLoading } = useTimesheetEntries(
-    undefined, // All users for dashboard
-    periodFrom,
-    periodTo
-  );
+  const { data: entries = [], isLoading: entriesLoading } = useTimesheetEntries(undefined, periodFrom, periodTo);
   const { data: profiles = [], isLoading: profilesLoading } = useProfiles();
   const { data: matters = [], isLoading: mattersLoading } = useMatters();
   const { data: clients = [], isLoading: clientsLoading } = useClients();
@@ -110,13 +101,13 @@ export default function Dashboard() {
         const profile = profiles.find(p => p.id === userId);
         return {
           userId,
-          userName: profile?.name || 'Inconnu',
+          userName: profile?.name || t('common.unknown'),
           userEmail: profile?.email || '',
           billableMinutes: minutes,
         };
       })
       .sort((a, b) => b.billableMinutes - a.billableMinutes);
-  }, [entries, profiles]);
+  }, [entries, profiles, t]);
 
   const kpiByMatter = useMemo<KPIByMatter[]>(() => {
     const grouped = new Map<string, number>();
@@ -132,22 +123,20 @@ export default function Dashboard() {
         return {
           matterId,
           matterCode: m?.code || '',
-          matterLabel: m?.label || 'Inconnu',
+          matterLabel: m?.label || t('common.unknown'),
           clientCode: c?.code || '',
           billableMinutes: minutes,
         };
       })
       .sort((a, b) => b.billableMinutes - a.billableMinutes);
-  }, [entries, matters, clients]);
+  }, [entries, matters, clients, t]);
 
-  // Total invoiced revenue (issued invoices in period)
   const totalInvoicedRevenue = useMemo(() => {
     return invoices
       .filter(inv => inv.status === 'issued' && inv.issue_date && inv.issue_date >= periodFrom && inv.issue_date <= periodTo)
       .reduce((sum, inv) => sum + inv.total_ht_cents, 0);
   }, [invoices, periodFrom, periodTo]);
 
-  // Total paid revenue (paid invoices in period based on payment_date)
   const totalPaidRevenue = useMemo(() => {
     return invoices
       .filter(inv => inv.paid && inv.payment_date && inv.payment_date >= periodFrom && inv.payment_date <= periodTo)
@@ -159,7 +148,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-center min-h-[50vh]">
         <Card>
           <CardContent className="p-6 text-center">
-            <p className="text-muted-foreground">Accès réservé aux associés.</p>
+            <p className="text-muted-foreground">{t('dashboard.accessRestricted')}</p>
           </CardContent>
         </Card>
       </div>
@@ -175,44 +164,31 @@ export default function Dashboard() {
   }
 
   const handleExportKPIByUser = () => {
-    exportKPIByUserCSV(kpiByUser, periodFrom, periodTo);
-    toast.success('Export KPI par collaborateur téléchargé');
+    exportKPIByUserCSV(kpiByUser, periodFrom, periodTo, t);
+    toast.success(t('dashboard.exportCollaboratorDownloaded'));
   };
 
   const handleExportKPIByMatter = () => {
-    exportKPIByMatterCSV(kpiByMatter, periodFrom, periodTo);
-    toast.success('Export KPI par dossier téléchargé');
+    exportKPIByMatterCSV(kpiByMatter, periodFrom, periodTo, t);
+    toast.success(t('dashboard.exportMatterDownloaded'));
   };
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Dashboard KPI</h1>
-          <p className="text-muted-foreground">Aperçu de l'activité du cabinet</p>
+          <h1 className="text-3xl font-bold">{t('dashboard.title')}</h1>
+          <p className="text-muted-foreground">{t('dashboard.subtitle')}</p>
         </div>
         
-        {/* Period Selector */}
         <div className="flex items-center gap-2">
           <div className="grid gap-1">
-            <Label htmlFor="from" className="text-xs">Du</Label>
-            <Input
-              id="from"
-              type="date"
-              value={periodFrom}
-              onChange={(e) => setPeriodFrom(e.target.value)}
-              className="w-36"
-            />
+            <Label htmlFor="from" className="text-xs">{t('common.from')}</Label>
+            <Input id="from" type="date" value={periodFrom} onChange={(e) => setPeriodFrom(e.target.value)} className="w-36" />
           </div>
           <div className="grid gap-1">
-            <Label htmlFor="to" className="text-xs">Au</Label>
-            <Input
-              id="to"
-              type="date"
-              value={periodTo}
-              onChange={(e) => setPeriodTo(e.target.value)}
-              className="w-36"
-            />
+            <Label htmlFor="to" className="text-xs">{t('common.to')}</Label>
+            <Input id="to" type="date" value={periodTo} onChange={(e) => setPeriodTo(e.target.value)} className="w-36" />
           </div>
         </div>
       </div>
@@ -221,66 +197,58 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Heures facturables</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.billableHoursCard')}</CardTitle>
             <Clock className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatMinutesToHours(kpiSummary.totalBillableMinutes)}</div>
             <p className="text-xs text-muted-foreground">
-              sur {formatMinutesToHours(kpiSummary.totalMinutes)} total
+              {t('dashboard.ofTotal', { total: formatMinutesToHours(kpiSummary.totalMinutes) })}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">CA facturé</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.invoicedRevenue')}</CardTitle>
             <TrendingUp className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCents(totalInvoicedRevenue)}</div>
-            <p className="text-xs text-muted-foreground">
-              factures émises sur la période
-            </p>
+            <p className="text-xs text-muted-foreground">{t('dashboard.issuedInvoicesPeriod')}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">CA encaissé</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.collectedRevenue')}</CardTitle>
             <Banknote className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCents(totalPaidRevenue)}</div>
-            <p className="text-xs text-muted-foreground">
-              factures payées sur la période
-            </p>
+            <p className="text-xs text-muted-foreground">{t('dashboard.paidInvoicesPeriod')}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Collaborateurs actifs</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.activeCollaborators')}</CardTitle>
             <Users className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{kpiByUser.length}</div>
-            <p className="text-xs text-muted-foreground">
-              ont saisi du temps
-            </p>
+            <p className="text-xs text-muted-foreground">{t('dashboard.loggedTime')}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Dossiers actifs</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.activeMatters')}</CardTitle>
             <FolderOpen className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{kpiByMatter.length}</div>
-            <p className="text-xs text-muted-foreground">
-              avec temps facturable
-            </p>
+            <p className="text-xs text-muted-foreground">{t('dashboard.withBillableTime')}</p>
           </CardContent>
         </Card>
       </div>
@@ -289,8 +257,8 @@ export default function Dashboard() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Par collaborateur</CardTitle>
-            <CardDescription>Heures facturables par collaborateur sur la période</CardDescription>
+            <CardTitle>{t('dashboard.byCollaborator')}</CardTitle>
+            <CardDescription>{t('dashboard.billableByCollaboratorPeriod')}</CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={handleExportKPIByUser}>
             <Download className="w-4 h-4 mr-2" />
@@ -301,17 +269,17 @@ export default function Dashboard() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Collaborateur</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead className="text-right">Minutes</TableHead>
-                <TableHead className="text-right">Heures</TableHead>
+                <TableHead>{t('dashboard.collaborator')}</TableHead>
+                <TableHead>{t('common.email')}</TableHead>
+                <TableHead className="text-right">{t('dashboard.minutes')}</TableHead>
+                <TableHead className="text-right">{t('dashboard.hours')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {kpiByUser.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center text-muted-foreground">
-                    Aucune donnée pour cette période
+                    {t('common.noData')}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -335,8 +303,8 @@ export default function Dashboard() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Par dossier</CardTitle>
-            <CardDescription>Heures facturables par dossier sur la période</CardDescription>
+            <CardTitle>{t('dashboard.byMatter')}</CardTitle>
+            <CardDescription>{t('dashboard.billableByMatterPeriod')}</CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={handleExportKPIByMatter}>
             <Download className="w-4 h-4 mr-2" />
@@ -347,18 +315,18 @@ export default function Dashboard() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Code</TableHead>
-                <TableHead>Dossier</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead className="text-right">Minutes</TableHead>
-                <TableHead className="text-right">Heures</TableHead>
+                <TableHead>{t('dashboard.code')}</TableHead>
+                <TableHead>{t('dashboard.matter')}</TableHead>
+                <TableHead>{t('dashboard.client')}</TableHead>
+                <TableHead className="text-right">{t('dashboard.minutes')}</TableHead>
+                <TableHead className="text-right">{t('dashboard.hours')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {kpiByMatter.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground">
-                    Aucune donnée pour cette période
+                    {t('common.noData')}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -381,37 +349,10 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* KPI Analytics with cross-reference */}
-      <KPIAnalytics
-        entries={entries}
-        profiles={profiles}
-        matters={matters}
-        clients={clients}
-        invoices={invoices}
-        defaultRateCents={settings?.rate_cabinet_cents || 15000}
-      />
-
-      {/* KPI Analytics for flat-fee */}
-      <KPIAnalyticsFlatFee
-        matters={matters}
-        clients={clients}
-        invoices={invoices}
-      />
-
-      {/* Unpaid Invoices KPI */}
-      <UnpaidInvoicesKPI
-        invoices={invoices}
-        matters={matters}
-        clients={clients}
-      />
-
-      {/* Timesheet Export */}
-      <TimesheetExport
-        entries={entries}
-        profiles={profiles}
-        matters={matters}
-        clients={clients}
-      />
+      <KPIAnalytics entries={entries} profiles={profiles} matters={matters} clients={clients} invoices={invoices} defaultRateCents={settings?.rate_cabinet_cents || 15000} />
+      <KPIAnalyticsFlatFee matters={matters} clients={clients} invoices={invoices} />
+      <UnpaidInvoicesKPI invoices={invoices} matters={matters} clients={clients} />
+      <TimesheetExport entries={entries} profiles={profiles} matters={matters} clients={clients} />
     </div>
   );
 }
