@@ -105,3 +105,18 @@ export function usePendingTodosCount(userId?: string) {
     enabled: !!userId,
   });
 }
+
+export function useBlockedTodosCount(enabled: boolean) {
+  return useQuery({
+    queryKey: ['todos', 'blocked-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('todos')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'blocked');
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled,
+  });
+}
