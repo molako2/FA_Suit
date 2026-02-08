@@ -42,7 +42,8 @@ import { useExpensesByMatter, useLockExpenses, formatCentsTTC, type Expense } fr
 import { printInvoicePDF } from "@/lib/pdf";
 import { exportInvoicesCSV } from "@/lib/exports";
 import { exportInvoiceWord } from "@/lib/word";
-import { FileText, Plus, Download, Eye, Send, Trash2, Printer, FileDown } from "lucide-react";
+import { FileText, Plus, Download, Eye, Send, Trash2, Printer, FileDown, AlertTriangle } from "lucide-react";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -233,6 +234,51 @@ export default function Invoices() {
       return override ? override.selected : true;
     });
   }, [previewEntries, timesheetOverrides]);
+
+  // Ceiling alert: calculate already invoiced HT for the selected matter
+  const alreadyInvoicedHt = useMemo(() => {
+    if (!selectedMatterId) return 0;
+    return invoices
+      .filter((i) => i.matter_id === selectedMatterId && i.status === 'issued')
+      .reduce((sum, i) => sum + i.total_ht_cents, 0);
+  }, [invoices, selectedMatterId]);
+
+  // Compute current estimated HT from selected entries
+  const currentEstimatedHt = useMemo(() => {
+    if (!selectedMatterId) return 0;
+    const matter = matters.find((m) => m.id === selectedMatterId);
+    if (!matter || !settings) return 0;
+    if (customAmountHtCents !== null) return customAmountHtCents;
+    if (matter.billing_type === 'flat_fee') return matter.flat_fee_cents || 0;
+    const rateCents = matter.rate_cents || settings.rate_cabinet_cents;
+    return selectedPreviewEntries.reduce((sum, e) => {
+      const override = timesheetOverrides[e.id];
+      const mins = override?.minutesOverride ?? e.minutes_rounded;
+      const rate = override?.rateOverride ?? (profiles.find((p) => p.id === e.user_id)?.rate_cents || rateCents);
+      return sum + Math.round((mins / 60) * rate);
+    }, 0);
+  }, [selectedMatterId, selectedPreviewEntries, timesheetOverrides, customAmountHtCents, matters, settings, profiles]);
+
+  const ceilingMatter = matters.find((m) => m.id === selectedMatterId);
+  const maxAmountHt = ceilingMatter?.max_amount_ht_cents ?? null;
+  const totalProjectedHt = alreadyInvoicedHt + currentEstimatedHt;
+  const exceedsCeiling = maxAmountHt != null && totalProjectedHt > maxAmountHt;
+
+  // Calculate ceiling info for issue dialog
+  const getIssueCeilingInfo = (invoice: Invoice | undefined) => {
+    if (!invoice) return null;
+    const matter = matters.find((m) => m.id === invoice.matter_id);
+    if (!matter?.max_amount_ht_cents) return null;
+    const alreadyHt = invoices
+      .filter((i) => i.matter_id === invoice.matter_id && i.status === 'issued' && i.id !== invoice.id)
+      .reduce((sum, i) => sum + i.total_ht_cents, 0);
+    const projected = alreadyHt + invoice.total_ht_cents;
+    if (projected > matter.max_amount_ht_cents) {
+      return { projected, ceiling: matter.max_amount_ht_cents, alreadyInvoiced: alreadyHt };
+    }
+    return null;
+  };
+
   // Calculate selected expenses total
   const selectedExpensesTotal = useMemo(() => {
     return matterExpenses.reduce((sum, exp) => {
@@ -1152,6 +1198,18 @@ export default function Invoices() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Ceiling alert */}
+            {exceedsCeiling && (
+              <Alert variant="destructive" className="border-orange-500 bg-orange-50 text-orange-800 dark:bg-orange-950 dark:text-orange-200">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Plafond dépassé</AlertTitle>
+                <AlertDescription>
+                  Le montant total facturé ({formatCents(totalProjectedHt)}) dépassera le plafond
+                  défini pour ce dossier ({formatCents(maxAmountHt!)}). Déjà facturé : {formatCents(alreadyInvoicedHt)}.
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
@@ -1266,6 +1324,20 @@ export default function Invoices() {
               Cette action va attribuer un numéro définitif à la facture et verrouiller les entrées de temps associées.
               Cette opération est irréversible.
             </AlertDialogDescription>
+            {(() => {
+              const ceilingInfo = getIssueCeilingInfo(invoices.find((i) => i.id === selectedInvoice));
+              if (!ceilingInfo) return null;
+              return (
+                <Alert variant="destructive" className="mt-3 border-orange-500 bg-orange-50 text-orange-800 dark:bg-orange-950 dark:text-orange-200">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Plafond dépassé</AlertTitle>
+                  <AlertDescription>
+                    Le montant total facturé ({formatCents(ceilingInfo.projected)}) dépassera le plafond
+                    défini pour ce dossier ({formatCents(ceilingInfo.ceiling)}). Déjà facturé : {formatCents(ceilingInfo.alreadyInvoiced)}.
+                  </AlertDescription>
+                </Alert>
+              );
+            })()}
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>

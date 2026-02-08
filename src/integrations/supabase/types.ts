@@ -340,6 +340,7 @@ export type Database = {
           id: string
           intervention_nature: string | null
           label: string
+          max_amount_ht_cents: number | null
           rate_cents: number | null
           status: string
           updated_at: string
@@ -355,6 +356,7 @@ export type Database = {
           id?: string
           intervention_nature?: string | null
           label: string
+          max_amount_ht_cents?: number | null
           rate_cents?: number | null
           status?: string
           updated_at?: string
@@ -370,6 +372,7 @@ export type Database = {
           id?: string
           intervention_nature?: string | null
           label?: string
+          max_amount_ht_cents?: number | null
           rate_cents?: number | null
           status?: string
           updated_at?: string

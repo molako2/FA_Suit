@@ -1,0 +1,1 @@
+ALTER TABLE public.matters ADD COLUMN max_amount_ht_cents integer DEFAULT NULL;
