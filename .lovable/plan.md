@@ -1,46 +1,95 @@
 
 
-# Ajout d'une colonne Date dans les listes Frais, Factures et Avoirs
+# Ajout de filtres entonnoir sur toutes les colonnes
 
 ## Etat actuel
 
-Apres verification du code :
+Actuellement, seules certaines colonnes ont le filtre entonnoir :
 
-- **Frais (Expenses.tsx)** : La colonne "Date" existe deja et affiche `expense_date` (la date du frais). Rien a changer.
-- **Avoirs (CreditNotes.tsx)** : La colonne "Date d'emission" existe deja et affiche `issue_date`. Rien a changer.
-- **Factures (Invoices.tsx)** : Il manque une colonne "Date d'emission". Seule la "Periode" (period_from / period_to) est affichee. C'est le seul module ou la colonne est absente.
+| Module | Colonnes AVEC filtre | Colonnes SANS filtre |
+|---|---|---|
+| Clients | Statut | Code, Nom, Adresse, Email facturation, ICE, Contact, Tel. contact |
+| Dossiers | Client, Nature intervention, Secteur activite, Facturation, Statut | Code, Libelle, TVA, Montant |
+| Factures | Dossier, Client, Statut, Payee | N facture, Periode, Date emission, HT, TTC, Date reglement |
 
-## Modification prevue
+## Modifications prevues
 
-### `src/pages/Invoices.tsx` -- Ajouter la colonne "Date d'emission"
+### 1. `src/pages/Clients.tsx`
 
-Ajouter une nouvelle colonne entre "Periode" et "HT" dans le tableau des factures :
+Ajouter 7 colonnes filtrees au `useColumnFilters` (actuellement seul `status` est declare).
 
-**En-tete du tableau** (ligne 660, apres "Periode") :
-- Ajouter `<TableHead>Date d'emission</TableHead>`
+Nouvelles colonnes avec filtre :
+- **Code** : valeurs uniques des codes clients
+- **Nom** : valeurs uniques des noms clients
+- **Adresse** : valeurs uniques (en excluant les vides)
+- **Email facturation** : valeurs uniques (en excluant les vides)
+- **Numero ICE** : valeurs uniques (en excluant les vides)
+- **Contact** : valeurs uniques des noms de contact (en excluant les vides)
+- **Tel. contact** : valeurs uniques des telephones (en excluant les vides)
 
-**Lignes du tableau** (ligne 688, apres la cellule Periode) :
-- Ajouter une cellule affichant `invoice.issue_date` formatee en date francaise
-- Si la date n'est pas definie (brouillon), afficher un tiret "---"
+Pour chaque colonne, les options du filtre sont calculees dynamiquement via `useMemo` a partir des donnees `clients`. Le `filteredClients` applique tous les filtres en chaine avec `passesFilter`.
 
-**Cellule vide** (colspan) :
-- Mettre a jour le colspan de 10 a 11 pour la ligne "Aucune facture"
+### 2. `src/pages/Matters.tsx`
 
-### Code de la nouvelle cellule
+Ajouter 4 colonnes filtrees (actuellement 5 colonnes sont declarees : client, interventionNature, clientSector, billingType, status).
+
+Nouvelles colonnes avec filtre :
+- **Code** : valeurs uniques des codes dossiers
+- **Libelle** : valeurs uniques des libelles
+- **TVA** : valeurs 0% / 20%
+- **Montant** : valeurs uniques des montants (taux horaire ou forfait selon le type)
+
+### 3. `src/pages/Invoices.tsx`
+
+Ajouter 6 colonnes filtrees (actuellement 4 colonnes declarees : matter, client, status, paid).
+
+Nouvelles colonnes avec filtre :
+- **N facture** : valeurs uniques des numeros de facture (brouillons inclus)
+- **Periode** : valeurs uniques des periodes formatees
+- **Date emission** : valeurs uniques des dates d'emission
+- **HT** : valeurs uniques des montants HT
+- **TTC** : valeurs uniques des montants TTC
+- **Date reglement** : valeurs uniques des dates de reglement
+
+---
+
+## Details techniques
+
+### Pattern applique pour chaque nouvelle colonne
+
+1. Ajouter le nom de colonne dans le tableau passe a `useColumnFilters`
+2. Calculer les options via `useMemo` a partir des donnees source
+3. Remplacer le `<TableHead>Titre</TableHead>` par :
 
 ```text
-<TableCell className="text-muted-foreground text-sm">
-  {invoice.issue_date
-    ? new Date(invoice.issue_date).toLocaleDateString('fr-FR')
-    : '—'}
-</TableCell>
+<TableHead>
+  <ColumnHeaderFilter
+    title="Titre"
+    options={titreFilterOptions}
+    selectedValues={filters.titre}
+    onFilterChange={(v) => setFilter('titre', v)}
+  />
+</TableHead>
 ```
 
-## Resume
+4. Ajouter le `passesFilter('titre', valeur)` dans le `filteredXxx` du `useMemo`
+
+### Gestion des valeurs vides
+
+Pour les colonnes pouvant contenir des valeurs nulles/vides (adresse, email, contact, tel, ICE, date reglement, date emission), les options incluent une entree speciale "(Vide)" avec la valeur `"__empty__"`. Le filtre teste `passesFilter('colonne', valeur || '__empty__')` pour matcher les lignes sans valeur.
+
+### Calcul des options pour les montants
+
+Les montants (HT, TTC, Montant) sont affiches en format lisible (ex: "600,00 MAD") comme label, et stockent la valeur en centimes comme `value` pour le matching.
+
+---
+
+## Resume des fichiers
 
 | Fichier | Action |
 |---|---|
-| `src/pages/Invoices.tsx` | Ajouter la colonne "Date d'emission" dans le tableau des factures |
+| `src/pages/Clients.tsx` | Ajouter filtres sur Code, Nom, Adresse, Email, ICE, Contact, Tel |
+| `src/pages/Matters.tsx` | Ajouter filtres sur Code, Libelle, TVA, Montant |
+| `src/pages/Invoices.tsx` | Ajouter filtres sur N facture, Periode, Date emission, HT, TTC, Date reglement |
 
-Les modules Frais et Avoirs possedent deja leur colonne date respective -- aucune modification necessaire pour ces deux modules.
-
+Aucune modification de la base de donnees ni du composant `ColumnHeaderFilter` necessaire.
