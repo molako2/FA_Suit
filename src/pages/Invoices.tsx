@@ -658,6 +658,7 @@ export default function Invoices() {
                 <TableHead>Dossier</TableHead>
                 <TableHead>Client</TableHead>
                 <TableHead>Période</TableHead>
+                <TableHead>Date d'émission</TableHead>
                 <TableHead className="text-right">HT</TableHead>
                 <TableHead className="text-right">TTC</TableHead>
                 <TableHead className="text-center">Statut</TableHead>
@@ -669,7 +670,7 @@ export default function Invoices() {
             <TableBody>
               {filteredInvoices.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                     <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     <p>Aucune facture</p>
                     <p className="text-sm mt-1">Créez une facture à partir des temps saisis sur un dossier.</p>
@@ -687,6 +688,11 @@ export default function Invoices() {
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {invoice.period_from} → {invoice.period_to}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {invoice.issue_date
+                        ? new Date(invoice.issue_date).toLocaleDateString('fr-FR')
+                        : '—'}
                     </TableCell>
                     <TableCell className="text-right">
                       <Currency cents={invoice.total_ht_cents} />
