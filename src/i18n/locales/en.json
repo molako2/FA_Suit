@@ -174,7 +174,11 @@
     "collaborator": "Collaborator",
     "selectCollaborator": "Select a collaborator",
     "selectMatter": "Select a matter",
-    "noAssignedMatters": "No assigned matters"
+    "noAssignedMatters": "No assigned matters",
+    "allCollaborators": "All collaborators",
+    "client": "Client",
+    "selectClient": "Select a client",
+    "selectClientFirst": "Select a client first"
   },
   "expenses": {
     "title": "My Expenses",
