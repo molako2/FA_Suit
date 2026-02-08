@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,7 @@ import {
 import { Plus, Pencil, Building2, Search, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { exportClientsCSV } from '@/lib/exports';
+import { ColumnHeaderFilter, useColumnFilters, type FilterOption } from '@/components/ColumnHeaderFilter';
 
 export default function Clients() {
   const { role } = useAuth();
@@ -52,10 +53,21 @@ export default function Clients() {
   const createClient = useCreateClient();
   const updateClient = useUpdateClient();
 
-  const filteredClients = clients.filter(c =>
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const { filters, setFilter, passesFilter } = useColumnFilters(['status'] as const);
+
+  const statusOptions: FilterOption[] = [
+    { label: 'Actif', value: 'active' },
+    { label: 'Inactif', value: 'inactive' },
+  ];
+
+  const filteredClients = useMemo(() => {
+    return clients.filter(c => {
+      const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.code.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = passesFilter('status', c.active ? 'active' : 'inactive');
+      return matchesSearch && matchesStatus;
+    });
+  }, [clients, searchTerm, filters]);
 
   const resetForm = () => {
     setFormName('');
@@ -302,7 +314,15 @@ export default function Clients() {
                 <TableHead>Numéro ICE</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Tél. contact</TableHead>
-                <TableHead className="text-center">Statut</TableHead>
+                <TableHead className="text-center">
+                  <ColumnHeaderFilter
+                    title="Statut"
+                    options={statusOptions}
+                    selectedValues={filters.status}
+                    onFilterChange={(v) => setFilter('status', v)}
+                    align="center"
+                  />
+                </TableHead>
                 {canEdit && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
