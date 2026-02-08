@@ -421,6 +421,7 @@ export type Database = {
           id: string
           read: boolean
           recipient_id: string | null
+          reply_to: string | null
           sender_id: string
         }
         Insert: {
@@ -429,6 +430,7 @@ export type Database = {
           id?: string
           read?: boolean
           recipient_id?: string | null
+          reply_to?: string | null
           sender_id: string
         }
         Update: {
@@ -437,9 +439,18 @@ export type Database = {
           id?: string
           read?: boolean
           recipient_id?: string | null
+          reply_to?: string | null
           sender_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "messages_reply_to_fkey"
+            columns: ["reply_to"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

@@ -353,7 +353,11 @@
     "recipientRequired": "Veuillez sélectionner un destinataire",
     "markAsRead": "Marquer comme lu",
     "maxChars": "256 caractères max",
-    "charCount": "{{count}}/256"
+    "charCount": "{{count}}/256",
+    "reply": "Répondre",
+    "replyPlaceholder": "Votre réponse...",
+    "replySent": "Réponse envoyée",
+    "replies": "{{count}} réponse(s)"
   },
   "errors": {
     "generic": "Une erreur est survenue",
