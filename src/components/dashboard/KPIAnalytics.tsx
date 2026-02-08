@@ -257,16 +257,39 @@ export function KPIAnalytics({
       const matter = matters.find(m => m.id === inv.matter_id);
       const client = matter ? clients.find(c => c.id === matter.client_id) : null;
       
-      // For invoiced revenue, we need to match with entries' collaborators if grouped
       if (groupByCollaborator) {
-        // Distribute invoice to matching rows (simplified - add to all collaborators for that matter)
-        grouped.forEach((row, key) => {
+        let distributed = false;
+        grouped.forEach((row) => {
           if (groupByMatter && row.matterId === inv.matter_id) {
             row.invoicedRevenueCents += inv.total_ht_cents;
+            distributed = true;
           } else if (!groupByMatter && groupByClient && row.clientId === client?.id) {
             row.invoicedRevenueCents += inv.total_ht_cents;
+            distributed = true;
+          } else if (!groupByMatter && !groupByClient) {
+            // Only collaborator grouping active - distribute proportionally not possible,
+            // so we create a fallback row below
           }
         });
+        
+        // Fallback: create row if no existing row matched (e.g. fully invoiced matter with no WIP)
+        if (!distributed) {
+          const fallbackKey = `invoice_${inv.id}`;
+          grouped.set(fallbackKey, {
+            key: fallbackKey,
+            collaboratorId: undefined,
+            collaboratorName: groupByCollaborator ? '-' : undefined,
+            clientId: groupByClient ? client?.id : undefined,
+            clientCode: groupByClient ? (client?.code || '-') : undefined,
+            clientName: groupByClient ? (client?.name || '-') : undefined,
+            matterId: groupByMatter ? inv.matter_id : undefined,
+            matterCode: groupByMatter ? (matter?.code || '-') : undefined,
+            matterLabel: groupByMatter ? (matter?.label || '-') : undefined,
+            billableMinutes: 0,
+            billableRevenueCents: 0,
+            invoicedRevenueCents: inv.total_ht_cents,
+          });
+        }
       } else {
         const keyParts: string[] = [];
         if (groupByClient) keyParts.push(client?.id || 'unknown');
@@ -276,7 +299,7 @@ export function KPIAnalytics({
         
         if (grouped.has(key)) {
           grouped.get(key)!.invoicedRevenueCents += inv.total_ht_cents;
-        } else if (!groupByCollaborator) {
+        } else {
           // Create row for invoice-only data
           grouped.set(key, {
             key,
@@ -297,14 +320,19 @@ export function KPIAnalytics({
     return Array.from(grouped.values()).sort((a, b) => b.billableRevenueCents - a.billableRevenueCents);
   }, [filteredEntries, filteredInvoices, groupByCollaborator, groupByClient, groupByMatter, matters, clients, profiles, defaultRateCents]);
 
-  // Totals
+  // Totals - billable from rows, invoiced directly from invoices for accuracy
   const totals = useMemo(() => {
-    return kpiData.reduce((acc, row) => ({
+    const fromRows = kpiData.reduce((acc, row) => ({
       billableMinutes: acc.billableMinutes + row.billableMinutes,
       billableRevenueCents: acc.billableRevenueCents + row.billableRevenueCents,
-      invoicedRevenueCents: acc.invoicedRevenueCents + row.invoicedRevenueCents,
-    }), { billableMinutes: 0, billableRevenueCents: 0, invoicedRevenueCents: 0 });
+    }), { billableMinutes: 0, billableRevenueCents: 0 });
+    return fromRows;
   }, [kpiData]);
+
+  // Total invoiced revenue calculated directly from filtered invoices (avoids distribution bugs)
+  const totalInvoicedRevenue = useMemo(() => {
+    return filteredInvoices.reduce((sum, inv) => sum + inv.total_ht_cents, 0);
+  }, [filteredInvoices]);
 
   // Export CSV
   const handleExport = () => {
@@ -516,7 +544,7 @@ export function KPIAnalytics({
           </div>
           <div className="bg-primary/10 rounded-lg p-4">
             <div className="text-sm text-muted-foreground">CA Facturé</div>
-            <div className="text-2xl font-bold text-primary">{formatCents(totals.invoicedRevenueCents)}</div>
+            <div className="text-2xl font-bold text-primary">{formatCents(totalInvoicedRevenue)}</div>
           </div>
         </div>
 
@@ -598,7 +626,7 @@ export function KPIAnalytics({
                       </TableCell>
                       <TableCell className="text-right">{formatMinutes(totals.billableMinutes)}</TableCell>
                       <TableCell className="text-right text-accent">{formatCents(totals.billableRevenueCents)}</TableCell>
-                      <TableCell className="text-right text-primary">{formatCents(totals.invoicedRevenueCents)}</TableCell>
+                      <TableCell className="text-right text-primary">{formatCents(totalInvoicedRevenue)}</TableCell>
                     </TableRow>
                   </>
                 )}
