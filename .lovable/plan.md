@@ -1,99 +1,85 @@
 
+# Correction du CA Facture a 0 dans le KPI temps passe
 
-# Correction du Dashboard : heures WIP et CA forfait facturable
+## Diagnostic
 
-## Probleme identifie
+La facture `2026-0002` de 600 MAD HT existe en base (matter `time_based`, `status: issued`, `issue_date: 2026-02-07`). Elle est correctement filtree par `filteredInvoices`. Le probleme est dans la logique de distribution du CA facture aux lignes du tableau (lignes 256-294 de `KPIAnalytics.tsx`).
 
-Actuellement, le dashboard comptabilise **toutes** les heures facturables (billable), y compris celles deja facturees (locked). Le champ `locked` sur les entrees de temps indique qu'une entree a ete facturee via une facture emise. Il faut donc filtrer sur `!locked` pour n'afficher que le travail en cours (WIP = Work In Progress).
+### Cause racine (double bug)
 
-De plus, il manque un indicateur en haut du dashboard pour le chiffre d'affaires forfaitaire facturable (dossiers au forfait pas encore factures).
+**Bug 1 -- Condition manquante dans la distribution** : Quand seul "Collaborateur" est coche (par defaut), la distribution d'invoices entre dans la branche `groupByCollaborator === true` (ligne 261). A l'interieur, elle cherche a matcher les factures avec les lignes existantes via :
+- `groupByMatter && row.matterId === inv.matter_id` --> FAUX (groupByMatter est desactive)
+- `!groupByMatter && groupByClient && row.clientId === client?.id` --> FAUX (groupByClient est desactive)
 
----
+Aucune condition ne gere le cas ou SEUL `groupByCollaborator` est actif. Le CA facture n'est donc jamais affecte a aucune ligne.
 
-## Modifications prevues
+**Bug 2 -- Pas de ligne pour les dossiers entierement factures** : Les entrees de temps du dossier `revue doc` sont toutes `locked: true` (120 min facturees). Elles sont exclues de `filteredEntries` (filtre WIP). Resultat : aucune ligne n'est creee dans la Map `grouped` pour ce dossier. Meme si la condition de distribution etait corrigee, il n'y aurait aucune ligne cible.
 
-### 1. `src/pages/Dashboard.tsx` -- Filtrer les heures non facturees + nouvelle carte forfait
+## Solution
 
-**Carte "Heures facturables" (existante)** : Actuellement, elle affiche toutes les heures billable. Elle doit etre renommee/redefinie pour n'afficher que les heures **non encore facturees** (`billable && !locked`).
+Calculer le total `invoicedRevenueCents` directement a partir de `filteredInvoices` au lieu de le sommer depuis les lignes individuelles. Cela garantit que le total est toujours correct, independamment de la logique de distribution par ligne.
 
-- `kpiSummary` : filtrer `entries.filter(e => e.billable && !e.locked)` au lieu de `entries.filter(e => e.billable)`
-- `kpiByUser` : meme filtre `billable && !locked`
-- `kpiByMatter` : meme filtre `billable && !locked`
-- Sous-titre de la carte : changer pour indiquer "non facturees" / WIP
+Pour les lignes individuelles, ajouter un fallback qui cree une ligne quand aucune ligne existante ne correspond a la facture.
 
-**Nouvelle carte "CA Forfait facturable"** : Ajouter une 6e carte en haut, avant ou apres les cartes existantes, qui affiche le total des montants forfaitaires des dossiers `flat_fee` n'ayant pas encore de facture emise. La logique est identique a celle deja implementee dans `KPIAnalyticsFlatFee` :
-- Filtrer les matters avec `billing_type === 'flat_fee'`
-- Exclure celles qui ont deja une facture emise (`invoices.filter(inv => inv.status === 'issued').map(inv => inv.matter_id)`)
-- Sommer les `flat_fee_cents`
+### Modifications dans `src/components/dashboard/KPIAnalytics.tsx`
 
-La grille passe de 5 a 6 colonnes (`lg:grid-cols-6`).
-
-### 2. `src/components/dashboard/KPIAnalytics.tsx` -- Filtrer les heures WIP uniquement
-
-Dans le calcul de `filteredEntries` (ligne 169), ajouter le filtre `!e.locked` pour que le "CA Facturable" et le "Total Heures Facturables" ne comptent que les heures non encore facturees.
-
-Le composant recoit les `entries` en props depuis `Dashboard.tsx` (sans pre-filtrage), donc c'est le bon endroit pour ajouter le filtre car `KPIAnalytics` a sa propre logique de periode et filtres internes.
-
-### 3. Traductions -- `fr.json` et `en.json`
-
-Nouvelles cles :
+**1. Calcul des totaux (lignes 300-308)** -- Remplacer le calcul du total `invoicedRevenueCents` qui somme depuis les lignes par un calcul direct depuis `filteredInvoices` :
 
 ```text
-FR:
-  dashboard.wipHoursCard = "Heures non facturées"
-  dashboard.wipHoursSubtitle = "travail en cours (WIP)"
-  dashboard.flatFeeBillableCard = "CA Forfait facturable"
-  dashboard.flatFeeBillableSubtitle = "dossiers au forfait non facturés"
+// Avant (somme depuis les lignes - peut etre 0 si la distribution echoue)
+const totals = kpiData.reduce((acc, row) => ({
+  ...
+  invoicedRevenueCents: acc.invoicedRevenueCents + row.invoicedRevenueCents,
+}), ...);
 
-EN:
-  dashboard.wipHoursCard = "Unbilled hours"
-  dashboard.wipHoursSubtitle = "work in progress (WIP)"
-  dashboard.flatFeeBillableCard = "Billable flat fees"
-  dashboard.flatFeeBillableSubtitle = "uninvoiced flat-fee matters"
+// Apres (calcul direct depuis les factures filtrees)
+const totalInvoicedRevenue = useMemo(() => {
+  return filteredInvoices.reduce((sum, inv) => sum + inv.total_ht_cents, 0);
+}, [filteredInvoices]);
+
+// Les totals pour billableMinutes et billableRevenueCents restent calcules depuis kpiData
+// Mais invoicedRevenueCents utilise totalInvoicedRevenue
 ```
 
----
-
-## Details techniques
-
-### Filtre `locked` dans Dashboard.tsx
+**2. Distribution des factures (lignes 256-294)** -- Corriger la branche `groupByCollaborator` pour gerer le cas ou c'est le seul groupement actif. Quand ni `groupByMatter` ni `groupByClient` ne sont actifs, creer une ligne de fallback ou distribuer a toutes les lignes existantes :
 
 ```text
-// Avant
-const billable = entries.filter(e => e.billable);
-
-// Apres
-const billable = entries.filter(e => e.billable && !e.locked);
+// Ajouter le cas manquant dans la branche groupByCollaborator
+if (groupByCollaborator) {
+  let distributed = false;
+  grouped.forEach((row) => {
+    if (groupByMatter && row.matterId === inv.matter_id) {
+      row.invoicedRevenueCents += inv.total_ht_cents;
+      distributed = true;
+    } else if (!groupByMatter && groupByClient && row.clientId === client?.id) {
+      row.invoicedRevenueCents += inv.total_ht_cents;
+      distributed = true;
+    }
+  });
+  
+  // Fallback : si aucune ligne ne matche (seul collaborateur actif, ou dossier sans WIP)
+  if (!distributed) {
+    const fallbackKey = `invoice_${inv.id}`;
+    grouped.set(fallbackKey, {
+      key: fallbackKey,
+      collaboratorName: '-',
+      clientId: groupByClient ? client?.id : undefined,
+      clientCode: groupByClient ? (client?.code || '-') : undefined,
+      clientName: groupByClient ? (client?.name || '-') : undefined,
+      matterId: groupByMatter ? inv.matter_id : undefined,
+      matterCode: groupByMatter ? (matter?.code || '-') : undefined,
+      matterLabel: groupByMatter ? (matter?.label || '-') : undefined,
+      billableMinutes: 0,
+      billableRevenueCents: 0,
+      invoicedRevenueCents: inv.total_ht_cents,
+    });
+  }
+}
 ```
 
-Cela affecte :
-- La carte "Heures facturables" du haut
-- Le tableau "Par collaborateur"
-- Le tableau "Par dossier"
+**3. Affichage des totaux (cartes recapitulatives en bas)** -- Utiliser `totalInvoicedRevenue` au lieu de `totals.invoicedRevenueCents` pour la carte "CA Facture".
 
-### Calcul du forfait facturable dans Dashboard.tsx
-
-```text
-const totalFlatFeeBillable = useMemo(() => {
-  const issuedMatterIds = new Set(
-    invoices.filter(inv => inv.status === 'issued').map(inv => inv.matter_id)
-  );
-  return matters
-    .filter(m => m.billing_type === 'flat_fee' && !issuedMatterIds.has(m.id))
-    .reduce((sum, m) => sum + (m.flat_fee_cents || 0), 0);
-}, [matters, invoices]);
-```
-
-### Filtre dans KPIAnalytics.tsx (ligne 170)
-
-```text
-// Avant
-if (!e.billable) return false;
-
-// Apres
-if (!e.billable) return false;
-if (e.locked) return false;  // Exclure les heures deja facturees
-```
+**4. Ligne total du tableau** -- Meme correction : utiliser `totalInvoicedRevenue` pour la cellule total du CA Facture.
 
 ---
 
@@ -101,8 +87,6 @@ if (e.locked) return false;  // Exclure les heures deja facturees
 
 | Fichier | Action |
 |---|---|
-| `src/pages/Dashboard.tsx` | Modifier : filtrer `!locked` sur kpiSummary/kpiByUser/kpiByMatter + nouvelle carte forfait facturable + grille 6 colonnes |
-| `src/components/dashboard/KPIAnalytics.tsx` | Modifier : ajouter filtre `!e.locked` dans filteredEntries |
-| `src/i18n/locales/fr.json` | Modifier : ajout traductions WIP + forfait facturable |
-| `src/i18n/locales/en.json` | Modifier : ajout traductions WIP + forfait facturable |
+| `src/components/dashboard/KPIAnalytics.tsx` | Corriger : total CA facture calcule directement depuis filteredInvoices + fallback pour les factures sans ligne correspondante |
 
+Aucune modification de base de donnees, de traductions, ni d'autres fichiers necessaire.
