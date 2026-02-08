@@ -5,7 +5,7 @@ import { useProfiles } from '@/hooks/useProfiles';
 import { useTodos, useCreateTodo, useUpdateTodo, useDeleteTodo } from '@/hooks/useTodos';
 import { format, isPast, parseISO } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
-import { CheckSquare, Plus, Pencil, Trash2, AlertCircle, Download } from 'lucide-react';
+import { CheckSquare, Plus, Pencil, Trash2, AlertCircle, Download, Unlock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -125,6 +125,15 @@ export default function Todos() {
     try {
       await updateTodo.mutateAsync({ id: todoId, status: newStatus, blocked_reason: null });
       toast({ title: t('todos.taskUpdated') });
+    } catch {
+      toast({ title: t('errors.saveError'), variant: 'destructive' });
+    }
+  };
+
+  const handleUnblock = async (todoId: string) => {
+    try {
+      await updateTodo.mutateAsync({ id: todoId, status: 'in_progress', blocked_reason: null });
+      toast({ title: t('todos.taskUnblocked') });
     } catch {
       toast({ title: t('errors.saveError'), variant: 'destructive' });
     }
@@ -289,6 +298,16 @@ export default function Todos() {
                       <TableCell>
                         {isAdmin ? (
                           <div className="flex items-center gap-1">
+                            {todo.status === 'blocked' && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" onClick={() => handleUnblock(todo.id)}>
+                                    <Unlock className="w-4 h-4 text-green-600" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>{t('todos.unblock')}</TooltipContent>
+                              </Tooltip>
+                            )}
                             <Button variant="ghost" size="icon" onClick={() => openEditDialog(todo)}>
                               <Pencil className="w-4 h-4" />
                             </Button>

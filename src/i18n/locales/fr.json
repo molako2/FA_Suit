@@ -331,7 +331,9 @@
     "blockedReasonRequired": "La raison du blocage est obligatoire",
     "selectCollaborator": "Sélectionnez un collaborateur",
     "export": "Exporter",
-    "exportDownloaded": "Export tâches téléchargé"
+    "exportDownloaded": "Export tâches téléchargé",
+    "unblock": "Débloquer",
+    "taskUnblocked": "Tâche débloquée"
   },
   "errors": {
     "generic": "Une erreur est survenue",
