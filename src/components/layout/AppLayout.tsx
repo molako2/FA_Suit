@@ -16,8 +16,10 @@ import {
   Clock,
   ShoppingCart,
   CheckSquare,
+  MessageSquare,
 } from 'lucide-react';
 import { usePendingTodosCount, useInProgressTodosCount, useBlockedTodosCount } from '@/hooks/useTodos';
+import { useUnreadMessagesCount } from '@/hooks/useMessages';
   import appLogo from '@/assets/flowassist-logo.png';
 import {
   DropdownMenu,
@@ -99,6 +101,12 @@ const navItemsConfig: NavItemConfig[] = [
     roles: ['sysadmin', 'owner', 'assistant', 'collaborator'],
   },
   {
+    labelKey: 'nav.messages',
+    href: '/messages',
+    icon: MessageSquare,
+    roles: ['sysadmin', 'owner', 'assistant', 'collaborator'],
+  },
+  {
     labelKey: 'nav.settings',
     href: '/settings',
     icon: Settings,
@@ -123,6 +131,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { data: pendingCount } = usePendingTodosCount(showPendingBadge ? user?.id : undefined);
   const { data: inProgressCount } = useInProgressTodosCount(showPendingBadge ? user?.id : undefined);
   const { data: blockedCount } = useBlockedTodosCount(showBlockedBadge);
+  const { data: unreadMessagesCount } = useUnreadMessagesCount(user?.id);
 
   if (!user || !role) return null;
 
@@ -154,11 +163,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             {filteredNavItems.map((item) => {
               const isActive = location.pathname === item.href;
               const Icon = item.icon;
-              const showRedBadge = item.href === '/todos' && (
+              const showRedBadge = (item.href === '/todos' && (
                 (showPendingBadge && pendingCount && pendingCount > 0) ||
                 (showBlockedBadge && blockedCount && blockedCount > 0)
-              );
-              const redBadgeCount = showPendingBadge ? pendingCount : blockedCount;
+              )) || (item.href === '/messages' && unreadMessagesCount && unreadMessagesCount > 0);
+              const redBadgeCount = item.href === '/messages' 
+                ? unreadMessagesCount 
+                : (showPendingBadge ? pendingCount : blockedCount);
               const showGreenBadge = item.href === '/todos' && showPendingBadge && inProgressCount && inProgressCount > 0;
               return (
                 <Link
@@ -229,11 +240,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           {filteredNavItems.slice(0, 5).map((item) => {
             const isActive = location.pathname === item.href;
             const Icon = item.icon;
-            const showRedBadgeMobile = item.href === '/todos' && (
+            const showRedBadgeMobile = (item.href === '/todos' && (
               (showPendingBadge && pendingCount && pendingCount > 0) ||
               (showBlockedBadge && blockedCount && blockedCount > 0)
-            );
-            const redBadgeCountMobile = showPendingBadge ? pendingCount : blockedCount;
+            )) || (item.href === '/messages' && unreadMessagesCount && unreadMessagesCount > 0);
+            const redBadgeCountMobile = item.href === '/messages'
+              ? unreadMessagesCount
+              : (showPendingBadge ? pendingCount : blockedCount);
             const showGreenBadgeMobile = item.href === '/todos' && showPendingBadge && inProgressCount && inProgressCount > 0;
             return (
               <Link

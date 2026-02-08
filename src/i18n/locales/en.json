@@ -76,7 +76,8 @@
     "purchases": "Purchases",
     "collaborators": "Collaborators",
     "settings": "Settings",
-    "todos": "To Do"
+    "todos": "To Do",
+    "messages": "Messages"
   },
   "dashboard": {
     "title": "KPI Dashboard",
@@ -334,6 +335,25 @@
     "exportDownloaded": "Tasks export downloaded",
     "unblock": "Unblock",
     "taskUnblocked": "Task unblocked"
+  },
+  "messages": {
+    "title": "Messages",
+    "subtitle": "Internal messaging",
+    "newMessage": "New message",
+    "recipient": "Recipient",
+    "everyone": "Everyone",
+    "content": "Message",
+    "send": "Send",
+    "noMessages": "No messages",
+    "messageSent": "Message sent",
+    "messageDeleted": "Message deleted",
+    "broadcast": "Everyone",
+    "confirmDelete": "Delete this message?",
+    "contentRequired": "Message cannot be empty",
+    "recipientRequired": "Please select a recipient",
+    "markAsRead": "Mark as read",
+    "maxChars": "256 characters max",
+    "charCount": "{{count}}/256"
   },
   "errors": {
     "generic": "An error occurred",
