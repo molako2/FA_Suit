@@ -17,7 +17,7 @@ import {
   ShoppingCart,
   CheckSquare,
 } from 'lucide-react';
-import { usePendingTodosCount, useBlockedTodosCount } from '@/hooks/useTodos';
+import { usePendingTodosCount, useInProgressTodosCount, useBlockedTodosCount } from '@/hooks/useTodos';
   import appLogo from '@/assets/flowassist-logo.png';
 import {
   DropdownMenu,
@@ -121,6 +121,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const showPendingBadge = role === 'collaborator' || role === 'assistant';
   const showBlockedBadge = role === 'owner' || role === 'sysadmin';
   const { data: pendingCount } = usePendingTodosCount(showPendingBadge ? user?.id : undefined);
+  const { data: inProgressCount } = useInProgressTodosCount(showPendingBadge ? user?.id : undefined);
   const { data: blockedCount } = useBlockedTodosCount(showBlockedBadge);
 
   if (!user || !role) return null;
@@ -153,11 +154,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             {filteredNavItems.map((item) => {
               const isActive = location.pathname === item.href;
               const Icon = item.icon;
-              const showBadge = item.href === '/todos' && (
+              const showRedBadge = item.href === '/todos' && (
                 (showPendingBadge && pendingCount && pendingCount > 0) ||
                 (showBlockedBadge && blockedCount && blockedCount > 0)
               );
-              const badgeCount = showPendingBadge ? pendingCount : blockedCount;
+              const redBadgeCount = showPendingBadge ? pendingCount : blockedCount;
+              const showGreenBadge = item.href === '/todos' && showPendingBadge && inProgressCount && inProgressCount > 0;
               return (
                 <Link
                   key={item.href}
@@ -171,9 +173,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 >
                   <Icon className="w-4 h-4 mr-2" />
                   {t(item.labelKey)}
-                  {showBadge && (
+                  {showRedBadge && (
                     <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-destructive rounded-full">
-                      {badgeCount}
+                      {redBadgeCount}
+                    </span>
+                  )}
+                  {showGreenBadge && (
+                    <span className="ml-1 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-green-500 rounded-full">
+                      {inProgressCount}
                     </span>
                   )}
                 </Link>
@@ -222,11 +229,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           {filteredNavItems.slice(0, 5).map((item) => {
             const isActive = location.pathname === item.href;
             const Icon = item.icon;
-            const showBadgeMobile = item.href === '/todos' && (
+            const showRedBadgeMobile = item.href === '/todos' && (
               (showPendingBadge && pendingCount && pendingCount > 0) ||
               (showBlockedBadge && blockedCount && blockedCount > 0)
             );
-            const badgeCountMobile = showPendingBadge ? pendingCount : blockedCount;
+            const redBadgeCountMobile = showPendingBadge ? pendingCount : blockedCount;
+            const showGreenBadgeMobile = item.href === '/todos' && showPendingBadge && inProgressCount && inProgressCount > 0;
             return (
               <Link
                 key={item.href}
@@ -238,9 +246,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               >
                 <div className="relative">
                   <Icon className="w-5 h-5 mb-1" />
-                  {showBadgeMobile && (
+                  {showRedBadgeMobile && (
                     <span className="absolute -top-1 -right-2 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-destructive rounded-full">
-                      {badgeCountMobile}
+                      {redBadgeCountMobile}
+                    </span>
+                  )}
+                  {showGreenBadgeMobile && (
+                    <span className="absolute -top-1 -right-6 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-green-500 rounded-full">
+                      {inProgressCount}
                     </span>
                   )}
                 </div>
