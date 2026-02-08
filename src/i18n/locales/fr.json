@@ -76,7 +76,8 @@
     "purchases": "Achats",
     "collaborators": "Collaborateurs",
     "settings": "Paramètres",
-    "todos": "To Do"
+    "todos": "To Do",
+    "messages": "Messages"
   },
   "dashboard": {
     "title": "Dashboard KPI",
@@ -334,6 +335,25 @@
     "exportDownloaded": "Export tâches téléchargé",
     "unblock": "Débloquer",
     "taskUnblocked": "Tâche débloquée"
+  },
+  "messages": {
+    "title": "Messages",
+    "subtitle": "Messagerie interne",
+    "newMessage": "Nouveau message",
+    "recipient": "Destinataire",
+    "everyone": "Tous",
+    "content": "Message",
+    "send": "Envoyer",
+    "noMessages": "Aucun message",
+    "messageSent": "Message envoyé",
+    "messageDeleted": "Message supprimé",
+    "broadcast": "Tous",
+    "confirmDelete": "Supprimer ce message ?",
+    "contentRequired": "Le message ne peut pas être vide",
+    "recipientRequired": "Veuillez sélectionner un destinataire",
+    "markAsRead": "Marquer comme lu",
+    "maxChars": "256 caractères max",
+    "charCount": "{{count}}/256"
   },
   "errors": {
     "generic": "Une erreur est survenue",

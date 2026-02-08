@@ -21,6 +21,7 @@ import CreditNotes from "./pages/CreditNotes";
 import Purchases from "./pages/Purchases";
 import Settings from "./pages/Settings";
 import Todos from "./pages/Todos";
+import Messages from "./pages/Messages";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -126,6 +127,15 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <AppLayout><Todos /></AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/messages"
+        element={
+          <ProtectedRoute>
+            <AppLayout><Messages /></AppLayout>
           </ProtectedRoute>
         }
       />
