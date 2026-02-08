@@ -53,19 +53,71 @@ export default function Clients() {
   const createClient = useCreateClient();
   const updateClient = useUpdateClient();
 
-  const { filters, setFilter, passesFilter } = useColumnFilters(['status'] as const);
+  const { filters, setFilter, passesFilter } = useColumnFilters([
+    'code', 'name', 'address', 'billingEmail', 'vatNumber', 'contactName', 'contactPhone', 'status'
+  ] as const);
 
   const statusOptions: FilterOption[] = [
     { label: 'Actif', value: 'active' },
     { label: 'Inactif', value: 'inactive' },
   ];
 
+  const codeFilterOptions: FilterOption[] = useMemo(() => {
+    return [...new Set(clients.map(c => c.code))].sort().map(v => ({ label: v, value: v }));
+  }, [clients]);
+
+  const nameFilterOptions: FilterOption[] = useMemo(() => {
+    return [...new Set(clients.map(c => c.name))].sort((a, b) => a.localeCompare(b)).map(v => ({ label: v, value: v }));
+  }, [clients]);
+
+  const addressFilterOptions: FilterOption[] = useMemo(() => {
+    const vals = [...new Set(clients.map(c => c.address).filter(Boolean))] as string[];
+    const opts: FilterOption[] = vals.sort((a, b) => a.localeCompare(b)).map(v => ({ label: v, value: v }));
+    if (clients.some(c => !c.address)) opts.push({ label: '(Vide)', value: '__empty__' });
+    return opts;
+  }, [clients]);
+
+  const billingEmailFilterOptions: FilterOption[] = useMemo(() => {
+    const vals = [...new Set(clients.map(c => c.billing_email).filter(Boolean))] as string[];
+    const opts: FilterOption[] = vals.sort((a, b) => a.localeCompare(b)).map(v => ({ label: v, value: v }));
+    if (clients.some(c => !c.billing_email)) opts.push({ label: '(Vide)', value: '__empty__' });
+    return opts;
+  }, [clients]);
+
+  const vatNumberFilterOptions: FilterOption[] = useMemo(() => {
+    const vals = [...new Set(clients.map(c => c.vat_number).filter(Boolean))] as string[];
+    const opts: FilterOption[] = vals.sort((a, b) => a.localeCompare(b)).map(v => ({ label: v, value: v }));
+    if (clients.some(c => !c.vat_number)) opts.push({ label: '(Vide)', value: '__empty__' });
+    return opts;
+  }, [clients]);
+
+  const contactNameFilterOptions: FilterOption[] = useMemo(() => {
+    const vals = [...new Set(clients.map(c => c.contact_name).filter(Boolean))] as string[];
+    const opts: FilterOption[] = vals.sort((a, b) => a.localeCompare(b)).map(v => ({ label: v, value: v }));
+    if (clients.some(c => !c.contact_name)) opts.push({ label: '(Vide)', value: '__empty__' });
+    return opts;
+  }, [clients]);
+
+  const contactPhoneFilterOptions: FilterOption[] = useMemo(() => {
+    const vals = [...new Set(clients.map(c => c.contact_phone).filter(Boolean))] as string[];
+    const opts: FilterOption[] = vals.sort((a, b) => a.localeCompare(b)).map(v => ({ label: v, value: v }));
+    if (clients.some(c => !c.contact_phone)) opts.push({ label: '(Vide)', value: '__empty__' });
+    return opts;
+  }, [clients]);
+
   const filteredClients = useMemo(() => {
     return clients.filter(c => {
       const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.code.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCode = passesFilter('code', c.code);
+      const matchesName = passesFilter('name', c.name);
+      const matchesAddress = passesFilter('address', c.address || '__empty__');
+      const matchesEmail = passesFilter('billingEmail', c.billing_email || '__empty__');
+      const matchesVat = passesFilter('vatNumber', c.vat_number || '__empty__');
+      const matchesContact = passesFilter('contactName', c.contact_name || '__empty__');
+      const matchesPhone = passesFilter('contactPhone', c.contact_phone || '__empty__');
       const matchesStatus = passesFilter('status', c.active ? 'active' : 'inactive');
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesCode && matchesName && matchesAddress && matchesEmail && matchesVat && matchesContact && matchesPhone && matchesStatus;
     });
   }, [clients, searchTerm, filters]);
 
@@ -307,13 +359,62 @@ export default function Clients() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Code</TableHead>
-                <TableHead>Nom</TableHead>
-                <TableHead>Adresse</TableHead>
-                <TableHead>Email facturation</TableHead>
-                <TableHead>Numéro ICE</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Tél. contact</TableHead>
+                <TableHead>
+                  <ColumnHeaderFilter
+                    title="Code"
+                    options={codeFilterOptions}
+                    selectedValues={filters.code}
+                    onFilterChange={(v) => setFilter('code', v)}
+                  />
+                </TableHead>
+                <TableHead>
+                  <ColumnHeaderFilter
+                    title="Nom"
+                    options={nameFilterOptions}
+                    selectedValues={filters.name}
+                    onFilterChange={(v) => setFilter('name', v)}
+                  />
+                </TableHead>
+                <TableHead>
+                  <ColumnHeaderFilter
+                    title="Adresse"
+                    options={addressFilterOptions}
+                    selectedValues={filters.address}
+                    onFilterChange={(v) => setFilter('address', v)}
+                  />
+                </TableHead>
+                <TableHead>
+                  <ColumnHeaderFilter
+                    title="Email facturation"
+                    options={billingEmailFilterOptions}
+                    selectedValues={filters.billingEmail}
+                    onFilterChange={(v) => setFilter('billingEmail', v)}
+                  />
+                </TableHead>
+                <TableHead>
+                  <ColumnHeaderFilter
+                    title="Numéro ICE"
+                    options={vatNumberFilterOptions}
+                    selectedValues={filters.vatNumber}
+                    onFilterChange={(v) => setFilter('vatNumber', v)}
+                  />
+                </TableHead>
+                <TableHead>
+                  <ColumnHeaderFilter
+                    title="Contact"
+                    options={contactNameFilterOptions}
+                    selectedValues={filters.contactName}
+                    onFilterChange={(v) => setFilter('contactName', v)}
+                  />
+                </TableHead>
+                <TableHead>
+                  <ColumnHeaderFilter
+                    title="Tél. contact"
+                    options={contactPhoneFilterOptions}
+                    selectedValues={filters.contactPhone}
+                    onFilterChange={(v) => setFilter('contactPhone', v)}
+                  />
+                </TableHead>
                 <TableHead className="text-center">
                   <ColumnHeaderFilter
                     title="Statut"

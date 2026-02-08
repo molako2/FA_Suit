@@ -96,7 +96,7 @@ export default function Matters() {
   const activeClients = clients.filter(c => c.active);
 
   const { filters, setFilter, passesFilter } = useColumnFilters([
-    'client', 'interventionNature', 'clientSector', 'billingType', 'status'
+    'code', 'label', 'client', 'interventionNature', 'clientSector', 'billingType', 'amount', 'vat', 'status'
   ] as const);
 
   const clientFilterOptions: FilterOption[] = useMemo(() => {
@@ -127,17 +127,52 @@ export default function Matters() {
     { label: 'Clôturé', value: 'closed' },
   ];
 
+  const codeFilterOptions: FilterOption[] = useMemo(() => {
+    return [...new Set(matters.map(m => m.code))].sort().map(v => ({ label: v, value: v }));
+  }, [matters]);
+
+  const labelFilterOptions: FilterOption[] = useMemo(() => {
+    return [...new Set(matters.map(m => m.label))].sort((a, b) => a.localeCompare(b)).map(v => ({ label: v, value: v }));
+  }, [matters]);
+
+  const vatFilterOptions: FilterOption[] = [
+    { label: '0%', value: '0' },
+    { label: '20%', value: '20' },
+  ];
+
+  const amountFilterOptions: FilterOption[] = useMemo(() => {
+    const vals = [...new Set(matters.map(m => {
+      if (m.billing_type === 'flat_fee') return m.flat_fee_cents ? String(m.flat_fee_cents) : '__empty__';
+      return m.rate_cents ? String(m.rate_cents) : '__empty__';
+    }))];
+    return vals.sort((a, b) => {
+      if (a === '__empty__') return 1;
+      if (b === '__empty__') return -1;
+      return Number(a) - Number(b);
+    }).map(v => ({
+      label: v === '__empty__' ? '(Vide)' : formatCents(Number(v)),
+      value: v,
+    }));
+  }, [matters]);
+
   const filteredMatters = useMemo(() => {
     return matters.filter((m) => {
       const matchesSearch =
         m.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
         m.code.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCode = passesFilter('code', m.code);
+      const matchesLabel = passesFilter('label', m.label);
       const matchesClient = passesFilter('client', m.client_id);
       const matchesNature = passesFilter('interventionNature', m.intervention_nature || '');
       const matchesSector = passesFilter('clientSector', m.client_sector || '');
       const matchesBilling = passesFilter('billingType', m.billing_type || 'time_based');
+      const amountVal = m.billing_type === 'flat_fee'
+        ? (m.flat_fee_cents ? String(m.flat_fee_cents) : '__empty__')
+        : (m.rate_cents ? String(m.rate_cents) : '__empty__');
+      const matchesAmount = passesFilter('amount', amountVal);
+      const matchesVat = passesFilter('vat', String(m.vat_rate));
       const matchesStatus = passesFilter('status', m.status);
-      return matchesSearch && matchesClient && matchesNature && matchesSector && matchesBilling && matchesStatus;
+      return matchesSearch && matchesCode && matchesLabel && matchesClient && matchesNature && matchesSector && matchesBilling && matchesAmount && matchesVat && matchesStatus;
     });
   }, [matters, searchTerm, filters]);
 
@@ -498,8 +533,22 @@ export default function Matters() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Code</TableHead>
-                <TableHead>Libellé</TableHead>
+                <TableHead>
+                  <ColumnHeaderFilter
+                    title="Code"
+                    options={codeFilterOptions}
+                    selectedValues={filters.code}
+                    onFilterChange={(v) => setFilter('code', v)}
+                  />
+                </TableHead>
+                <TableHead>
+                  <ColumnHeaderFilter
+                    title="Libellé"
+                    options={labelFilterOptions}
+                    selectedValues={filters.label}
+                    onFilterChange={(v) => setFilter('label', v)}
+                  />
+                </TableHead>
                 <TableHead>
                   <ColumnHeaderFilter
                     title="Client"
@@ -533,8 +582,24 @@ export default function Matters() {
                     align="center"
                   />
                 </TableHead>
-                <TableHead className="text-right">Montant</TableHead>
-                <TableHead className="text-center">TVA</TableHead>
+                <TableHead className="text-right">
+                  <ColumnHeaderFilter
+                    title="Montant"
+                    options={amountFilterOptions}
+                    selectedValues={filters.amount}
+                    onFilterChange={(v) => setFilter('amount', v)}
+                    align="end"
+                  />
+                </TableHead>
+                <TableHead className="text-center">
+                  <ColumnHeaderFilter
+                    title="TVA"
+                    options={vatFilterOptions}
+                    selectedValues={filters.vat}
+                    onFilterChange={(v) => setFilter('vat', v)}
+                    align="center"
+                  />
+                </TableHead>
                 <TableHead className="text-center">
                   <ColumnHeaderFilter
                     title="Statut"
