@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +49,7 @@ import { toast } from "sonner";
 import { Currency, formatAmount } from "@/components/ui/currency";
 import DateRangeFilter from "@/components/DateRangeFilter";
 import { ColumnHeaderFilter, useColumnFilters, type FilterOption } from "@/components/ColumnHeaderFilter";
+import TimesheetEntrySelector, { type TimesheetEntryOverride } from "@/components/invoices/TimesheetEntrySelector";
 
 // Format cents to currency
 function formatCentsText(cents: number): string {
@@ -189,6 +190,9 @@ export default function Invoices() {
   // Editable amount override (HT in cents, null = auto-calculated)
   const [customAmountHtCents, setCustomAmountHtCents] = useState<number | null>(null);
 
+  // Timesheet entry selection/override state (for time-based matters)
+  const [timesheetOverrides, setTimesheetOverrides] = useState<Record<string, TimesheetEntryOverride>>({});
+
   // Expense selection state
   const [selectedExpenses, setSelectedExpenses] = useState<
     Record<string, { selected: boolean; customAmount: number | null }>
@@ -213,6 +217,22 @@ export default function Invoices() {
 
   const previewTotalMinutes = previewEntries.reduce((sum, e) => sum + e.minutes_rounded, 0);
 
+  // Reset overrides when preview entries change (all selected by default)
+  useEffect(() => {
+    const newOverrides: Record<string, TimesheetEntryOverride> = {};
+    previewEntries.forEach((e) => {
+      newOverrides[e.id] = { selected: true, minutesOverride: null, rateOverride: null };
+    });
+    setTimesheetOverrides(newOverrides);
+  }, [previewEntries]);
+
+  // Entries selected for invoicing (filtered by overrides)
+  const selectedPreviewEntries = useMemo(() => {
+    return previewEntries.filter((e) => {
+      const override = timesheetOverrides[e.id];
+      return override ? override.selected : true;
+    });
+  }, [previewEntries, timesheetOverrides]);
   // Calculate selected expenses total
   const selectedExpensesTotal = useMemo(() => {
     return matterExpenses.reduce((sum, exp) => {
@@ -243,6 +263,7 @@ export default function Invoices() {
   const handleMatterChange = (matterId: string) => {
     setSelectedMatterId(matterId);
     setSelectedExpenses({});
+    setTimesheetOverrides({});
   };
 
   const getMatterInfo = (matterId: string) => {
@@ -285,9 +306,9 @@ export default function Invoices() {
 
     const isFlatFee = matter.billing_type === "flat_fee";
 
-    // For time-based billing, require entries
-    if (!isFlatFee && previewEntries.length === 0) {
-      toast.error("Aucune entrée facturable pour cette période");
+    // For time-based billing, require selected entries
+    if (!isFlatFee && selectedPreviewEntries.length === 0) {
+      toast.error("Aucune entrée facturable sélectionnée");
       return;
     }
 
@@ -299,6 +320,21 @@ export default function Invoices() {
 
     const rateCents = matter.rate_cents || settings.rate_cabinet_cents;
     const vatRate = matter.vat_rate;
+
+    // Helper to get effective minutes/rate from overrides
+    const getEntryMinutes = (entry: typeof previewEntries[0]) => {
+      const override = timesheetOverrides[entry.id];
+      return override?.minutesOverride !== null && override?.minutesOverride !== undefined
+        ? override.minutesOverride
+        : entry.minutes_rounded;
+    };
+
+    const getEntryRate = (entry: typeof previewEntries[0]) => {
+      const override = timesheetOverrides[entry.id];
+      if (override?.rateOverride !== null && override?.rateOverride !== undefined) return override.rateOverride;
+      const profile = profiles.find((p) => p.id === entry.user_id);
+      return profile?.rate_cents || rateCents;
+    };
 
     let lines: InvoiceLine[];
 
@@ -319,23 +355,25 @@ export default function Invoices() {
         },
       ];
     } else if (groupByCollaborator) {
-      // Group by collaborator (time-based)
-      const grouped = previewEntries.reduce(
+      // Group by collaborator (time-based) - using selected entries only
+      const grouped = selectedPreviewEntries.reduce(
         (acc, entry) => {
           const userId = entry.user_id;
           if (!acc[userId]) {
-            acc[userId] = { minutes: 0, entries: [] };
+            acc[userId] = { minutes: 0, entries: [], entryIds: [] };
           }
-          acc[userId].minutes += entry.minutes_rounded;
+          acc[userId].minutes += getEntryMinutes(entry);
           acc[userId].entries.push(entry);
+          acc[userId].entryIds.push(entry.id);
           return acc;
         },
-        {} as Record<string, { minutes: number; entries: typeof previewEntries }>,
+        {} as Record<string, { minutes: number; entries: typeof previewEntries; entryIds: string[] }>,
       );
 
       lines = Object.entries(grouped).map(([userId, data]) => {
         const profile = profiles.find((p) => p.id === userId);
-        const userRate = profile?.rate_cents || rateCents;
+        // Use the rate from the first entry override or default
+        const userRate = getEntryRate(data.entries[0]);
         const amountHt = Math.round((data.minutes / 60) * userRate);
         const vatCents = Math.round((amountHt * vatRate) / 100);
         return {
@@ -347,23 +385,33 @@ export default function Invoices() {
           amount_ht_cents: amountHt,
           vat_cents: vatCents,
           amount_ttc_cents: amountHt + vatCents,
+          timesheet_entry_ids: data.entryIds,
         };
       });
     } else {
-      // Single line (time-based)
-      const totalMinutes = previewEntries.reduce((sum, e) => sum + e.minutes_rounded, 0);
-      const amountHt = Math.round((totalMinutes / 60) * rateCents);
+      // Single line (time-based) - using selected entries only
+      const totalMinutes = selectedPreviewEntries.reduce((sum, e) => sum + getEntryMinutes(e), 0);
+      // Weighted average rate
+      let totalWeightedRate = 0;
+      selectedPreviewEntries.forEach((e) => {
+        const mins = getEntryMinutes(e);
+        const rate = getEntryRate(e);
+        totalWeightedRate += rate * mins;
+      });
+      const avgRate = totalMinutes > 0 ? Math.round(totalWeightedRate / totalMinutes) : rateCents;
+      const amountHt = Math.round((totalMinutes / 60) * avgRate);
       const vatCents = Math.round((amountHt * vatRate) / 100);
       lines = [
         {
           id: crypto.randomUUID(),
           label: `Prestations juridiques - ${matter.label}`,
           minutes: totalMinutes,
-          rate_cents: rateCents,
+          rate_cents: avgRate,
           vat_rate: vatRate,
           amount_ht_cents: amountHt,
           vat_cents: vatCents,
           amount_ttc_cents: amountHt + vatCents,
+          timesheet_entry_ids: selectedPreviewEntries.map((e) => e.id),
         },
       ];
     }
@@ -432,6 +480,7 @@ export default function Invoices() {
       setSelectedMatterId("");
       setSelectedExpenses({});
       setCustomAmountHtCents(null);
+      setTimesheetOverrides({});
     } catch (error) {
       toast.error("Erreur lors de la création de la facture");
     }
@@ -453,18 +502,26 @@ export default function Invoices() {
         issue_date: new Date().toISOString().split("T")[0],
       });
 
-      // Lock the associated timesheet entries
-      const entriesToLock = allTimesheetEntries.filter(
-        (e) =>
-          e.matter_id === invoice.matter_id &&
-          e.billable &&
-          !e.locked &&
-          e.date >= invoice.period_from &&
-          e.date <= invoice.period_to,
-      );
+      // Lock the associated timesheet entries (only those tracked in invoice lines)
+      const trackedEntryIds = invoice.lines
+        .flatMap((l) => l.timesheet_entry_ids || []);
+      
+      if (trackedEntryIds.length > 0) {
+        await lockEntriesMutation.mutateAsync(trackedEntryIds);
+      } else {
+        // Fallback for older invoices without timesheet_entry_ids
+        const entriesToLock = allTimesheetEntries.filter(
+          (e) =>
+            e.matter_id === invoice.matter_id &&
+            e.billable &&
+            !e.locked &&
+            e.date >= invoice.period_from &&
+            e.date <= invoice.period_to,
+        );
 
-      if (entriesToLock.length > 0) {
-        await lockEntriesMutation.mutateAsync(entriesToLock.map((e) => e.id));
+        if (entriesToLock.length > 0) {
+          await lockEntriesMutation.mutateAsync(entriesToLock.map((e) => e.id));
+        }
       }
 
       // Lock the associated expenses (from invoice lines with expense_id)
@@ -945,7 +1002,7 @@ export default function Invoices() {
 
       {/* Create Invoice Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[950px]">
           <DialogHeader>
             <DialogTitle>Créer une facture</DialogTitle>
             <DialogDescription>
@@ -1013,17 +1070,15 @@ export default function Invoices() {
                       </p>
                     </>
                   ) : (
-                    <>
-                      <p className="text-muted-foreground text-sm">
-                        {previewEntries.length} entrée(s) facturable(s) pour un total de{" "}
-                        <span className="font-semibold">{formatMinutesToHours(previewTotalMinutes)}</span>
-                      </p>
-                      {previewEntries.length === 0 && (
-                        <p className="text-destructive text-sm mt-2">
-                          Aucune entrée facturable non facturée pour cette période.
-                        </p>
-                      )}
-                    </>
+                    <TimesheetEntrySelector
+                      entries={previewEntries}
+                      profiles={profiles}
+                      defaultRateCents={getSelectedMatter()?.rate_cents || settings?.rate_cabinet_cents || 0}
+                      vatRate={getSelectedMatter()?.vat_rate || 20}
+                      overrides={timesheetOverrides}
+                      onOverridesChange={setTimesheetOverrides}
+                      canEditRatesAndMinutes={canEdit}
+                    />
                   )}
 
                   {/* Editable amount override */}
@@ -1106,7 +1161,7 @@ export default function Invoices() {
               onClick={handleCreateDraft}
               disabled={
                 !selectedMatterId ||
-                (getSelectedMatter()?.billing_type !== "flat_fee" && previewEntries.length === 0) ||
+                (getSelectedMatter()?.billing_type !== "flat_fee" && selectedPreviewEntries.length === 0) ||
                 createInvoiceMutation.isPending
               }
             >
