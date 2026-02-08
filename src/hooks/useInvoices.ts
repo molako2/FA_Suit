@@ -12,6 +12,7 @@ export interface InvoiceLine {
   vat_cents: number;
   amount_ttc_cents: number;
   expense_id?: string;
+  timesheet_entry_ids?: string[];
 }
 
 export interface Invoice {
