@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,7 @@ import { useClients } from '@/hooks/useClients';
 import { Plus, Pencil, FolderOpen, Search, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { exportMattersCSV } from '@/lib/exports';
+import { ColumnHeaderFilter, useColumnFilters, type FilterOption } from '@/components/ColumnHeaderFilter';
 
 // Format cents to MAD
 function formatCents(cents: number): string {
@@ -94,10 +95,51 @@ export default function Matters() {
 
   const activeClients = clients.filter(c => c.active);
 
-  const filteredMatters = matters.filter(m =>
-    m.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const { filters, setFilter, passesFilter } = useColumnFilters([
+    'client', 'interventionNature', 'clientSector', 'billingType', 'status'
+  ] as const);
+
+  const clientFilterOptions: FilterOption[] = useMemo(() => {
+    const uniqueClientIds = [...new Set(matters.map((m) => m.client_id))];
+    return uniqueClientIds.map((id) => {
+      const client = clients.find((c) => c.id === id);
+      return { label: client?.name || 'Inconnu', value: id };
+    }).sort((a, b) => a.label.localeCompare(b.label));
+  }, [matters, clients]);
+
+  const interventionNatureFilterOptions: FilterOption[] = useMemo(() => {
+    const unique = [...new Set(matters.map((m) => m.intervention_nature).filter(Boolean))] as string[];
+    return unique.sort().map((v) => ({ label: v, value: v }));
+  }, [matters]);
+
+  const clientSectorFilterOptions: FilterOption[] = useMemo(() => {
+    const unique = [...new Set(matters.map((m) => m.client_sector).filter(Boolean))] as string[];
+    return unique.sort().map((v) => ({ label: v, value: v }));
+  }, [matters]);
+
+  const billingTypeFilterOptions: FilterOption[] = [
+    { label: 'Temps passé', value: 'time_based' },
+    { label: 'Forfait', value: 'flat_fee' },
+  ];
+
+  const statusFilterOptions: FilterOption[] = [
+    { label: 'Ouvert', value: 'open' },
+    { label: 'Clôturé', value: 'closed' },
+  ];
+
+  const filteredMatters = useMemo(() => {
+    return matters.filter((m) => {
+      const matchesSearch =
+        m.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        m.code.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesClient = passesFilter('client', m.client_id);
+      const matchesNature = passesFilter('interventionNature', m.intervention_nature || '');
+      const matchesSector = passesFilter('clientSector', m.client_sector || '');
+      const matchesBilling = passesFilter('billingType', m.billing_type || 'time_based');
+      const matchesStatus = passesFilter('status', m.status);
+      return matchesSearch && matchesClient && matchesNature && matchesSector && matchesBilling && matchesStatus;
+    });
+  }, [matters, searchTerm, filters]);
 
   const resetForm = () => {
     setFormLabel('');
@@ -458,13 +500,50 @@ export default function Matters() {
               <TableRow>
                 <TableHead>Code</TableHead>
                 <TableHead>Libellé</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Nature intervention</TableHead>
-                <TableHead>Secteur activité</TableHead>
-                <TableHead className="text-center">Facturation</TableHead>
+                <TableHead>
+                  <ColumnHeaderFilter
+                    title="Client"
+                    options={clientFilterOptions}
+                    selectedValues={filters.client}
+                    onFilterChange={(v) => setFilter('client', v)}
+                  />
+                </TableHead>
+                <TableHead>
+                  <ColumnHeaderFilter
+                    title="Nature intervention"
+                    options={interventionNatureFilterOptions}
+                    selectedValues={filters.interventionNature}
+                    onFilterChange={(v) => setFilter('interventionNature', v)}
+                  />
+                </TableHead>
+                <TableHead>
+                  <ColumnHeaderFilter
+                    title="Secteur activité"
+                    options={clientSectorFilterOptions}
+                    selectedValues={filters.clientSector}
+                    onFilterChange={(v) => setFilter('clientSector', v)}
+                  />
+                </TableHead>
+                <TableHead className="text-center">
+                  <ColumnHeaderFilter
+                    title="Facturation"
+                    options={billingTypeFilterOptions}
+                    selectedValues={filters.billingType}
+                    onFilterChange={(v) => setFilter('billingType', v)}
+                    align="center"
+                  />
+                </TableHead>
                 <TableHead className="text-right">Montant</TableHead>
                 <TableHead className="text-center">TVA</TableHead>
-                <TableHead className="text-center">Statut</TableHead>
+                <TableHead className="text-center">
+                  <ColumnHeaderFilter
+                    title="Statut"
+                    options={statusFilterOptions}
+                    selectedValues={filters.status}
+                    onFilterChange={(v) => setFilter('status', v)}
+                    align="center"
+                  />
+                </TableHead>
                 {canEdit && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>

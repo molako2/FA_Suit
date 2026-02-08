@@ -48,6 +48,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Currency, formatAmount } from "@/components/ui/currency";
 import DateRangeFilter from "@/components/DateRangeFilter";
+import { ColumnHeaderFilter, useColumnFilters, type FilterOption } from "@/components/ColumnHeaderFilter";
 
 // Format cents to currency
 function formatCentsText(cents: number): string {
@@ -78,14 +79,53 @@ export default function Invoices() {
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
 
+  const { filters, setFilter, passesFilter } = useColumnFilters([
+    'matter', 'client', 'status', 'paid'
+  ] as const);
+
+  const matterFilterOptions: FilterOption[] = useMemo(() => {
+    const uniqueMatterIds = [...new Set(invoices.map((i) => i.matter_id))];
+    return uniqueMatterIds.map((id) => {
+      const matter = matters.find((m) => m.id === id);
+      return { label: matter ? `${matter.code} - ${matter.label}` : 'Inconnu', value: id };
+    }).sort((a, b) => a.label.localeCompare(b.label));
+  }, [invoices, matters]);
+
+  const clientFilterOptions: FilterOption[] = useMemo(() => {
+    const uniqueClientIds = [...new Set(invoices.map((i) => {
+      const matter = matters.find((m) => m.id === i.matter_id);
+      return matter?.client_id || '';
+    }).filter(Boolean))];
+    return uniqueClientIds.map((id) => {
+      const client = clients.find((c) => c.id === id);
+      return { label: client?.name || 'Inconnu', value: id };
+    }).sort((a, b) => a.label.localeCompare(b.label));
+  }, [invoices, matters, clients]);
+
+  const statusFilterOptions: FilterOption[] = [
+    { label: 'Brouillon', value: 'draft' },
+    { label: 'Émise', value: 'issued' },
+    { label: 'Annulée', value: 'cancelled' },
+  ];
+
+  const paidFilterOptions: FilterOption[] = [
+    { label: 'Oui', value: 'true' },
+    { label: 'Non', value: 'false' },
+  ];
+
   const filteredInvoices = useMemo(() => {
     return invoices.filter((inv) => {
       const dateRef = inv.issue_date || inv.period_from;
       const matchesFrom = !filterDateFrom || dateRef >= filterDateFrom;
       const matchesTo = !filterDateTo || dateRef <= filterDateTo;
-      return matchesFrom && matchesTo;
+      const matchesMatter = passesFilter('matter', inv.matter_id);
+      const clientId = matters.find((m) => m.id === inv.matter_id)?.client_id || '';
+      const matchesClient = passesFilter('client', clientId);
+      const matchesStatus = passesFilter('status', inv.status);
+      const matchesPaid = passesFilter('paid', String(inv.paid));
+      return matchesFrom && matchesTo && matchesMatter && matchesClient && matchesStatus && matchesPaid;
     });
-  }, [invoices, filterDateFrom, filterDateTo]);
+  }, [invoices, filterDateFrom, filterDateTo, filters, matters]);
 
   // Create form state
   const [selectedMatterId, setSelectedMatterId] = useState("");
@@ -655,15 +695,46 @@ export default function Invoices() {
             <TableHeader>
               <TableRow>
                 <TableHead>N° Facture</TableHead>
-                <TableHead>Dossier</TableHead>
-                <TableHead>Client</TableHead>
+                <TableHead>
+                  <ColumnHeaderFilter
+                    title="Dossier"
+                    options={matterFilterOptions}
+                    selectedValues={filters.matter}
+                    onFilterChange={(v) => setFilter('matter', v)}
+                  />
+                </TableHead>
+                <TableHead>
+                  <ColumnHeaderFilter
+                    title="Client"
+                    options={clientFilterOptions}
+                    selectedValues={filters.client}
+                    onFilterChange={(v) => setFilter('client', v)}
+                  />
+                </TableHead>
                 <TableHead>Période</TableHead>
                 <TableHead>Date d'émission</TableHead>
                 <TableHead className="text-right">HT</TableHead>
                 <TableHead className="text-right">TTC</TableHead>
-                <TableHead className="text-center">Statut</TableHead>
-                <TableHead className="text-center">Payée</TableHead>
+                <TableHead className="text-center">
+                  <ColumnHeaderFilter
+                    title="Statut"
+                    options={statusFilterOptions}
+                    selectedValues={filters.status}
+                    onFilterChange={(v) => setFilter('status', v)}
+                    align="center"
+                  />
+                </TableHead>
+                <TableHead className="text-center">
+                  <ColumnHeaderFilter
+                    title="Payée"
+                    options={paidFilterOptions}
+                    selectedValues={filters.paid}
+                    onFilterChange={(v) => setFilter('paid', v)}
+                    align="center"
+                  />
+                </TableHead>
                 <TableHead>Date règlement</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
