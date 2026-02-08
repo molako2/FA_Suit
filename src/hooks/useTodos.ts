@@ -106,6 +106,23 @@ export function usePendingTodosCount(userId?: string) {
   });
 }
 
+export function useInProgressTodosCount(userId?: string) {
+  return useQuery({
+    queryKey: ['todos', 'in-progress-count', userId],
+    queryFn: async () => {
+      if (!userId) return 0;
+      const { count, error } = await supabase
+        .from('todos')
+        .select('*', { count: 'exact', head: true })
+        .eq('assigned_to', userId)
+        .eq('status', 'in_progress');
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!userId,
+  });
+}
+
 export function useBlockedTodosCount(enabled: boolean) {
   return useQuery({
     queryKey: ['todos', 'blocked-count'],
