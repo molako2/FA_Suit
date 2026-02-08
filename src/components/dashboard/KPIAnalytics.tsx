@@ -37,6 +37,7 @@ interface TimesheetEntry {
   date: string;
   minutes_rounded: number;
   billable: boolean;
+  locked: boolean;
 }
 
 interface Profile {
@@ -168,6 +169,7 @@ export function KPIAnalytics({
     
     return entries.filter(e => {
       if (!e.billable) return false;
+      if (e.locked) return false; // Exclure les heures déjà facturées
       if (e.date < fromStr || e.date > toStr) return false;
       if (!timeBasedMatterIds.has(e.matter_id)) return false;
       if (filterCollaborator !== 'all' && e.user_id !== filterCollaborator) return false;

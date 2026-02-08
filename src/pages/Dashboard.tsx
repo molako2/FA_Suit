@@ -20,7 +20,7 @@ import { useMatters } from '@/hooks/useMatters';
 import { useClients } from '@/hooks/useClients';
 import { useInvoices } from '@/hooks/useInvoices';
 import { useCabinetSettings } from '@/hooks/useCabinetSettings';
-import { Clock, Users, FolderOpen, TrendingUp, Download, Loader2, Banknote } from 'lucide-react';
+import { Clock, Users, FolderOpen, TrendingUp, Download, Loader2, Banknote, Briefcase } from 'lucide-react';
 import { toast } from 'sonner';
 import { TimesheetExport } from '@/components/dashboard/TimesheetExport';
 import { KPIAnalytics } from '@/components/dashboard/KPIAnalytics';
@@ -80,7 +80,7 @@ export default function Dashboard() {
 
   // Calculate KPIs
   const kpiSummary = useMemo(() => {
-    const billable = entries.filter(e => e.billable);
+    const billable = entries.filter(e => e.billable && !e.locked);
     return {
       totalMinutes: entries.reduce((sum, e) => sum + e.minutes_rounded, 0),
       totalBillableMinutes: billable.reduce((sum, e) => sum + e.minutes_rounded, 0),
@@ -91,7 +91,7 @@ export default function Dashboard() {
 
   const kpiByUser = useMemo<KPIByUser[]>(() => {
     const grouped = new Map<string, number>();
-    entries.filter(e => e.billable).forEach(e => {
+    entries.filter(e => e.billable && !e.locked).forEach(e => {
       const current = grouped.get(e.user_id) || 0;
       grouped.set(e.user_id, current + e.minutes_rounded);
     });
@@ -111,7 +111,7 @@ export default function Dashboard() {
 
   const kpiByMatter = useMemo<KPIByMatter[]>(() => {
     const grouped = new Map<string, number>();
-    entries.filter(e => e.billable).forEach(e => {
+    entries.filter(e => e.billable && !e.locked).forEach(e => {
       const current = grouped.get(e.matter_id) || 0;
       grouped.set(e.matter_id, current + e.minutes_rounded);
     });
@@ -142,6 +142,16 @@ export default function Dashboard() {
       .filter(inv => inv.paid && inv.payment_date && inv.payment_date >= periodFrom && inv.payment_date <= periodTo)
       .reduce((sum, inv) => sum + inv.total_ht_cents, 0);
   }, [invoices, periodFrom, periodTo]);
+
+  // CA Forfait facturable : dossiers flat_fee sans facture émise
+  const totalFlatFeeBillable = useMemo(() => {
+    const issuedMatterIds = new Set(
+      invoices.filter(inv => inv.status === 'issued').map(inv => inv.matter_id)
+    );
+    return matters
+      .filter(m => m.billing_type === 'flat_fee' && !issuedMatterIds.has(m.id))
+      .reduce((sum, m) => sum + (m.flat_fee_cents || 0), 0);
+  }, [matters, invoices]);
 
   if (role !== 'owner' && role !== 'sysadmin') {
     return (
@@ -194,17 +204,28 @@ export default function Dashboard() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('dashboard.billableHoursCard')}</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.wipHoursCard')}</CardTitle>
             <Clock className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatMinutesToHours(kpiSummary.totalBillableMinutes)}</div>
             <p className="text-xs text-muted-foreground">
-              {t('dashboard.ofTotal', { total: formatMinutesToHours(kpiSummary.totalMinutes) })}
+              {t('dashboard.wipHoursSubtitle')}
             </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t('dashboard.flatFeeBillableCard')}</CardTitle>
+            <Briefcase className="h-4 w-4 text-accent" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCents(totalFlatFeeBillable)}</div>
+            <p className="text-xs text-muted-foreground">{t('dashboard.flatFeeBillableSubtitle')}</p>
           </CardContent>
         </Card>
 
