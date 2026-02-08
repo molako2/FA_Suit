@@ -70,10 +70,13 @@ export default function Messages() {
   useEffect(() => {
     if (!user?.id || messages.length === 0) return;
 
-    const unreadDirect = messages.filter(
+    // Collect ALL messages (top-level + replies)
+    const allMessages = messages.flatMap(m => [m, ...(m.replies || [])]);
+
+    const unreadDirect = allMessages.filter(
       m => m.recipient_id === user.id && !m.read && m.sender_id !== user.id
     );
-    const unreadBroadcasts = messages.filter(
+    const unreadBroadcasts = allMessages.filter(
       m => m.recipient_id === null && m.sender_id !== user.id && !readBroadcastIds.has(m.id)
     );
 
