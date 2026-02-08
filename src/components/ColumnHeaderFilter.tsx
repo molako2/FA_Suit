@@ -50,7 +50,12 @@ export function ColumnHeaderFilter({
   };
 
   return (
-    <div className={cn('flex items-center gap-1', className)}>
+    <div className={cn(
+      'flex items-center gap-1',
+      align === 'end' && 'justify-end',
+      align === 'center' && 'justify-center',
+      className
+    )}>
       <span>{title}</span>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
