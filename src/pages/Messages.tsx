@@ -6,7 +6,6 @@ import { useProfiles } from '@/hooks/useProfiles';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Dialog,
@@ -17,17 +16,6 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -35,17 +23,18 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Trash2, MessageSquare } from 'lucide-react';
+import { Plus, MessageSquare } from 'lucide-react';
 import { EmojiPicker } from '@/components/messages/EmojiPicker';
-import { format } from 'date-fns';
-import { fr, enUS } from 'date-fns/locale';
+import { MessageItem } from '@/components/messages/MessageItem';
+import { InlineReplyForm } from '@/components/messages/InlineReplyForm';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import type { Message } from '@/hooks/useMessages';
 
 const MAX_CHARS = 256;
 
 export default function Messages() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { user, role } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -60,6 +49,8 @@ export default function Messages() {
   const [recipientId, setRecipientId] = useState<string>('');
   const [content, setContent] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
 
   // Track which broadcasts current user has read
   const [readBroadcastIds, setReadBroadcastIds] = useState<Set<string>>(new Set());
@@ -111,9 +102,8 @@ export default function Messages() {
 
   const isOwnerOrAdmin = role === 'owner' || role === 'sysadmin';
   const activeProfiles = profiles.filter(p => p.active && p.id !== user?.id);
-  const dateLocale = i18n.language === 'fr' ? fr : enUS;
 
-  const isMessageUnread = (msg: typeof messages[0]) => {
+  const isMessageUnread = (msg: Message) => {
     if (!user) return false;
     if (msg.sender_id === user.id) return false;
     if (msg.recipient_id === user.id) return !msg.read;
@@ -121,9 +111,10 @@ export default function Messages() {
     return false;
   };
 
-  const canDelete = (msg: typeof messages[0]) => {
-    if (!user) return false;
-    return msg.sender_id === user.id || isOwnerOrAdmin;
+  const getRecipientName = (msg: Message) => {
+    if (msg.recipient_id === null) return null;
+    const profile = profiles.find(p => p.id === msg.recipient_id);
+    return profile?.name || t('common.unknown');
   };
 
   const handleSend = async () => {
@@ -163,6 +154,30 @@ export default function Messages() {
     }
   };
 
+  const handleReply = async (parentMsg: Message, replyContent: string) => {
+    if (!user?.id) return;
+    // Reply goes to the original sender
+    const recipientId = parentMsg.sender_id === user.id
+      ? parentMsg.recipient_id
+      : parentMsg.sender_id;
+
+    // Find the top-level message id (if replying to a reply, use reply_to of parent)
+    const topLevelId = parentMsg.reply_to || parentMsg.id;
+
+    try {
+      await sendMessage.mutateAsync({
+        senderId: user.id,
+        recipientId: recipientId,
+        content: replyContent,
+        replyTo: topLevelId,
+      });
+      toast({ title: t('messages.replySent') });
+      setReplyingTo(null);
+    } catch {
+      toast({ title: t('errors.generic'), variant: 'destructive' });
+    }
+  };
+
   const handleEmojiSelect = (emoji: string) => {
     const textarea = textareaRef.current;
     if (!textarea) {
@@ -181,12 +196,6 @@ export default function Messages() {
         textarea.focus();
       }, 0);
     }
-  };
-
-  const getRecipientName = (msg: typeof messages[0]) => {
-    if (msg.recipient_id === null) return null;
-    const profile = profiles.find(p => p.id === msg.recipient_id);
-    return profile?.name || t('common.unknown');
   };
 
   return (
@@ -272,65 +281,59 @@ export default function Messages() {
         <ScrollArea className="h-[calc(100vh-250px)]">
           <div className="space-y-3">
             {messages.map(msg => {
-              const unread = isMessageUnread(msg);
               const isSender = msg.sender_id === user?.id;
 
               return (
-                <div
-                  key={msg.id}
-                  className={`p-4 rounded-lg border ${
-                    unread ? 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800' : 'bg-card'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                        <span className="text-xs font-medium text-primary">
-                          {(msg.sender_name || '?').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                        </span>
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-sm">{msg.sender_name}</span>
-                          {msg.recipient_id === null && (
-                            <Badge variant="secondary" className="text-xs">
-                              {t('messages.broadcast')}
-                            </Badge>
-                          )}
-                          {isSender && msg.recipient_id && (
-                            <span className="text-xs text-muted-foreground">
-                              → {getRecipientName(msg)}
-                            </span>
+                <div key={msg.id}>
+                  {/* Top-level message */}
+                  <MessageItem
+                    msg={msg}
+                    userId={user?.id || ''}
+                    isOwnerOrAdmin={isOwnerOrAdmin}
+                    isUnread={isMessageUnread(msg)}
+                    isSender={isSender}
+                    getRecipientName={getRecipientName}
+                    onDelete={handleDelete}
+                    onReply={(id) => setReplyingTo(replyingTo === id ? null : id)}
+                  />
+
+                  {/* Replies */}
+                  {msg.replies && msg.replies.length > 0 && (
+                    <div className="space-y-2 mt-2">
+                      {msg.replies.map(reply => (
+                        <div key={reply.id}>
+                          <MessageItem
+                            msg={reply}
+                            userId={user?.id || ''}
+                            isOwnerOrAdmin={isOwnerOrAdmin}
+                            isUnread={isMessageUnread(reply)}
+                            isSender={reply.sender_id === user?.id}
+                            getRecipientName={getRecipientName}
+                            onDelete={handleDelete}
+                            onReply={(id) => setReplyingTo(replyingTo === id ? null : id)}
+                            isReply
+                          />
+                          {/* Inline reply form on a reply */}
+                          {replyingTo === reply.id && (
+                            <InlineReplyForm
+                              onSend={(content) => handleReply(reply, content)}
+                              onCancel={() => setReplyingTo(null)}
+                              isPending={sendMessage.isPending}
+                            />
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(msg.created_at), 'PPp', { locale: dateLocale })}
-                        </p>
-                      </div>
+                      ))}
                     </div>
-                    {canDelete(msg) && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>{t('messages.confirmDelete')}</AlertDialogTitle>
-                            <AlertDialogDescription>{msg.content}</AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDelete(msg.id)}>
-                              {t('common.delete')}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
-                  </div>
-                  <p className="mt-2 text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                  )}
+
+                  {/* Inline reply form on top-level message */}
+                  {replyingTo === msg.id && (
+                    <InlineReplyForm
+                      onSend={(content) => handleReply(msg, content)}
+                      onCancel={() => setReplyingTo(null)}
+                      isPending={sendMessage.isPending}
+                    />
+                  )}
                 </div>
               );
             })}

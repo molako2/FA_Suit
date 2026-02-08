@@ -8,7 +8,9 @@ export interface Message {
   content: string;
   read: boolean;
   created_at: string;
+  reply_to: string | null;
   sender_name?: string;
+  replies?: Message[];
 }
 
 export function useMessages(userId: string | undefined) {
@@ -33,10 +35,35 @@ export function useMessages(userId: string | undefined) {
 
       const profileMap = new Map(profiles?.map(p => [p.id, p.name]) || []);
 
-      return (data || []).map(m => ({
+      const allMessages: Message[] = (data || []).map(m => ({
         ...m,
+        reply_to: (m as any).reply_to || null,
         sender_name: profileMap.get(m.sender_id) || 'Inconnu',
-      })) as Message[];
+      }));
+
+      // Group into threads: top-level messages with replies
+      const topLevel: Message[] = [];
+      const replyMap = new Map<string, Message[]>();
+
+      for (const msg of allMessages) {
+        if (msg.reply_to) {
+          const existing = replyMap.get(msg.reply_to) || [];
+          existing.push(msg);
+          replyMap.set(msg.reply_to, existing);
+        } else {
+          topLevel.push(msg);
+        }
+      }
+
+      // Attach replies sorted chronologically (ascending)
+      for (const msg of topLevel) {
+        const replies = replyMap.get(msg.id) || [];
+        msg.replies = replies.sort(
+          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+      }
+
+      return topLevel;
     },
     enabled: !!userId,
   });
@@ -48,7 +75,7 @@ export function useUnreadMessagesCount(userId: string | undefined) {
     queryFn: async () => {
       if (!userId) return 0;
 
-      // Count unread direct messages
+      // Count unread direct messages (exclude replies)
       const { count: directCount, error: directError } = await supabase
         .from('messages')
         .select('*', { count: 'exact', head: true })
@@ -69,7 +96,6 @@ export function useUnreadMessagesCount(userId: string | undefined) {
 
       if (!broadcasts || broadcasts.length === 0) return directCount || 0;
 
-      // Get which broadcasts this user has read
       const { data: reads, error: readsError } = await supabase
         .from('message_reads')
         .select('message_id')
@@ -83,7 +109,7 @@ export function useUnreadMessagesCount(userId: string | undefined) {
       return (directCount || 0) + unreadBroadcasts;
     },
     enabled: !!userId,
-    refetchInterval: 30000, // Poll every 30s
+    refetchInterval: 30000,
   });
 }
 
@@ -95,10 +121,12 @@ export function useSendMessage() {
       senderId,
       recipientId,
       content,
+      replyTo,
     }: {
       senderId: string;
       recipientId: string | null;
       content: string;
+      replyTo?: string | null;
     }) => {
       if (content.length > 256 || content.trim().length === 0) {
         throw new Error('Invalid content');
@@ -110,7 +138,8 @@ export function useSendMessage() {
           sender_id: senderId,
           recipient_id: recipientId,
           content: content.trim(),
-        })
+          ...(replyTo ? { reply_to: replyTo } : {}),
+        } as any)
         .select()
         .single();
 
@@ -157,7 +186,6 @@ export function useMarkAsRead() {
       isBroadcast: boolean;
     }) => {
       if (isBroadcast) {
-        // Insert into message_reads for broadcasts
         const { error } = await supabase
           .from('message_reads')
           .upsert(
@@ -166,7 +194,6 @@ export function useMarkAsRead() {
           );
         if (error) throw error;
       } else {
-        // Update read flag for direct messages
         const { error } = await supabase
           .from('messages')
           .update({ read: true })
