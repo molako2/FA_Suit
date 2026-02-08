@@ -1,59 +1,108 @@
 
-# Correction des bugs Messagerie
 
-## Bug 1 : "Inconnu" au lieu du nom de l'expediteur
+# Correction du Dashboard : heures WIP et CA forfait facturable
 
-**Cause** : La politique RLS sur la table `profiles` ne permet aux collaborateurs de voir que leur propre profil (`id = auth.uid() OR is_owner_or_assistant()`). Quand un collaborateur charge les messages, la requete pour recuperer le nom de l'expediteur echoue silencieusement pour les profils des autres utilisateurs.
+## Probleme identifie
 
-**Correction** : Modifier la politique RLS SELECT sur `profiles` pour permettre a tous les utilisateurs authentifies de lire les profils. C'est une application interne de cabinet -- tous les utilisateurs doivent pouvoir voir les noms de leurs collegues.
+Actuellement, le dashboard comptabilise **toutes** les heures facturables (billable), y compris celles deja facturees (locked). Le champ `locked` sur les entrees de temps indique qu'une entree a ete facturee via une facture emise. Il faut donc filtrer sur `!locked` pour n'afficher que le travail en cours (WIP = Work In Progress).
 
-### Migration SQL
+De plus, il manque un indicateur en haut du dashboard pour le chiffre d'affaires forfaitaire facturable (dossiers au forfait pas encore factures).
+
+---
+
+## Modifications prevues
+
+### 1. `src/pages/Dashboard.tsx` -- Filtrer les heures non facturees + nouvelle carte forfait
+
+**Carte "Heures facturables" (existante)** : Actuellement, elle affiche toutes les heures billable. Elle doit etre renommee/redefinie pour n'afficher que les heures **non encore facturees** (`billable && !locked`).
+
+- `kpiSummary` : filtrer `entries.filter(e => e.billable && !e.locked)` au lieu de `entries.filter(e => e.billable)`
+- `kpiByUser` : meme filtre `billable && !locked`
+- `kpiByMatter` : meme filtre `billable && !locked`
+- Sous-titre de la carte : changer pour indiquer "non facturees" / WIP
+
+**Nouvelle carte "CA Forfait facturable"** : Ajouter une 6e carte en haut, avant ou apres les cartes existantes, qui affiche le total des montants forfaitaires des dossiers `flat_fee` n'ayant pas encore de facture emise. La logique est identique a celle deja implementee dans `KPIAnalyticsFlatFee` :
+- Filtrer les matters avec `billing_type === 'flat_fee'`
+- Exclure celles qui ont deja une facture emise (`invoices.filter(inv => inv.status === 'issued').map(inv => inv.matter_id)`)
+- Sommer les `flat_fee_cents`
+
+La grille passe de 5 a 6 colonnes (`lg:grid-cols-6`).
+
+### 2. `src/components/dashboard/KPIAnalytics.tsx` -- Filtrer les heures WIP uniquement
+
+Dans le calcul de `filteredEntries` (ligne 169), ajouter le filtre `!e.locked` pour que le "CA Facturable" et le "Total Heures Facturables" ne comptent que les heures non encore facturees.
+
+Le composant recoit les `entries` en props depuis `Dashboard.tsx` (sans pre-filtrage), donc c'est le bon endroit pour ajouter le filtre car `KPIAnalytics` a sa propre logique de periode et filtres internes.
+
+### 3. Traductions -- `fr.json` et `en.json`
+
+Nouvelles cles :
 
 ```text
-DROP POLICY "Users can view own profile or managers can view all" ON public.profiles;
+FR:
+  dashboard.wipHoursCard = "Heures non facturées"
+  dashboard.wipHoursSubtitle = "travail en cours (WIP)"
+  dashboard.flatFeeBillableCard = "CA Forfait facturable"
+  dashboard.flatFeeBillableSubtitle = "dossiers au forfait non facturés"
 
-CREATE POLICY "Authenticated users can view profiles"
-  ON public.profiles FOR SELECT
-  USING (auth.uid() IS NOT NULL);
+EN:
+  dashboard.wipHoursCard = "Unbilled hours"
+  dashboard.wipHoursSubtitle = "work in progress (WIP)"
+  dashboard.flatFeeBillableCard = "Billable flat fees"
+  dashboard.flatFeeBillableSubtitle = "uninvoiced flat-fee matters"
 ```
 
 ---
 
-## Bug 2 : Le badge rouge reste a 1 meme apres lecture
+## Details techniques
 
-**Cause** : L'effet `useEffect` qui marque les messages comme lus dans `Messages.tsx` (lignes 70-86) ne parcourt que les messages de premier niveau (`messages`). Les reponses sont imbriquees dans `msg.replies` et ne sont jamais parcourues. Le compteur `useUnreadMessagesCount` les compte pourtant correctement (`recipient_id = userId AND read = false`), d'ou le badge qui reste bloque.
-
-**Correction** : Dans `src/pages/Messages.tsx`, modifier l'effet de marquage pour aussi parcourir les reponses de chaque message.
-
-### Modification dans `src/pages/Messages.tsx`
-
-Dans l'effet "Mark messages as read on view" (lignes 70-86), ajouter une boucle qui parcourt aussi `msg.replies` pour chaque message de premier niveau :
+### Filtre `locked` dans Dashboard.tsx
 
 ```text
--- Avant (ne traite que les messages de premier niveau) --
+// Avant
+const billable = entries.filter(e => e.billable);
 
-const unreadDirect = messages.filter(
-  m => m.recipient_id === user.id && !m.read && m.sender_id !== user.id
-);
+// Apres
+const billable = entries.filter(e => e.billable && !e.locked);
+```
 
--- Apres (traite aussi les reponses) --
+Cela affecte :
+- La carte "Heures facturables" du haut
+- Le tableau "Par collaborateur"
+- Le tableau "Par dossier"
 
-// Collecter TOUS les messages (top-level + replies)
-const allMessages = messages.flatMap(m => [m, ...(m.replies || [])]);
+### Calcul du forfait facturable dans Dashboard.tsx
 
-const unreadDirect = allMessages.filter(
-  m => m.recipient_id === user.id && !m.read && m.sender_id !== user.id
-);
-const unreadBroadcasts = allMessages.filter(
-  m => m.recipient_id === null && m.sender_id !== user.id && !readBroadcastIds.has(m.id)
-);
+```text
+const totalFlatFeeBillable = useMemo(() => {
+  const issuedMatterIds = new Set(
+    invoices.filter(inv => inv.status === 'issued').map(inv => inv.matter_id)
+  );
+  return matters
+    .filter(m => m.billing_type === 'flat_fee' && !issuedMatterIds.has(m.id))
+    .reduce((sum, m) => sum + (m.flat_fee_cents || 0), 0);
+}, [matters, invoices]);
+```
+
+### Filtre dans KPIAnalytics.tsx (ligne 170)
+
+```text
+// Avant
+if (!e.billable) return false;
+
+// Apres
+if (!e.billable) return false;
+if (e.locked) return false;  // Exclure les heures deja facturees
 ```
 
 ---
 
-## Resume des modifications
+## Resume des fichiers
 
 | Fichier | Action |
 |---|---|
-| Migration SQL | Modifier la politique RLS SELECT sur `profiles` pour autoriser tous les utilisateurs authentifies |
-| `src/pages/Messages.tsx` | Corriger l'effet de marquage lu pour inclure les reponses imbriquees |
+| `src/pages/Dashboard.tsx` | Modifier : filtrer `!locked` sur kpiSummary/kpiByUser/kpiByMatter + nouvelle carte forfait facturable + grille 6 colonnes |
+| `src/components/dashboard/KPIAnalytics.tsx` | Modifier : ajouter filtre `!e.locked` dans filteredEntries |
+| `src/i18n/locales/fr.json` | Modifier : ajout traductions WIP + forfait facturable |
+| `src/i18n/locales/en.json` | Modifier : ajout traductions WIP + forfait facturable |
+
