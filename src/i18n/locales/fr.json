@@ -174,7 +174,11 @@
     "collaborator": "Collaborateur",
     "selectCollaborator": "Sélectionnez un collaborateur",
     "selectMatter": "Sélectionnez un dossier",
-    "noAssignedMatters": "Aucun dossier affecté"
+    "noAssignedMatters": "Aucun dossier affecté",
+    "allCollaborators": "Tous les collaborateurs",
+    "client": "Client",
+    "selectClient": "Sélectionnez un client",
+    "selectClientFirst": "Sélectionnez d'abord un client"
   },
   "expenses": {
     "title": "Mes frais",
