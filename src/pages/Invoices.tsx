@@ -80,7 +80,7 @@ export default function Invoices() {
   const [filterDateTo, setFilterDateTo] = useState("");
 
   const { filters, setFilter, passesFilter } = useColumnFilters([
-    'matter', 'client', 'status', 'paid'
+    'matter', 'client', 'status', 'paid', 'invoiceNumber', 'period', 'issueDate', 'ht', 'ttc', 'paymentDate'
   ] as const);
 
   const matterFilterOptions: FilterOption[] = useMemo(() => {
@@ -113,6 +113,48 @@ export default function Invoices() {
     { label: 'Non', value: 'false' },
   ];
 
+  const invoiceNumberFilterOptions: FilterOption[] = useMemo(() => {
+    return [...new Set(invoices.map(i => i.number || 'Brouillon'))].sort().map(v => ({ label: v, value: v }));
+  }, [invoices]);
+
+  const periodFilterOptions: FilterOption[] = useMemo(() => {
+    return [...new Set(invoices.map(i => `${i.period_from} → ${i.period_to}`))].sort().map(v => ({ label: v, value: v }));
+  }, [invoices]);
+
+  const issueDateFilterOptions: FilterOption[] = useMemo(() => {
+    const vals = [...new Set(invoices.map(i => i.issue_date).filter(Boolean))] as string[];
+    const opts: FilterOption[] = vals.sort().map(v => ({
+      label: new Date(v).toLocaleDateString('fr-FR'),
+      value: v,
+    }));
+    if (invoices.some(i => !i.issue_date)) opts.push({ label: '(Vide)', value: '__empty__' });
+    return opts;
+  }, [invoices]);
+
+  const htFilterOptions: FilterOption[] = useMemo(() => {
+    return [...new Set(invoices.map(i => String(i.total_ht_cents)))].sort((a, b) => Number(a) - Number(b)).map(v => ({
+      label: formatCentsText(Number(v)),
+      value: v,
+    }));
+  }, [invoices]);
+
+  const ttcFilterOptions: FilterOption[] = useMemo(() => {
+    return [...new Set(invoices.map(i => String(i.total_ttc_cents)))].sort((a, b) => Number(a) - Number(b)).map(v => ({
+      label: formatCentsText(Number(v)),
+      value: v,
+    }));
+  }, [invoices]);
+
+  const paymentDateFilterOptions: FilterOption[] = useMemo(() => {
+    const vals = [...new Set(invoices.map(i => i.payment_date).filter(Boolean))] as string[];
+    const opts: FilterOption[] = vals.sort().map(v => ({
+      label: new Date(v).toLocaleDateString('fr-FR'),
+      value: v,
+    }));
+    if (invoices.some(i => !i.payment_date)) opts.push({ label: '(Vide)', value: '__empty__' });
+    return opts;
+  }, [invoices]);
+
   const filteredInvoices = useMemo(() => {
     return invoices.filter((inv) => {
       const dateRef = inv.issue_date || inv.period_from;
@@ -123,7 +165,13 @@ export default function Invoices() {
       const matchesClient = passesFilter('client', clientId);
       const matchesStatus = passesFilter('status', inv.status);
       const matchesPaid = passesFilter('paid', String(inv.paid));
-      return matchesFrom && matchesTo && matchesMatter && matchesClient && matchesStatus && matchesPaid;
+      const matchesNumber = passesFilter('invoiceNumber', inv.number || 'Brouillon');
+      const matchesPeriod = passesFilter('period', `${inv.period_from} → ${inv.period_to}`);
+      const matchesIssueDate = passesFilter('issueDate', inv.issue_date || '__empty__');
+      const matchesHt = passesFilter('ht', String(inv.total_ht_cents));
+      const matchesTtc = passesFilter('ttc', String(inv.total_ttc_cents));
+      const matchesPaymentDate = passesFilter('paymentDate', inv.payment_date || '__empty__');
+      return matchesFrom && matchesTo && matchesMatter && matchesClient && matchesStatus && matchesPaid && matchesNumber && matchesPeriod && matchesIssueDate && matchesHt && matchesTtc && matchesPaymentDate;
     });
   }, [invoices, filterDateFrom, filterDateTo, filters, matters]);
 
@@ -694,7 +742,14 @@ export default function Invoices() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>N° Facture</TableHead>
+                <TableHead>
+                  <ColumnHeaderFilter
+                    title="N° Facture"
+                    options={invoiceNumberFilterOptions}
+                    selectedValues={filters.invoiceNumber}
+                    onFilterChange={(v) => setFilter('invoiceNumber', v)}
+                  />
+                </TableHead>
                 <TableHead>
                   <ColumnHeaderFilter
                     title="Dossier"
@@ -711,10 +766,40 @@ export default function Invoices() {
                     onFilterChange={(v) => setFilter('client', v)}
                   />
                 </TableHead>
-                <TableHead>Période</TableHead>
-                <TableHead>Date d'émission</TableHead>
-                <TableHead className="text-right">HT</TableHead>
-                <TableHead className="text-right">TTC</TableHead>
+                <TableHead>
+                  <ColumnHeaderFilter
+                    title="Période"
+                    options={periodFilterOptions}
+                    selectedValues={filters.period}
+                    onFilterChange={(v) => setFilter('period', v)}
+                  />
+                </TableHead>
+                <TableHead>
+                  <ColumnHeaderFilter
+                    title="Date d'émission"
+                    options={issueDateFilterOptions}
+                    selectedValues={filters.issueDate}
+                    onFilterChange={(v) => setFilter('issueDate', v)}
+                  />
+                </TableHead>
+                <TableHead className="text-right">
+                  <ColumnHeaderFilter
+                    title="HT"
+                    options={htFilterOptions}
+                    selectedValues={filters.ht}
+                    onFilterChange={(v) => setFilter('ht', v)}
+                    align="end"
+                  />
+                </TableHead>
+                <TableHead className="text-right">
+                  <ColumnHeaderFilter
+                    title="TTC"
+                    options={ttcFilterOptions}
+                    selectedValues={filters.ttc}
+                    onFilterChange={(v) => setFilter('ttc', v)}
+                    align="end"
+                  />
+                </TableHead>
                 <TableHead className="text-center">
                   <ColumnHeaderFilter
                     title="Statut"
@@ -733,8 +818,14 @@ export default function Invoices() {
                     align="center"
                   />
                 </TableHead>
-                <TableHead>Date règlement</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>
+                  <ColumnHeaderFilter
+                    title="Date règlement"
+                    options={paymentDateFilterOptions}
+                    selectedValues={filters.paymentDate}
+                    onFilterChange={(v) => setFilter('paymentDate', v)}
+                  />
+                </TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
