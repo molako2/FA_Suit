@@ -1,95 +1,96 @@
 
 
-# Ajout de filtres entonnoir sur toutes les colonnes
+# Correction des filtres entonnoir sur les champs numeriques
 
-## Etat actuel
+## Diagnostic
 
-Actuellement, seules certaines colonnes ont le filtre entonnoir :
+Apres analyse approfondie du code et de la base de donnees :
 
-| Module | Colonnes AVEC filtre | Colonnes SANS filtre |
-|---|---|---|
-| Clients | Statut | Code, Nom, Adresse, Email facturation, ICE, Contact, Tel. contact |
-| Dossiers | Client, Nature intervention, Secteur activite, Facturation, Statut | Code, Libelle, TVA, Montant |
-| Factures | Dossier, Client, Statut, Payee | N facture, Periode, Date emission, HT, TTC, Date reglement |
+### Probleme 1 -- Type `numeric(5,2)` pour `vat_rate`
 
-## Modifications prevues
+La colonne `vat_rate` dans la table `matters` est de type `numeric(5,2)` (decimal). Selon la configuration PostgREST, cette valeur peut etre retournee comme `20` (nombre) ou potentiellement avec une precision decimale. La conversion `String(m.vat_rate)` pourrait produire `"20"` ou `"20.00"`, alors que l'option du filtre utilise la valeur fixe `"20"`. Si le format ne correspond pas exactement, le filtre echoue silencieusement.
 
-### 1. `src/pages/Clients.tsx`
+### Probleme 2 -- Alignement visuel des filtres numeriques
 
-Ajouter 7 colonnes filtrees au `useColumnFilters` (actuellement seul `status` est declare).
+Les colonnes numeriques (HT, TTC, Montant) utilisent `text-right` sur le `TableHead`, mais le composant `ColumnHeaderFilter` utilise `flex items-center gap-1` sans `justify-end`. Le titre et l'icone entonnoir apparaissent a GAUCHE dans une colonne dont les donnees sont a DROITE, creant une incoherence visuelle qui peut faire croire que le filtre n'est pas present.
 
-Nouvelles colonnes avec filtre :
-- **Code** : valeurs uniques des codes clients
-- **Nom** : valeurs uniques des noms clients
-- **Adresse** : valeurs uniques (en excluant les vides)
-- **Email facturation** : valeurs uniques (en excluant les vides)
-- **Numero ICE** : valeurs uniques (en excluant les vides)
-- **Contact** : valeurs uniques des noms de contact (en excluant les vides)
-- **Tel. contact** : valeurs uniques des telephones (en excluant les vides)
+### Probleme 3 -- Valeur `0` traitee comme vide
 
-Pour chaque colonne, les options du filtre sont calculees dynamiquement via `useMemo` a partir des donnees `clients`. Le `filteredClients` applique tous les filtres en chaine avec `passesFilter`.
+Pour le filtre Montant dans Dossiers, la condition `m.rate_cents ? String(m.rate_cents) : '__empty__'` traite la valeur `0` comme vide (car `0` est falsy en JavaScript). Bien que peu probable en pratique, c'est un bug logique.
 
-### 2. `src/pages/Matters.tsx`
+## Solution
 
-Ajouter 4 colonnes filtrees (actuellement 5 colonnes sont declarees : client, interventionNature, clientSector, billingType, status).
+### 1. `src/components/ColumnHeaderFilter.tsx` -- Ajouter l'alignement flexible
 
-Nouvelles colonnes avec filtre :
-- **Code** : valeurs uniques des codes dossiers
-- **Libelle** : valeurs uniques des libelles
-- **TVA** : valeurs 0% / 20%
-- **Montant** : valeurs uniques des montants (taux horaire ou forfait selon le type)
-
-### 3. `src/pages/Invoices.tsx`
-
-Ajouter 6 colonnes filtrees (actuellement 4 colonnes declarees : matter, client, status, paid).
-
-Nouvelles colonnes avec filtre :
-- **N facture** : valeurs uniques des numeros de facture (brouillons inclus)
-- **Periode** : valeurs uniques des periodes formatees
-- **Date emission** : valeurs uniques des dates d'emission
-- **HT** : valeurs uniques des montants HT
-- **TTC** : valeurs uniques des montants TTC
-- **Date reglement** : valeurs uniques des dates de reglement
-
----
-
-## Details techniques
-
-### Pattern applique pour chaque nouvelle colonne
-
-1. Ajouter le nom de colonne dans le tableau passe a `useColumnFilters`
-2. Calculer les options via `useMemo` a partir des donnees source
-3. Remplacer le `<TableHead>Titre</TableHead>` par :
+Modifier le conteneur flex pour supporter l'alignement en fonction de la prop `align` :
 
 ```text
-<TableHead>
-  <ColumnHeaderFilter
-    title="Titre"
-    options={titreFilterOptions}
-    selectedValues={filters.titre}
-    onFilterChange={(v) => setFilter('titre', v)}
-  />
-</TableHead>
+// Avant
+<div className={cn('flex items-center gap-1', className)}>
+
+// Apres
+<div className={cn(
+  'flex items-center gap-1',
+  align === 'end' && 'justify-end',
+  align === 'center' && 'justify-center',
+  className
+)}>
 ```
 
-4. Ajouter le `passesFilter('titre', valeur)` dans le `filteredXxx` du `useMemo`
+Cela garantit que le titre + icone s'alignent a droite ou au centre selon le contexte de la colonne.
 
-### Gestion des valeurs vides
+### 2. `src/pages/Matters.tsx` -- Securiser la conversion TVA et Montant
 
-Pour les colonnes pouvant contenir des valeurs nulles/vides (adresse, email, contact, tel, ICE, date reglement, date emission), les options incluent une entree speciale "(Vide)" avec la valeur `"__empty__"`. Le filtre teste `passesFilter('colonne', valeur || '__empty__')` pour matcher les lignes sans valeur.
+**TVA** : Remplacer le filtre statique par un calcul dynamique avec conversion robuste :
 
-### Calcul des options pour les montants
+```text
+// Avant (options statiques)
+const vatFilterOptions: FilterOption[] = [
+  { label: '0%', value: '0' },
+  { label: '20%', value: '20' },
+];
+const matchesVat = passesFilter('vat', String(m.vat_rate));
 
-Les montants (HT, TTC, Montant) sont affiches en format lisible (ex: "600,00 MAD") comme label, et stockent la valeur en centimes comme `value` pour le matching.
+// Apres (conversion robuste via Math.round)
+const vatFilterOptions: FilterOption[] = useMemo(() => {
+  const uniqueVats = [...new Set(matters.map(m => String(Math.round(Number(m.vat_rate)))))];
+  return uniqueVats.sort().map(v => ({ label: `${v}%`, value: v }));
+}, [matters]);
+const matchesVat = passesFilter('vat', String(Math.round(Number(m.vat_rate))));
+```
 
----
+`Math.round(Number(...))` garantit que `20.00` -> `20` -> `"20"` dans tous les cas.
 
-## Resume des fichiers
+**Montant** : Utiliser `!= null` au lieu de la condition truthiness pour eviter de traiter `0` comme vide :
+
+```text
+// Avant (0 est traite comme vide)
+return m.rate_cents ? String(m.rate_cents) : '__empty__';
+
+// Apres (seul null/undefined est vide)
+return m.rate_cents != null ? String(m.rate_cents) : '__empty__';
+```
+
+### 3. `src/pages/Invoices.tsx` -- Securiser les conversions HT/TTC
+
+Appliquer la meme protection pour les montants des factures, en utilisant `String(Number(...))` pour garantir la coherence :
+
+```text
+// Options
+return [...new Set(invoices.map(i => String(Number(i.total_ht_cents))))].sort(...)
+
+// Filtre
+const matchesHt = passesFilter('ht', String(Number(inv.total_ht_cents)));
+const matchesTtc = passesFilter('ttc', String(Number(inv.total_ttc_cents)));
+```
+
+## Resume des modifications
 
 | Fichier | Action |
 |---|---|
-| `src/pages/Clients.tsx` | Ajouter filtres sur Code, Nom, Adresse, Email, ICE, Contact, Tel |
-| `src/pages/Matters.tsx` | Ajouter filtres sur Code, Libelle, TVA, Montant |
-| `src/pages/Invoices.tsx` | Ajouter filtres sur N facture, Periode, Date emission, HT, TTC, Date reglement |
+| `src/components/ColumnHeaderFilter.tsx` | Ajouter `justify-end` / `justify-center` au conteneur flex selon `align` |
+| `src/pages/Matters.tsx` | Conversion robuste `Math.round(Number(...))` pour TVA, `!= null` pour Montant |
+| `src/pages/Invoices.tsx` | Conversion robuste `String(Number(...))` pour HT et TTC |
 
-Aucune modification de la base de donnees ni du composant `ColumnHeaderFilter` necessaire.
+Aucune modification de base de donnees necessaire.
+
