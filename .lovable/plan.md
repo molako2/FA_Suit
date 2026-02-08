@@ -1,105 +1,59 @@
 
+# Correction des bugs Messagerie
 
-# Ajout de la fonctionnalite de reponse aux messages (discussion)
+## Bug 1 : "Inconnu" au lieu du nom de l'expediteur
 
-## Objectif
-Permettre au destinataire d'un message de repondre directement, creant ainsi un fil de discussion. Chaque reponse respecte les memes regles : 256 caracteres max, emojis, et les messages sont affiches de maniere groupee (thread).
+**Cause** : La politique RLS sur la table `profiles` ne permet aux collaborateurs de voir que leur propre profil (`id = auth.uid() OR is_owner_or_assistant()`). Quand un collaborateur charge les messages, la requete pour recuperer le nom de l'expediteur echoue silencieusement pour les profils des autres utilisateurs.
 
----
+**Correction** : Modifier la politique RLS SELECT sur `profiles` pour permettre a tous les utilisateurs authentifies de lire les profils. C'est une application interne de cabinet -- tous les utilisateurs doivent pouvoir voir les noms de leurs collegues.
 
-## 1. Base de donnees -- ajout de la colonne `reply_to`
-
-Migration SQL pour ajouter une colonne `reply_to` a la table `messages` :
+### Migration SQL
 
 ```text
-ALTER TABLE public.messages 
-  ADD COLUMN reply_to uuid REFERENCES public.messages(id) ON DELETE CASCADE;
+DROP POLICY "Users can view own profile or managers can view all" ON public.profiles;
 
-CREATE INDEX idx_messages_reply_to ON public.messages(reply_to);
-```
-
-- `reply_to = NULL` : message de premier niveau (comme aujourd'hui)
-- `reply_to = uuid` : reponse a un message existant
-- `ON DELETE CASCADE` : si le message original est supprime, toutes les reponses sont supprimees aussi
-
-Pas de modification des politiques RLS existantes : les reponses sont des messages normaux, les memes regles s'appliquent (SELECT, INSERT, UPDATE, DELETE).
-
----
-
-## 2. Hook `src/hooks/useMessages.ts` -- modifications
-
-- **Interface `Message`** : ajouter `reply_to: string | null` et `replies?: Message[]`
-- **`useMessages()`** : apres la recuperation, grouper les messages en threads :
-  - Recuperer tous les messages (y compris reponses)
-  - Construire une structure arborescente : messages de premier niveau (`reply_to = null`) avec un tableau `replies` contenant leurs reponses, ordonnees chronologiquement (ascendant)
-  - La liste principale affiche uniquement les messages de premier niveau, tries par date descendante
-- **`useSendMessage()`** : accepter un parametre optionnel `replyTo: string | null` pour l'inserer dans la colonne `reply_to`
-  - Pour une reponse, le `recipient_id` est automatiquement defini comme le `sender_id` du message original
-
----
-
-## 3. Page `src/pages/Messages.tsx` -- ajout du bouton "Repondre" et affichage des threads
-
-### Bouton "Repondre"
-- Ajouter un bouton `Reply` (icone `Reply` de lucide-react) sur chaque message recu
-- Le bouton est visible si l'utilisateur est le destinataire du message (direct ou broadcast) et n'est PAS l'expediteur
-- Au clic, un champ de reponse inline s'affiche sous le message :
-
-```text
-+------------------------------------------+
-| [Avatar] Expediteur       Date           |
-| Contenu du message...                    |
-| [Repondre] [Supprimer]                   |
-+------------------------------------------+
-|   +--------------------------------------+
-|   | [Emoji] [Textarea 256 chars]  42/256 |
-|   | [Annuler]              [Envoyer]     |
-|   +--------------------------------------+
-+------------------------------------------+
-```
-
-### Affichage des reponses (thread)
-- Sous chaque message de premier niveau, afficher les reponses avec une indentation (padding-left) et une bordure laterale pour marquer le fil de discussion
-- Chaque reponse affiche l'avatar, le nom de l'expediteur, la date et le contenu
-- Les reponses sont ordonnees chronologiquement (du plus ancien au plus recent)
-- Le bouton "Repondre" est aussi disponible sur les reponses pour permettre une discussion continue (la reponse reste liee au message parent de premier niveau)
-
-### Etat local
-- `replyingTo: string | null` : ID du message auquel on repond (controle l'affichage du champ de reponse inline)
-- `replyContent: string` : contenu de la reponse en cours
-- `replyTextareaRef` : ref pour le textarea de reponse (insertion d'emojis a la position du curseur)
-
----
-
-## 4. Traductions -- `fr.json` et `en.json`
-
-Nouvelles cles :
-
-```text
-FR:
-  messages.reply = "Repondre"
-  messages.replyPlaceholder = "Votre reponse..."
-  messages.replySent = "Reponse envoyee"
-  messages.replies = "{{count}} reponse(s)"
-
-EN:
-  messages.reply = "Reply"
-  messages.replyPlaceholder = "Your reply..."
-  messages.replySent = "Reply sent"
-  messages.replies = "{{count}} reply(ies)"
+CREATE POLICY "Authenticated users can view profiles"
+  ON public.profiles FOR SELECT
+  USING (auth.uid() IS NOT NULL);
 ```
 
 ---
 
-## Resume des fichiers
+## Bug 2 : Le badge rouge reste a 1 meme apres lecture
+
+**Cause** : L'effet `useEffect` qui marque les messages comme lus dans `Messages.tsx` (lignes 70-86) ne parcourt que les messages de premier niveau (`messages`). Les reponses sont imbriquees dans `msg.replies` et ne sont jamais parcourues. Le compteur `useUnreadMessagesCount` les compte pourtant correctement (`recipient_id = userId AND read = false`), d'ou le badge qui reste bloque.
+
+**Correction** : Dans `src/pages/Messages.tsx`, modifier l'effet de marquage pour aussi parcourir les reponses de chaque message.
+
+### Modification dans `src/pages/Messages.tsx`
+
+Dans l'effet "Mark messages as read on view" (lignes 70-86), ajouter une boucle qui parcourt aussi `msg.replies` pour chaque message de premier niveau :
+
+```text
+-- Avant (ne traite que les messages de premier niveau) --
+
+const unreadDirect = messages.filter(
+  m => m.recipient_id === user.id && !m.read && m.sender_id !== user.id
+);
+
+-- Apres (traite aussi les reponses) --
+
+// Collecter TOUS les messages (top-level + replies)
+const allMessages = messages.flatMap(m => [m, ...(m.replies || [])]);
+
+const unreadDirect = allMessages.filter(
+  m => m.recipient_id === user.id && !m.read && m.sender_id !== user.id
+);
+const unreadBroadcasts = allMessages.filter(
+  m => m.recipient_id === null && m.sender_id !== user.id && !readBroadcastIds.has(m.id)
+);
+```
+
+---
+
+## Resume des modifications
 
 | Fichier | Action |
 |---|---|
-| Migration SQL | Ajouter colonne `reply_to` + index |
-| `src/hooks/useMessages.ts` | Modifier (interface Message + groupement threads + param replyTo dans send) |
-| `src/pages/Messages.tsx` | Modifier (bouton repondre inline + affichage threads indentes + emoji + 256 chars) |
-| `src/i18n/locales/fr.json` | Modifier (ajout traductions reply) |
-| `src/i18n/locales/en.json` | Modifier (ajout traductions reply) |
-
-### Aucune modification RLS necessaire
-Les reponses sont des messages normaux inseres dans la meme table `messages` avec les memes politiques RLS.
+| Migration SQL | Modifier la politique RLS SELECT sur `profiles` pour autoriser tous les utilisateurs authentifies |
+| `src/pages/Messages.tsx` | Corriger l'effet de marquage lu pour inclure les reponses imbriquees |
