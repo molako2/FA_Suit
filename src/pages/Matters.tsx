@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Progress } from '@/components/ui/progress';
 import {
   useMatters,
   useCreateMatter,
@@ -38,6 +39,9 @@ import {
   type Matter,
 } from '@/hooks/useMatters';
 import { useClients } from '@/hooks/useClients';
+import { useTimesheetEntries, formatMinutesToHours } from '@/hooks/useTimesheet';
+import { useProfiles } from '@/hooks/useProfiles';
+import { useCabinetSettings } from '@/hooks/useCabinetSettings';
 import { Plus, Pencil, FolderOpen, Search, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { exportMattersCSV } from '@/lib/exports';
@@ -91,10 +95,35 @@ export default function Matters() {
   // Supabase hooks
   const { data: matters = [], isLoading: mattersLoading } = useMatters();
   const { data: clients = [], isLoading: clientsLoading } = useClients();
+  const { data: timesheetEntries = [] } = useTimesheetEntries();
+  const { data: profiles = [] } = useProfiles();
+  const { data: cabinetSettings } = useCabinetSettings();
   const createMatter = useCreateMatter();
   const updateMatter = useUpdateMatter();
 
   const activeClients = clients.filter(c => c.active);
+  const defaultRateCents = cabinetSettings?.rate_cabinet_cents || 15000;
+
+  // Aggregate timesheet stats per matter
+  const matterStats = useMemo(() => {
+    const stats = new Map<string, { totalMinutes: number; billableMinutes: number; consumedCents: number }>();
+    timesheetEntries.forEach(entry => {
+      const matter = matters.find(m => m.id === entry.matter_id);
+      const profile = profiles.find(p => p.id === entry.user_id);
+      const rateCents = profile?.rate_cents || matter?.rate_cents || defaultRateCents;
+
+      if (!stats.has(entry.matter_id)) {
+        stats.set(entry.matter_id, { totalMinutes: 0, billableMinutes: 0, consumedCents: 0 });
+      }
+      const s = stats.get(entry.matter_id)!;
+      s.totalMinutes += entry.minutes_rounded;
+      if (entry.billable) {
+        s.billableMinutes += entry.minutes_rounded;
+        s.consumedCents += Math.round((entry.minutes_rounded * rateCents) / 60);
+      }
+    });
+    return stats;
+  }, [timesheetEntries, matters, profiles, defaultRateCents]);
 
   const { filters, setFilter, passesFilter } = useColumnFilters([
     'code', 'label', 'client', 'interventionNature', 'clientSector', 'billingType', 'amount', 'vat', 'status'
@@ -617,6 +646,8 @@ export default function Matters() {
                     align="end"
                   />
                 </TableHead>
+                <TableHead className="text-right">Heures saisies</TableHead>
+                <TableHead className="text-right">CA Consommé</TableHead>
                 <TableHead className="text-center">
                   <ColumnHeaderFilter
                     title="TVA"
@@ -641,7 +672,7 @@ export default function Matters() {
             <TableBody>
               {filteredMatters.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canEdit ? 10 : 9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={canEdit ? 12 : 11} className="text-center py-8 text-muted-foreground">
                     <FolderOpen className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     <p>Aucun dossier trouvé</p>
                     {canEdit && matters.length === 0 && (
@@ -680,6 +711,42 @@ export default function Matters() {
                       {matter.billing_type === 'flat_fee' 
                         ? (matter.flat_fee_cents ? formatCents(matter.flat_fee_cents) : '—')
                         : (matter.rate_cents ? formatCents(matter.rate_cents) : '—')}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {matter.billing_type === 'time_based' 
+                        ? (() => {
+                            const stats = matterStats.get(matter.id);
+                            return stats ? formatMinutesToHours(stats.totalMinutes) : '0 min';
+                          })()
+                        : '—'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {matter.billing_type === 'time_based'
+                        ? (() => {
+                            const stats = matterStats.get(matter.id);
+                            const consumed = stats?.consumedCents || 0;
+                            const max = matter.max_amount_ht_cents;
+                            const percentage = max ? Math.min((consumed / max) * 100, 100) : 0;
+                            const overBudget = max ? consumed > max : false;
+                            const progressColor = !max ? '' 
+                              : overBudget ? '[&>div]:bg-destructive' 
+                              : percentage >= 75 ? '[&>div]:bg-orange-500' 
+                              : '[&>div]:bg-emerald-500';
+                            return (
+                              <div className="space-y-1">
+                                <span>{formatCents(consumed)}</span>
+                                {max != null && (
+                                  <div className="flex items-center gap-2">
+                                    <Progress value={overBudget ? 100 : percentage} className={`h-2 w-20 ${progressColor}`} />
+                                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                      / {formatCents(max)}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()
+                        : '—'}
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge variant="secondary">{matter.vat_rate}%</Badge>
