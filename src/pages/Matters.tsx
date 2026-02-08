@@ -63,6 +63,7 @@ export default function Matters() {
   const [formFlatFeeCents, setFormFlatFeeCents] = useState('');
   const [formInterventionNature, setFormInterventionNature] = useState('');
   const [formClientSector, setFormClientSector] = useState('');
+  const [formMaxAmountHt, setFormMaxAmountHt] = useState('');
 
   // Dropdown options
   const interventionNatureOptions = [
@@ -185,6 +186,7 @@ export default function Matters() {
     setFormFlatFeeCents('');
     setFormInterventionNature('');
     setFormClientSector('');
+    setFormMaxAmountHt('');
     setEditingMatter(null);
   };
 
@@ -199,6 +201,7 @@ export default function Matters() {
       setFormFlatFeeCents(matter.flat_fee_cents ? String(matter.flat_fee_cents / 100) : '');
       setFormInterventionNature(matter.intervention_nature || '');
       setFormClientSector(matter.client_sector || '');
+      setFormMaxAmountHt(matter.max_amount_ht_cents ? String(matter.max_amount_ht_cents / 100) : '');
     } else {
       resetForm();
     }
@@ -223,6 +226,9 @@ export default function Matters() {
     const flatFeeCents = formBillingType === 'flat_fee' && formFlatFeeCents 
       ? Math.round(parseFloat(formFlatFeeCents) * 100) 
       : null;
+    const maxAmountHtCents = formBillingType === 'time_based' && formMaxAmountHt
+      ? Math.round(parseFloat(formMaxAmountHt) * 100)
+      : null;
 
     try {
       if (editingMatter) {
@@ -233,6 +239,7 @@ export default function Matters() {
           vat_rate: parseInt(formVatRate),
           billing_type: formBillingType,
           flat_fee_cents: flatFeeCents,
+          max_amount_ht_cents: maxAmountHtCents,
           intervention_nature: formInterventionNature || null,
           client_sector: formClientSector || null,
         });
@@ -252,6 +259,7 @@ export default function Matters() {
           vat_rate: parseInt(formVatRate),
           billing_type: formBillingType,
           flat_fee_cents: flatFeeCents,
+          max_amount_ht_cents: maxAmountHtCents,
           intervention_nature: formInterventionNature || null,
           client_sector: formClientSector || null,
         });
@@ -482,6 +490,24 @@ export default function Matters() {
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+                )}
+
+                {/* Max amount ceiling - only for time_based */}
+                {formBillingType === 'time_based' && (
+                  <div className="grid gap-2">
+                    <Label>Montant maximum HT (MAD)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="Optionnel - laisser vide si pas de plafond"
+                      value={formMaxAmountHt}
+                      onChange={(e) => setFormMaxAmountHt(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Si défini, une alerte sera affichée lors de la facturation si ce montant est dépassé.
+                    </p>
                   </div>
                 )}
 

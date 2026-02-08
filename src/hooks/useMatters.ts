@@ -11,6 +11,7 @@ export interface Matter {
   vat_rate: number;
   billing_type: 'time_based' | 'flat_fee';
   flat_fee_cents: number | null;
+  max_amount_ht_cents: number | null;
   intervention_nature: string | null;
   client_sector: string | null;
   created_at: string;
