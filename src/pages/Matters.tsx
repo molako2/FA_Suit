@@ -135,15 +135,15 @@ export default function Matters() {
     return [...new Set(matters.map(m => m.label))].sort((a, b) => a.localeCompare(b)).map(v => ({ label: v, value: v }));
   }, [matters]);
 
-  const vatFilterOptions: FilterOption[] = [
-    { label: '0%', value: '0' },
-    { label: '20%', value: '20' },
-  ];
+  const vatFilterOptions: FilterOption[] = useMemo(() => {
+    const uniqueVats = [...new Set(matters.map(m => String(Math.round(Number(m.vat_rate)))))];
+    return uniqueVats.sort().map(v => ({ label: `${v}%`, value: v }));
+  }, [matters]);
 
   const amountFilterOptions: FilterOption[] = useMemo(() => {
     const vals = [...new Set(matters.map(m => {
-      if (m.billing_type === 'flat_fee') return m.flat_fee_cents ? String(m.flat_fee_cents) : '__empty__';
-      return m.rate_cents ? String(m.rate_cents) : '__empty__';
+      if (m.billing_type === 'flat_fee') return m.flat_fee_cents != null ? String(m.flat_fee_cents) : '__empty__';
+      return m.rate_cents != null ? String(m.rate_cents) : '__empty__';
     }))];
     return vals.sort((a, b) => {
       if (a === '__empty__') return 1;
@@ -167,10 +167,10 @@ export default function Matters() {
       const matchesSector = passesFilter('clientSector', m.client_sector || '');
       const matchesBilling = passesFilter('billingType', m.billing_type || 'time_based');
       const amountVal = m.billing_type === 'flat_fee'
-        ? (m.flat_fee_cents ? String(m.flat_fee_cents) : '__empty__')
-        : (m.rate_cents ? String(m.rate_cents) : '__empty__');
+        ? (m.flat_fee_cents != null ? String(m.flat_fee_cents) : '__empty__')
+        : (m.rate_cents != null ? String(m.rate_cents) : '__empty__');
       const matchesAmount = passesFilter('amount', amountVal);
-      const matchesVat = passesFilter('vat', String(m.vat_rate));
+      const matchesVat = passesFilter('vat', String(Math.round(Number(m.vat_rate))));
       const matchesStatus = passesFilter('status', m.status);
       return matchesSearch && matchesCode && matchesLabel && matchesClient && matchesNature && matchesSector && matchesBilling && matchesAmount && matchesVat && matchesStatus;
     });

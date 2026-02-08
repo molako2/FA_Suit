@@ -132,14 +132,14 @@ export default function Invoices() {
   }, [invoices]);
 
   const htFilterOptions: FilterOption[] = useMemo(() => {
-    return [...new Set(invoices.map(i => String(i.total_ht_cents)))].sort((a, b) => Number(a) - Number(b)).map(v => ({
+    return [...new Set(invoices.map(i => String(Number(i.total_ht_cents))))].sort((a, b) => Number(a) - Number(b)).map(v => ({
       label: formatCentsText(Number(v)),
       value: v,
     }));
   }, [invoices]);
 
   const ttcFilterOptions: FilterOption[] = useMemo(() => {
-    return [...new Set(invoices.map(i => String(i.total_ttc_cents)))].sort((a, b) => Number(a) - Number(b)).map(v => ({
+    return [...new Set(invoices.map(i => String(Number(i.total_ttc_cents))))].sort((a, b) => Number(a) - Number(b)).map(v => ({
       label: formatCentsText(Number(v)),
       value: v,
     }));
@@ -168,8 +168,8 @@ export default function Invoices() {
       const matchesNumber = passesFilter('invoiceNumber', inv.number || 'Brouillon');
       const matchesPeriod = passesFilter('period', `${inv.period_from} → ${inv.period_to}`);
       const matchesIssueDate = passesFilter('issueDate', inv.issue_date || '__empty__');
-      const matchesHt = passesFilter('ht', String(inv.total_ht_cents));
-      const matchesTtc = passesFilter('ttc', String(inv.total_ttc_cents));
+      const matchesHt = passesFilter('ht', String(Number(inv.total_ht_cents)));
+      const matchesTtc = passesFilter('ttc', String(Number(inv.total_ttc_cents)));
       const matchesPaymentDate = passesFilter('paymentDate', inv.payment_date || '__empty__');
       return matchesFrom && matchesTo && matchesMatter && matchesClient && matchesStatus && matchesPaid && matchesNumber && matchesPeriod && matchesIssueDate && matchesHt && matchesTtc && matchesPaymentDate;
     });
