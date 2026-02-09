@@ -10,7 +10,7 @@ import { useMatters } from '@/hooks/useMatters';
 import { useClients } from '@/hooks/useClients';
 import { useInvoices } from '@/hooks/useInvoices';
 import { useCabinetSettings } from '@/hooks/useCabinetSettings';
-import { Clock, Users, FolderOpen, TrendingUp, Loader2, Banknote, Briefcase } from 'lucide-react';
+import { Clock, TrendingUp, Loader2, Banknote, Briefcase } from 'lucide-react';
 import { TimesheetExport } from '@/components/dashboard/TimesheetExport';
 import { KPIAnalytics } from '@/components/dashboard/KPIAnalytics';
 import { KPIAnalyticsFlatFee } from '@/components/dashboard/KPIAnalyticsFlatFee';
@@ -161,7 +161,7 @@ export default function Dashboard() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{t('dashboard.wipHoursCard')}</CardTitle>
@@ -208,27 +208,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('dashboard.activeCollaborators')}</CardTitle>
-            <Users className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpiByUser.length}</div>
-            <p className="text-xs text-muted-foreground">{t('dashboard.loggedTime')}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('dashboard.activeMatters')}</CardTitle>
-            <FolderOpen className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpiByMatter.length}</div>
-            <p className="text-xs text-muted-foreground">{t('dashboard.withBillableTime')}</p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* WIP Aging Analysis - unified KPI block */}
