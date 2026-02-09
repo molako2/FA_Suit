@@ -2,30 +2,20 @@ import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { useTimesheetEntries, formatMinutesToHours } from '@/hooks/useTimesheet';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useMatters } from '@/hooks/useMatters';
 import { useClients } from '@/hooks/useClients';
 import { useInvoices } from '@/hooks/useInvoices';
 import { useCabinetSettings } from '@/hooks/useCabinetSettings';
-import { Clock, Users, FolderOpen, TrendingUp, Download, Loader2, Banknote, Briefcase } from 'lucide-react';
-import { toast } from 'sonner';
+import { Clock, Users, FolderOpen, TrendingUp, Loader2, Banknote, Briefcase } from 'lucide-react';
 import { TimesheetExport } from '@/components/dashboard/TimesheetExport';
 import { KPIAnalytics } from '@/components/dashboard/KPIAnalytics';
 import { KPIAnalyticsFlatFee } from '@/components/dashboard/KPIAnalyticsFlatFee';
 import { UnpaidInvoicesKPI } from '@/components/dashboard/UnpaidInvoicesKPI';
+import { WIPAgingAnalysis } from '@/components/dashboard/WIPAgingAnalysis';
 import type { KPIByUser, KPIByMatter } from '@/types';
 
 // Format cents to MAD
@@ -33,30 +23,6 @@ function formatCents(cents: number): string {
   return (cents / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' MAD';
 }
 
-// Export functions
-function downloadCSV(content: string, filename: string) {
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  link.click();
-}
-
-function exportKPIByUserCSV(data: KPIByUser[], from: string, to: string, t: (key: string) => string) {
-  const header = `${t('dashboard.collaborator')},${t('common.email')},${t('dashboard.minutes')},${t('dashboard.hours')}\n`;
-  const rows = data.map(r => 
-    `"${r.userName}","${r.userEmail}",${r.billableMinutes},${(r.billableMinutes / 60).toFixed(2)}`
-  ).join('\n');
-  downloadCSV(header + rows, `kpi_collaborateurs_${from}_${to}.csv`);
-}
-
-function exportKPIByMatterCSV(data: KPIByMatter[], from: string, to: string, t: (key: string) => string) {
-  const header = `${t('dashboard.code')},${t('dashboard.matter')},${t('dashboard.client')},${t('dashboard.minutes')},${t('dashboard.hours')}\n`;
-  const rows = data.map(r => 
-    `"${r.matterCode}","${r.matterLabel}","${r.clientCode}",${r.billableMinutes},${(r.billableMinutes / 60).toFixed(2)}`
-  ).join('\n');
-  downloadCSV(header + rows, `kpi_dossiers_${from}_${to}.csv`);
-}
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -173,15 +139,6 @@ export default function Dashboard() {
     );
   }
 
-  const handleExportKPIByUser = () => {
-    exportKPIByUserCSV(kpiByUser, periodFrom, periodTo, t);
-    toast.success(t('dashboard.exportCollaboratorDownloaded'));
-  };
-
-  const handleExportKPIByMatter = () => {
-    exportKPIByMatterCSV(kpiByMatter, periodFrom, periodTo, t);
-    toast.success(t('dashboard.exportMatterDownloaded'));
-  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -274,101 +231,15 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* KPI by User */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>{t('dashboard.byCollaborator')}</CardTitle>
-            <CardDescription>{t('dashboard.billableByCollaboratorPeriod')}</CardDescription>
-          </div>
-          <Button variant="outline" size="sm" onClick={handleExportKPIByUser}>
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('dashboard.collaborator')}</TableHead>
-                <TableHead>{t('common.email')}</TableHead>
-                <TableHead className="text-right">{t('dashboard.minutes')}</TableHead>
-                <TableHead className="text-right">{t('dashboard.hours')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {kpiByUser.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground">
-                    {t('common.noData')}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                kpiByUser.map((row) => (
-                  <TableRow key={row.userId}>
-                    <TableCell className="font-medium">{row.userName}</TableCell>
-                    <TableCell className="text-muted-foreground">{row.userEmail}</TableCell>
-                    <TableCell className="text-right">{row.billableMinutes}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatMinutesToHours(row.billableMinutes)}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* KPI by Matter */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>{t('dashboard.byMatter')}</CardTitle>
-            <CardDescription>{t('dashboard.billableByMatterPeriod')}</CardDescription>
-          </div>
-          <Button variant="outline" size="sm" onClick={handleExportKPIByMatter}>
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('dashboard.code')}</TableHead>
-                <TableHead>{t('dashboard.matter')}</TableHead>
-                <TableHead>{t('dashboard.client')}</TableHead>
-                <TableHead className="text-right">{t('dashboard.minutes')}</TableHead>
-                <TableHead className="text-right">{t('dashboard.hours')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {kpiByMatter.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
-                    {t('common.noData')}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                kpiByMatter.map((row) => (
-                  <TableRow key={row.matterId}>
-                    <TableCell>
-                      <Badge variant="outline">{row.matterCode}</Badge>
-                    </TableCell>
-                    <TableCell className="font-medium">{row.matterLabel}</TableCell>
-                    <TableCell className="text-muted-foreground">{row.clientCode}</TableCell>
-                    <TableCell className="text-right">{row.billableMinutes}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatMinutesToHours(row.billableMinutes)}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* WIP Aging Analysis - unified KPI block */}
+      <WIPAgingAnalysis
+        entries={entries}
+        profiles={profiles}
+        matters={matters}
+        clients={clients}
+        periodFrom={periodFrom}
+        periodTo={periodTo}
+      />
 
       <KPIAnalytics entries={entries} profiles={profiles} matters={matters} clients={clients} invoices={invoices} defaultRateCents={settings?.rate_cabinet_cents || 15000} />
       <KPIAnalyticsFlatFee matters={matters} clients={clients} invoices={invoices} />
