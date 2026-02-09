@@ -256,7 +256,6 @@ export function WIPAgingAnalysis({ entries, profiles, matters, clients, periodFr
                     <TableHead>{t('dashboard.matter')}</TableHead>
                   </>
                 )}
-                <TableHead className="text-right">{t('dashboard.minutes')}</TableHead>
                 <TableHead className="text-right">{t('dashboard.hours')}</TableHead>
                 <TableHead className="text-right">{t('dashboard.under30Days')}</TableHead>
                 <TableHead className="text-right">{t('dashboard.d30to60Days')}</TableHead>
@@ -273,7 +272,7 @@ export function WIPAgingAnalysis({ entries, profiles, matters, clients, periodFr
                       (groupByCollaborator ? 2 : 0) +
                       (groupByClient ? 2 : 0) +
                       (groupByMatter ? 2 : 0) +
-                      7
+                      6
                     }
                     className="text-center text-muted-foreground"
                   >
@@ -302,7 +301,6 @@ export function WIPAgingAnalysis({ entries, profiles, matters, clients, periodFr
                           <TableCell className="font-medium">{row.matterLabel}</TableCell>
                         </>
                       )}
-                      <TableCell className="text-right">{row.billableMinutes}</TableCell>
                       <TableCell className="text-right font-medium">
                         {formatMinutesToHours(row.billableMinutes)}
                       </TableCell>
@@ -337,7 +335,6 @@ export function WIPAgingAnalysis({ entries, profiles, matters, clients, periodFr
                         <TableCell />
                       </>
                     )}
-                    <TableCell className="text-right">{totals.totalMinutes}</TableCell>
                     <TableCell className="text-right">{formatMinutesToHours(totals.totalMinutes)}</TableCell>
                     <TableCell className="text-right">{fmtAging(totals.totalAging.under30)}</TableCell>
                     <TableCell className="text-right">{fmtAging(totals.totalAging.d30to60)}</TableCell>
