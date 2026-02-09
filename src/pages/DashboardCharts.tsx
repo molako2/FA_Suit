@@ -192,7 +192,7 @@ export default function DashboardCharts() {
   // Chart configs
   const collabConfig: ChartConfig = {
     billable: { label: t('charts.billable'), color: 'hsl(var(--primary))' },
-    nonBillable: { label: t('charts.nonBillable'), color: 'hsl(0, 65%, 30%)' },
+    nonBillable: { label: t('charts.nonBillable'), color: 'hsl(0, 70%, 60%)' },
   };
 
   const top10Config: ChartConfig = {
@@ -265,7 +265,7 @@ export default function DashboardCharts() {
               <p className="text-sm text-muted-foreground text-center py-8">{t('common.noData')}</p>
             ) : (
               <ChartContainer config={collabConfig} className="h-[350px] w-full">
-                <BarChart data={hoursByCollab} layout="vertical" barSize={12} margin={{ left: 20, right: 20 }}>
+                <BarChart data={hoursByCollab} layout="vertical" barSize={18} margin={{ left: 20, right: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                   <XAxis type="number" />
                   <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12 }} />
@@ -290,7 +290,7 @@ export default function DashboardCharts() {
               <p className="text-sm text-muted-foreground text-center py-8">{t('common.noData')}</p>
             ) : (
               <ChartContainer config={top10Config} className="h-[350px] w-full">
-                <BarChart data={top10Clients} layout="vertical" barSize={12} margin={{ left: 20, right: 20 }}>
+                <BarChart data={top10Clients} layout="vertical" barSize={18} margin={{ left: 20, right: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                   <XAxis type="number" />
                   <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 11 }} />
@@ -317,7 +317,7 @@ export default function DashboardCharts() {
               <p className="text-sm text-muted-foreground text-center py-8">{t('common.noData')}</p>
             ) : (
               <ChartContainer config={top10Config} className="h-[350px] w-full">
-                <BarChart data={top10Matters} layout="vertical" barSize={12} margin={{ left: 20, right: 20 }}>
+                <BarChart data={top10Matters} layout="vertical" barSize={18} margin={{ left: 20, right: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                   <XAxis type="number" />
                   <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 11 }} />
