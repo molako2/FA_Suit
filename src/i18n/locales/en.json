@@ -153,7 +153,14 @@
     "showingFirstEntries": "Showing first 20 entries out of {{count}}",
     "exportIncludes": "Export includes: date, collaborator, client code, client name, matter code, matter label, minutes, hours, billable, description",
     "timesheetExportDownloaded": "Timesheet export downloaded",
-    "noEntriesToExport": "No entries to export for this selection"
+    "noEntriesToExport": "No entries to export for this selection",
+    "wipAging": "Unbilled billable hours",
+    "wipAgingDescription": "Aging balance of logged unbilled hours",
+    "under30Days": "< 30 D",
+    "d30to60Days": "30-60 D",
+    "d60to90Days": "60-90 D",
+    "d90to120Days": "90-120 D",
+    "over120Days": "> 120 D"
   },
   "timesheet": {
     "title": "My Timesheet",

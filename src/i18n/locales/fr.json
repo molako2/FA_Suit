@@ -153,7 +153,14 @@
     "showingFirstEntries": "Affichage des 20 premières entrées sur {{count}}",
     "exportIncludes": "L'export inclut: date, collaborateur, code client, nom client, code dossier, libellé dossier, minutes, heures, facturable, description",
     "timesheetExportDownloaded": "Export timesheet téléchargé",
-    "noEntriesToExport": "Aucune entrée à exporter pour cette sélection"
+    "noEntriesToExport": "Aucune entrée à exporter pour cette sélection",
+    "wipAging": "Heures facturables non facturées",
+    "wipAgingDescription": "Balance âgée des heures saisies et non facturées",
+    "under30Days": "< 30 J",
+    "d30to60Days": "30-60 J",
+    "d60to90Days": "60-90 J",
+    "d90to120Days": "90-120 J",
+    "over120Days": "> 120 J"
   },
   "timesheet": {
     "title": "Mes temps",
