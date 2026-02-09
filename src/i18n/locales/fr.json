@@ -179,7 +179,7 @@
     "exportIncludes": "L'export inclut: date, collaborateur, code client, nom client, code dossier, libellé dossier, minutes, heures, facturable, description",
     "timesheetExportDownloaded": "Export timesheet téléchargé",
     "noEntriesToExport": "Aucune entrée à exporter pour cette sélection",
-    "wipAging": "Heures facturables non facturées",
+    "wipAging": "Heures à facturer (WIP)",
     "wipAgingDescription": "Balance âgée des heures saisies et non facturées",
     "under30Days": "< 30 J",
     "d30to60Days": "30-60 J",
