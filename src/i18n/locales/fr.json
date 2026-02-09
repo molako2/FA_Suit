@@ -67,6 +67,7 @@
   },
   "nav": {
     "dashboard": "Tableau de bord",
+    "dashboardCharts": "Dashboard Graphique",
     "timesheet": "Temps",
     "expenses": "Frais",
     "clients": "Clients",
@@ -78,6 +79,30 @@
     "settings": "Paramètres",
     "todos": "To Do",
     "messages": "Messages"
+  },
+  "charts": {
+    "title": "Dashboard Graphique",
+    "subtitle": "Visualisation graphique des KPI du cabinet",
+    "hoursByCollaborator": "Heures saisies par collaborateur",
+    "hoursByCollaboratorDesc": "Heures facturables vs non facturables par collaborateur",
+    "top10Clients": "Top 10 Clients",
+    "top10ClientsDesc": "Clients avec le plus d'heures facturables (WIP)",
+    "top10Matters": "Top 10 Dossiers",
+    "top10MattersDesc": "Dossiers avec le plus d'heures facturables (WIP)",
+    "monthlyRevenue": "Évolution mensuelle du CA",
+    "monthlyRevenueDesc": "CA facturable, facturé et encaissé par mois",
+    "billingTypeDistribution": "Répartition par type de facturation",
+    "billingTypeDistributionDesc": "Heures sur dossiers au temps passé vs forfait",
+    "recoveryRate": "Taux de recouvrement",
+    "recoveryRateDesc": "Ratio CA encaissé / CA facturé par mois",
+    "billable": "Facturable",
+    "nonBillable": "Non facturable",
+    "wipRevenue": "CA Facturable",
+    "invoicedRevenue": "CA Facturé",
+    "collectedRevenue": "CA Encaissé",
+    "timeBased": "Temps passé",
+    "flatFee": "Forfait",
+    "recoveryRatePercent": "Taux (%)"
   },
   "dashboard": {
     "title": "Dashboard KPI",
