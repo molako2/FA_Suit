@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
+  BarChart3,
   Users,
   FileText,
   FileMinus2,
@@ -59,6 +60,12 @@ const navItemsConfig: NavItemConfig[] = [
     labelKey: 'nav.dashboard',
     href: '/',
     icon: LayoutDashboard,
+    roles: ['sysadmin', 'owner'],
+  },
+  {
+    labelKey: 'nav.dashboardCharts',
+    href: '/dashboard-charts',
+    icon: BarChart3,
     roles: ['sysadmin', 'owner'],
   },
   {

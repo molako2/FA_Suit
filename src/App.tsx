@@ -11,6 +11,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
+import DashboardCharts from "./pages/DashboardCharts";
 import Timesheet from "./pages/Timesheet";
  import Expenses from "./pages/Expenses";
 import Clients from "./pages/Clients";
@@ -46,6 +47,15 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <AppLayout>{getHomeRoute()}</AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/dashboard-charts"
+        element={
+          <ProtectedRoute allowedRoles={['sysadmin', 'owner']}>
+            <AppLayout><DashboardCharts /></AppLayout>
           </ProtectedRoute>
         }
       />

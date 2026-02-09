@@ -67,6 +67,7 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "dashboardCharts": "Charts Dashboard",
     "timesheet": "Timesheet",
     "expenses": "Expenses",
     "clients": "Clients",
@@ -78,6 +79,30 @@
     "settings": "Settings",
     "todos": "To Do",
     "messages": "Messages"
+  },
+  "charts": {
+    "title": "Charts Dashboard",
+    "subtitle": "Visual KPI overview of firm activity",
+    "hoursByCollaborator": "Hours by collaborator",
+    "hoursByCollaboratorDesc": "Billable vs non-billable hours per collaborator",
+    "top10Clients": "Top 10 Clients",
+    "top10ClientsDesc": "Clients with most billable hours (WIP)",
+    "top10Matters": "Top 10 Matters",
+    "top10MattersDesc": "Matters with most billable hours (WIP)",
+    "monthlyRevenue": "Monthly revenue evolution",
+    "monthlyRevenueDesc": "Billable, invoiced and collected revenue by month",
+    "billingTypeDistribution": "Distribution by billing type",
+    "billingTypeDistributionDesc": "Hours on time-based vs flat fee matters",
+    "recoveryRate": "Recovery rate",
+    "recoveryRateDesc": "Collected / invoiced revenue ratio by month",
+    "billable": "Billable",
+    "nonBillable": "Non-billable",
+    "wipRevenue": "Billable revenue",
+    "invoicedRevenue": "Invoiced revenue",
+    "collectedRevenue": "Collected revenue",
+    "timeBased": "Time-based",
+    "flatFee": "Flat fee",
+    "recoveryRatePercent": "Rate (%)"
   },
   "dashboard": {
     "title": "KPI Dashboard",
