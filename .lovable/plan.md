@@ -1,94 +1,164 @@
 
-# Affichage des temps saisis dans le module Dossiers
+# Regroupement des KPI et ajout de la balance agee des heures non facturees
 
-## Probleme
+## Objectif
 
-Le module Dossiers affiche actuellement dans la colonne "Montant" uniquement le **taux horaire** du dossier (ex: 1 000 MAD/h pour CLI0002-DOS0001). Les temps effectivement saisis par les collaborateurs sur le dossier ne sont pas visibles. L'utilisateur doit naviguer vers le module Timesheet pour connaitre la consommation reelle.
+Fusionner les deux tableaux KPI du Dashboard ("Par collaborateur" et "Par dossier") en un seul bloc unifie avec des cases a cocher permettant de choisir le regroupement (collaborateur, dossier, client). Ajouter des colonnes de balance agee pour les heures saisies et non facturees, ventilees par tranche d'anciennete.
 
-## Solution
+## Situation actuelle
 
-Enrichir le tableau des dossiers avec de nouvelles colonnes montrant la consommation reelle des temps saisis, specifiquement pour les dossiers au "temps passe".
+Le Dashboard contient deux cartes separees (lignes 277-371 de `Dashboard.tsx`) :
+- "Par collaborateur" : tableau avec Collaborateur, Email, Minutes, Heures
+- "Par dossier" : tableau avec Code, Dossier, Client, Minutes, Heures
 
-### Nouvelles colonnes ajoutees au tableau
+Ces deux blocs affichent les heures facturables (non locked) sur la periode selectionnee, mais de maniere independante et sans detail d'anciennete.
 
-Pour les dossiers de type "temps passe" :
+## Modifications prevues
 
-| Colonne actuelle "Montant" | Nouvelle colonne "Heures saisies" | Nouvelle colonne "CA Consomme" |
-|---|---|---|
-| Taux horaire (ex: 1 000 MAD/h) | Total des heures saisies (ex: 11h00) | Montant HT calcule (ex: 11 000 MAD) |
+### 1. `src/pages/Dashboard.tsx` -- Remplacement des deux cartes par un bloc unifie
 
-Pour les dossiers au "forfait", les nouvelles colonnes afficheront "---".
+**Suppression** des deux cartes "Par collaborateur" et "Par dossier" (lignes 277-371).
 
-Si un plafond (`max_amount_ht_cents`) est defini sur le dossier, une barre de progression sera affichee sous le montant CA Consomme avec un code couleur :
-- Vert : moins de 75% du plafond
-- Orange : entre 75% et 100%
-- Rouge : plafond depasse
+**Ajout** d'un nouveau composant `<WIPAgingAnalysis>` qui prend en props les donnees deja chargees (entries, profiles, matters, clients, periodFrom, periodTo).
 
-### Donnees necessaires
+### 2. Nouveau composant `src/components/dashboard/WIPAgingAnalysis.tsx`
 
-Charger les entrees de temps via `useTimesheetEntries()` (sans filtre utilisateur ni periode) dans la page Dossiers. Les entrees sont ensuite agregees par `matter_id` via un `useMemo`.
+Ce composant regroupe les deux tableaux en un seul, avec les fonctionnalites suivantes :
 
-L'agregation produit pour chaque dossier :
-- `totalMinutes` : somme de `minutes_rounded` (toutes entrees)
-- `billableMinutes` : somme de `minutes_rounded` (entrees facturables uniquement)
-- `consumedAmountCents` : calcul base sur le taux du collaborateur ou le taux du dossier pour chaque entree
+#### Cases a cocher de regroupement
 
-### Modifications de fichiers
+Trois cases a cocher dans l'en-tete de la carte :
+- **Collaborateur** (coche par defaut)
+- **Dossier**
+- **Client**
 
-**`src/pages/Matters.tsx`** :
+Au moins une case doit rester cochee. Les colonnes du tableau s'adaptent dynamiquement selon les cases selectionnees.
 
-1. Importer `useTimesheetEntries` et `useProfiles`
-2. Charger toutes les entrees de temps et les profils
-3. Creer un `useMemo` pour calculer les totaux par dossier :
+#### Colonnes de balance agee
 
-```text
-const matterStats = useMemo(() => {
-  const stats = new Map();
-  timesheetEntries.forEach(entry => {
-    const matter = matters.find(m => m.id === entry.matter_id);
-    const profile = profiles.find(p => p.id === entry.user_id);
-    const rateCents = profile?.rate_cents || matter?.rate_cents || defaultRateCents;
-    
-    if (!stats.has(entry.matter_id)) {
-      stats.set(entry.matter_id, { totalMinutes: 0, billableMinutes: 0, consumedCents: 0 });
-    }
-    const s = stats.get(entry.matter_id);
-    s.totalMinutes += entry.minutes_rounded;
-    if (entry.billable) {
-      s.billableMinutes += entry.minutes_rounded;
-      s.consumedCents += Math.round((entry.minutes_rounded * rateCents) / 60);
-    }
-  });
-  return stats;
-}, [timesheetEntries, matters, profiles, defaultRateCents]);
-```
+En plus des colonnes existantes (Minutes, Heures), ajouter 5 colonnes de ventilation par anciennete, calculees a partir de la date de chaque entree de temps par rapport a la date du jour :
 
-4. Ajouter deux colonnes au tableau apres la colonne "Montant" existante :
-   - **"Heures saisies"** : affiche `formatMinutesToHours(totalMinutes)` ou `---` si forfait
-   - **"CA Consomme"** : affiche `formatCents(consumedCents)` ou `---` si forfait, avec barre de progression si plafond defini
+| Colonne | Signification |
+|---|---|
+| < 30 J | Entrees de moins de 30 jours |
+| 30-60 J | Entrees entre 30 et 60 jours |
+| 60-90 J | Entrees entre 60 et 90 jours |
+| 90-120 J | Entrees entre 90 et 120 jours |
+| > 120 J | Entrees de plus de 120 jours |
 
-5. Charger `cabinet_settings` pour obtenir le `rate_cabinet_cents` (taux par defaut) via `useCabinetSettings`
+Les valeurs sont exprimees en heures (format `Xh XX`).
 
-6. Mettre a jour le `colSpan` de la ligne "Aucun dossier" pour correspondre au nouveau nombre de colonnes
+#### Export CSV
 
-**`src/hooks/useTimesheet.ts`** : Aucune modification necessaire, le hook existant supporte deja l'appel sans parametres pour charger toutes les entrees.
+Un bouton "Export CSV" unique qui exporte le tableau selon le regroupement actif, incluant les colonnes de balance agee.
 
-### Rendu visuel de la barre de progression (plafond)
-
-Quand `max_amount_ht_cents` est defini sur un dossier au temps passe :
+### Structure du composant
 
 ```text
-CA Consomme
-11 000 MAD
-[========75%========] / 15 000 MAD
+interface AgingBuckets {
+  under30: number;    // minutes
+  d30to60: number;
+  d60to90: number;
+  d90to120: number;
+  over120: number;
+}
+
+interface WIPAgingRow {
+  key: string;
+  // Champs conditionnels selon le regroupement
+  userId?: string;
+  userName?: string;
+  userEmail?: string;
+  matterId?: string;
+  matterCode?: string;
+  matterLabel?: string;
+  clientId?: string;
+  clientCode?: string;
+  clientName?: string;
+  // Totaux
+  billableMinutes: number;
+  // Balance agee
+  aging: AgingBuckets;
+}
 ```
 
-Utilise le composant `Progress` existant avec des classes Tailwind conditionnelles pour le code couleur.
+### Logique d'agregation
 
-## Resume
+```text
+const today = new Date();
+
+filteredEntries.forEach(entry => {
+  const entryDate = new Date(entry.date);
+  const diffDays = Math.floor((today - entryDate) / (1000 * 60 * 60 * 24));
+
+  // Construire la cle de regroupement
+  const keyParts = [];
+  if (groupByCollaborator) keyParts.push(entry.user_id);
+  if (groupByClient) keyParts.push(clientId);
+  if (groupByMatter) keyParts.push(entry.matter_id);
+  const key = keyParts.join('|');
+
+  // Ajouter les minutes au bon bucket
+  const row = grouped.get(key) || { ...emptyRow, aging: {...emptyAging} };
+  row.billableMinutes += entry.minutes_rounded;
+
+  if (diffDays < 30) row.aging.under30 += entry.minutes_rounded;
+  else if (diffDays < 60) row.aging.d30to60 += entry.minutes_rounded;
+  else if (diffDays < 90) row.aging.d60to90 += entry.minutes_rounded;
+  else if (diffDays < 120) row.aging.d90to120 += entry.minutes_rounded;
+  else row.aging.over120 += entry.minutes_rounded;
+});
+```
+
+### Rendu du tableau
+
+```text
+| Collaborateur* | Client* | Dossier* | Minutes | Heures | < 30 J | 30-60 J | 60-90 J | 90-120 J | > 120 J |
+|----------------|---------|----------|---------|--------|--------|---------|---------|----------|---------|
+| Nom collab     | CLI001  | DOS001   | 810     | 13h30  | 5h00   | 4h30    | 2h00    | 1h00     | 1h00    |
+```
+
+*Colonnes affichees conditionnellement selon les cases cochees.*
+
+Une ligne "TOTAL" en pied de tableau somme toutes les colonnes.
+
+Les colonnes de balance agee > 0 dans les tranches 90-120J et >120J seront mises en evidence avec une couleur orange/rouge pour signaler les heures anciennes.
+
+### 3. Traductions i18n
+
+Ajouter les cles suivantes dans `fr.json` et `en.json` :
+
+**Francais :**
+```text
+"wipAging": "Heures facturables non facturees",
+"wipAgingDescription": "Balance agee des heures saisies et non facturees",
+"under30Days": "< 30 J",
+"d30to60Days": "30-60 J",
+"d60to90Days": "60-90 J",
+"d90to120Days": "90-120 J",
+"over120Days": "> 120 J",
+"groupBy": "Regrouper par"
+```
+
+**Anglais :**
+```text
+"wipAging": "Unbilled billable hours",
+"wipAgingDescription": "Aging balance of logged unbilled hours",
+"under30Days": "< 30 D",
+"d30to60Days": "30-60 D",
+"d60to90Days": "60-90 D",
+"d90to120Days": "90-120 D",
+"over120Days": "> 120 D",
+"groupBy": "Group by"
+```
+
+## Resume des fichiers modifies
 
 | Fichier | Action |
 |---|---|
-| `src/pages/Matters.tsx` | Ajouter imports, calculer stats par dossier, ajouter 2 colonnes "Heures saisies" et "CA Consomme" avec barre de progression plafond |
+| `src/components/dashboard/WIPAgingAnalysis.tsx` | Nouveau composant : tableau unifie avec cases a cocher et colonnes balance agee |
+| `src/pages/Dashboard.tsx` | Remplacer les deux cartes KPI par le nouveau composant `WIPAgingAnalysis` |
+| `src/i18n/locales/fr.json` | Ajouter cles de traduction pour balance agee |
+| `src/i18n/locales/en.json` | Ajouter cles de traduction pour balance agee |
 
-Aucune modification de base de donnees necessaire.
+Aucune modification de base de donnees necessaire. Le calcul de l'anciennete se fait cote client a partir du champ `date` deja present dans les entrees de temps.
