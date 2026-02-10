@@ -28,6 +28,7 @@ interface WIPAgingRow {
   matterId?: string;
   matterCode?: string;
   matterLabel?: string;
+  matterBillingType?: string;
   clientId?: string;
   clientCode?: string;
   clientName?: string;
@@ -46,7 +47,7 @@ interface Props {
     locked: boolean;
   }>;
   profiles: Array<{ id: string; name: string; email: string }>;
-  matters: Array<{ id: string; code: string; label: string; client_id: string }>;
+  matters: Array<{ id: string; code: string; label: string; client_id: string; billing_type: string }>;
   clients: Array<{ id: string; code: string; name: string }>;
   periodFrom: string;
   periodTo: string;
@@ -118,6 +119,7 @@ export function WIPAgingAnalysis({ entries, profiles, matters, clients, periodFr
           matterId: groupByMatter ? entry.matter_id : undefined,
           matterCode: groupByMatter ? (matter?.code || '') : undefined,
           matterLabel: groupByMatter ? (matter?.label || t('common.unknown')) : undefined,
+          matterBillingType: groupByMatter ? (matter?.billing_type || 'time_based') : undefined,
           clientId: groupByClient ? (client?.id || '') : undefined,
           clientCode: groupByClient ? (client?.code || '') : undefined,
           clientName: groupByClient ? (client?.name || t('common.unknown')) : undefined,
@@ -159,7 +161,7 @@ export function WIPAgingAnalysis({ entries, profiles, matters, clients, periodFr
       headers.push(t('dashboard.code') + ' ' + t('dashboard.client'), t('dashboard.client'));
     }
     if (groupByMatter) {
-      headers.push(t('dashboard.code'), t('dashboard.matter'));
+      headers.push(t('dashboard.code'), t('dashboard.matter'), t('matters.billingType'));
     }
     headers.push(
       t('dashboard.minutes'), t('dashboard.hours'),
@@ -178,6 +180,7 @@ export function WIPAgingAnalysis({ entries, profiles, matters, clients, periodFr
       }
       if (groupByMatter) {
         cols.push(`"${row.matterCode || ''}"`, `"${row.matterLabel || ''}"`);
+        cols.push(`"${row.matterBillingType === 'flat_fee' ? t('matters.flatFee') : t('matters.timeBased')}"`);
       }
       cols.push(
         String(row.billableMinutes),
@@ -254,6 +257,7 @@ export function WIPAgingAnalysis({ entries, profiles, matters, clients, periodFr
                   <>
                     <TableHead>{t('dashboard.code')}</TableHead>
                     <TableHead>{t('dashboard.matter')}</TableHead>
+                    <TableHead>{t('matters.billingType')}</TableHead>
                   </>
                 )}
                 <TableHead className="text-right">{t('dashboard.hours')}</TableHead>
@@ -271,7 +275,7 @@ export function WIPAgingAnalysis({ entries, profiles, matters, clients, periodFr
                     colSpan={
                       (groupByCollaborator ? 2 : 0) +
                       (groupByClient ? 2 : 0) +
-                      (groupByMatter ? 2 : 0) +
+                      (groupByMatter ? 3 : 0) +
                       6
                     }
                     className="text-center text-muted-foreground"
@@ -299,6 +303,7 @@ export function WIPAgingAnalysis({ entries, profiles, matters, clients, periodFr
                         <>
                           <TableCell><Badge variant="outline">{row.matterCode}</Badge></TableCell>
                           <TableCell className="font-medium">{row.matterLabel}</TableCell>
+                          <TableCell>{row.matterBillingType === 'flat_fee' ? t('matters.flatFee') : t('matters.timeBased')}</TableCell>
                         </>
                       )}
                       <TableCell className="text-right font-medium">
@@ -332,6 +337,7 @@ export function WIPAgingAnalysis({ entries, profiles, matters, clients, periodFr
                     {groupByMatter && (
                       <>
                         <TableCell>{!groupByCollaborator && !groupByClient ? t('common.total') : ''}</TableCell>
+                        <TableCell />
                         <TableCell />
                       </>
                     )}
