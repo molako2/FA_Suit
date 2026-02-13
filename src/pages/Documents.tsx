@@ -1,8 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { useClients } from '@/hooks/useClients';
 import { useClientUsers } from '@/hooks/useClientUsers';
+import { useMatters } from '@/hooks/useMatters';
 import {
   useDocuments,
   useClientQuota,
@@ -16,7 +17,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,6 +46,7 @@ export default function Documents() {
   const isInternal = role === 'sysadmin' || role === 'owner' || role === 'assistant';
 
   const [selectedClientId, setSelectedClientId] = useState<string>('');
+  const [selectedMatterId, setSelectedMatterId] = useState<string>('');
   const [activeCategory, setActiveCategory] = useState<DocumentCategory>('factures');
   const [deleteTarget, setDeleteTarget] = useState<ClientDocument | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -53,6 +54,7 @@ export default function Documents() {
   // Data
   const { data: allClients = [] } = useClients();
   const { data: clientUserLinks = [] } = useClientUsers(isClient ? user?.id : undefined);
+  const { data: allMatters = [] } = useMatters();
 
   // For clients: only show their linked clients
   const availableClients = isClient
@@ -62,7 +64,18 @@ export default function Documents() {
   // Auto-select first client
   const effectiveClientId = selectedClientId || (availableClients.length > 0 ? availableClients[0].id : '');
 
-  const { data: documents = [], isLoading: docsLoading } = useDocuments(effectiveClientId, activeCategory);
+  // Reset matter selection when client changes
+  useEffect(() => {
+    setSelectedMatterId('');
+  }, [effectiveClientId]);
+
+  // Filter matters by selected client
+  const clientMatters = allMatters.filter(m => m.client_id === effectiveClientId);
+
+  // For client role: no matter filter (see all documents across all matters)
+  const effectiveMatterId = isClient ? undefined : (selectedMatterId || undefined);
+
+  const { data: documents = [], isLoading: docsLoading } = useDocuments(effectiveClientId, activeCategory, effectiveMatterId);
   const { data: currentQuota = 0 } = useClientQuota(effectiveClientId);
   const uploadDoc = useUploadDocument();
   const deleteDoc = useDeleteDocument();
@@ -76,6 +89,7 @@ export default function Documents() {
       file,
       clientId: effectiveClientId,
       category: activeCategory,
+      matterId: selectedMatterId || undefined,
       uploadedBy: user.id,
       currentQuota,
     });
@@ -100,21 +114,42 @@ export default function Documents() {
         <p className="text-muted-foreground">{t('documents.subtitle')}</p>
       </div>
 
-      {/* Client selector */}
-      {availableClients.length > 1 && (
-        <div className="max-w-sm">
-          <Select value={effectiveClientId} onValueChange={setSelectedClientId}>
-            <SelectTrigger>
-              <SelectValue placeholder={t('documents.selectClient')} />
-            </SelectTrigger>
-            <SelectContent>
-              {availableClients.map(c => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.code} - {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {/* Client selector - always show when there are clients */}
+      {availableClients.length > 0 && (
+        <div className="flex flex-wrap gap-4">
+          <div className="min-w-[200px]">
+            <Select value={effectiveClientId} onValueChange={setSelectedClientId}>
+              <SelectTrigger>
+                <SelectValue placeholder={t('documents.selectClient')} />
+              </SelectTrigger>
+              <SelectContent>
+                {availableClients.map(c => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.code} - {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Matter selector - only for internal users */}
+          {isInternal && effectiveClientId && clientMatters.length > 0 && (
+            <div className="min-w-[200px]">
+              <Select value={selectedMatterId || 'all'} onValueChange={(v) => setSelectedMatterId(v === 'all' ? '' : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('documents.allMatters')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('documents.allMatters')}</SelectItem>
+                  {clientMatters.map(m => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.code} - {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       )}
 

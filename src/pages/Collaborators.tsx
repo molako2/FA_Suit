@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import { exportCollaboratorsCSV } from "@/lib/exports";
 
 export default function Collaborators() {
   const { role } = useAuth();
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState("");
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
@@ -344,8 +346,8 @@ export default function Collaborators() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Collaborateurs</h1>
-          <p className="text-muted-foreground">Gestion des utilisateurs et affectations</p>
+          <h1 className="text-3xl font-bold">{t('collaborators.title')}</h1>
+          <p className="text-muted-foreground">{t('collaborators.subtitle')}</p>
         </div>
 
         <div className="flex gap-2">
