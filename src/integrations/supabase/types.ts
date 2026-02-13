@@ -805,6 +805,10 @@ export type Database = {
         Args: { _client_id: string; _user_id: string }
         Returns: boolean
       }
+      user_has_matter_access: {
+        Args: { _matter_id: string; _user_id: string }
+        Returns: boolean
+      }
       user_is_assigned_to_matter: {
         Args: { _matter_id: string }
         Returns: boolean

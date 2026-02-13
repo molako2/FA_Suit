@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useClients } from '@/hooks/useClients';
 import { useClientUsers } from '@/hooks/useClientUsers';
 import { useMatters } from '@/hooks/useMatters';
+import { useClientUserMatters } from '@/hooks/useClientUserMatters';
 import {
   useDocuments,
   useClientQuota,
@@ -55,6 +56,7 @@ export default function Documents() {
   const { data: allClients = [] } = useClients();
   const { data: clientUserLinks = [] } = useClientUsers(isClient ? user?.id : undefined);
   const { data: allMatters = [] } = useMatters();
+  const { data: clientUserMatters = [] } = useClientUserMatters(isClient ? user?.id : undefined);
 
   // For clients: only show their linked clients
   const availableClients = isClient
@@ -69,11 +71,13 @@ export default function Documents() {
     setSelectedMatterId('');
   }, [effectiveClientId]);
 
-  // Filter matters by selected client
-  const clientMatters = allMatters.filter(m => m.client_id === effectiveClientId);
+  // Filter matters by selected client, and for clients only show assigned matters
+  const clientMatters = isClient
+    ? allMatters.filter(m => m.client_id === effectiveClientId && clientUserMatters.some(cum => cum.matter_id === m.id))
+    : allMatters.filter(m => m.client_id === effectiveClientId);
 
-  // For client role: no matter filter (see all documents across all matters)
-  const effectiveMatterId = isClient ? undefined : (selectedMatterId || undefined);
+  // For client role: use selected matter filter (like internal users)
+  const effectiveMatterId = selectedMatterId || undefined;
 
   const { data: documents = [], isLoading: docsLoading } = useDocuments(effectiveClientId, activeCategory, effectiveMatterId);
   const { data: currentQuota = 0 } = useClientQuota(effectiveClientId);
@@ -133,7 +137,7 @@ export default function Documents() {
           </div>
 
           {/* Matter selector - only for internal users */}
-          {isInternal && effectiveClientId && clientMatters.length > 0 && (
+          {effectiveClientId && clientMatters.length > 0 && (
             <div className="min-w-[200px]">
               <Select value={selectedMatterId || 'all'} onValueChange={(v) => setSelectedMatterId(v === 'all' ? '' : v)}>
                 <SelectTrigger>
