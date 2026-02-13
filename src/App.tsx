@@ -23,6 +23,7 @@ import Purchases from "./pages/Purchases";
 import Settings from "./pages/Settings";
 import Todos from "./pages/Todos";
 import Messages from "./pages/Messages";
+import Documents from "./pages/Documents";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ function AppRoutes() {
   const getHomeRoute = () => {
     if (!user) return <Navigate to="/login" replace />;
     if (role === 'owner' || role === 'sysadmin') return <Dashboard />;
+    if (role === 'client') return <Navigate to="/documents" replace />;
     return <Navigate to="/timesheet" replace />;
   };
 
@@ -146,6 +148,15 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <AppLayout><Messages /></AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/documents"
+        element={
+          <ProtectedRoute allowedRoles={['sysadmin', 'owner', 'assistant', 'client']}>
+            <AppLayout><Documents /></AppLayout>
           </ProtectedRoute>
         }
       />

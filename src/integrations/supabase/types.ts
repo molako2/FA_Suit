@@ -124,6 +124,89 @@ export type Database = {
         }
         Relationships: []
       }
+      client_documents: {
+        Row: {
+          category: string
+          client_id: string
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          matter_id: string | null
+          mime_type: string
+          uploaded_by: string
+        }
+        Insert: {
+          category: string
+          client_id: string
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size: number
+          id?: string
+          matter_id?: string | null
+          mime_type: string
+          uploaded_by: string
+        }
+        Update: {
+          category?: string
+          client_id?: string
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          matter_id?: string | null
+          mime_type?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_documents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_documents_matter_id_fkey"
+            columns: ["matter_id"]
+            isOneToOne: false
+            referencedRelation: "matters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_users: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_users_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           active: boolean
@@ -679,6 +762,10 @@ export type Database = {
       is_owner: { Args: never; Returns: boolean }
       is_owner_or_assistant: { Args: never; Returns: boolean }
       is_sysadmin: { Args: never; Returns: boolean }
+      user_has_client_access: {
+        Args: { _client_id: string; _user_id: string }
+        Returns: boolean
+      }
       user_is_assigned_to_matter: {
         Args: { _matter_id: string }
         Returns: boolean

@@ -327,6 +327,7 @@ export default function Collaborators() {
     owner: "Associé",
     assistant: "Assistant",
     collaborator: "Collaborateur",
+    client: "Client",
   };
 
   const roleColors: Record<UserRole, string> = {
@@ -334,6 +335,7 @@ export default function Collaborators() {
     owner: "bg-accent text-accent-foreground",
     assistant: "bg-primary text-primary-foreground",
     collaborator: "bg-secondary text-secondary-foreground",
+    client: "bg-muted text-muted-foreground",
   };
 
   const openMatters = matters.filter((m) => m.status === "open");
@@ -418,6 +420,7 @@ export default function Collaborators() {
                       <SelectItem value="owner">Associé</SelectItem>
                       <SelectItem value="assistant">Assistant</SelectItem>
                       <SelectItem value="collaborator">Collaborateur</SelectItem>
+                      <SelectItem value="client">Client</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -78,7 +78,8 @@
     "collaborators": "Collaborators",
     "settings": "Settings",
     "todos": "To Do",
-    "messages": "Messages"
+    "messages": "Messages",
+    "documents": "Documents"
   },
   "charts": {
     "title": "Charts Dashboard",
@@ -332,6 +333,7 @@
     "assistant": "Assistant",
     "collaborator": "Collaborator",
     "sysadmin": "System Administrator",
+    "client": "Client",
     "resetPassword": "Reset password"
   },
   "settings": {
@@ -411,5 +413,27 @@
     "saveError": "Error saving",
     "deleteError": "Error deleting",
     "noDataToExport": "No data to export"
+  },
+  "documents": {
+    "title": "Documents",
+    "subtitle": "Document sharing space",
+    "selectClient": "Select a client",
+    "noClients": "No clients available",
+    "noClientLinked": "No client linked to your account",
+    "noDocuments": "No documents in this category",
+    "upload": "Upload a file",
+    "uploadSuccess": "Document uploaded successfully",
+    "deleteSuccess": "Document deleted",
+    "confirmDelete": "Delete this document?",
+    "fileTooLarge": "File exceeds maximum size of 10 MB",
+    "invalidFormat": "File format not allowed",
+    "quotaExceeded": "Storage quota exceeded (100 MB per client)",
+    "quota": "Storage used",
+    "catFactures": "Invoices",
+    "catComptable": "Accounting",
+    "catFiscal": "Tax",
+    "catJuridique": "Legal",
+    "catSocial": "Social",
+    "catDivers": "Miscellaneous"
   }
 }
