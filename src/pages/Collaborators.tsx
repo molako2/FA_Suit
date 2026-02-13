@@ -19,14 +19,14 @@ import { useProfiles, useUpdateProfile, useUpdateUserRole, type ProfileWithRole 
 import { useMatters } from "@/hooks/useMatters";
 import { useAssignments, useCreateAssignment, useDeleteAssignment } from "@/hooks/useAssignments";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Pencil, Users, UserPlus, Trash2, Search, Loader2, Key, Download } from "lucide-react";
+import { Plus, Pencil, Users, UserPlus, Trash2, Search, Loader2, Key, Download, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import type { UserRole } from "@/types";
 import { exportCollaboratorsCSV } from "@/lib/exports";
 import { useClients } from "@/hooks/useClients";
 import { useClientUsers, useSetClientUsers } from "@/hooks/useClientUsers";
 import { Checkbox } from "@/components/ui/checkbox";
-
+import { useClientUserMatters, useSetClientUserMatters } from "@/hooks/useClientUserMatters";
 export default function Collaborators() {
   const { role } = useAuth();
   const { t } = useTranslation();
@@ -43,6 +43,8 @@ export default function Collaborators() {
   const [formRateCents, setFormRateCents] = useState("");
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
+  const [selectedMatterIds, setSelectedMatterIds] = useState<Record<string, string[]>>({});
+  const [expandedClients, setExpandedClients] = useState<string[]>([]);
 
   // Assignment form state
   const [assignMatterId, setAssignMatterId] = useState("");
@@ -67,7 +69,9 @@ export default function Collaborators() {
   const { data: assignments = [], isLoading: assignmentsLoading } = useAssignments();
   const { data: clients = [] } = useClients();
   const { data: allClientUsers = [] } = useClientUsers();
+  const { data: allClientUserMatters = [] } = useClientUserMatters();
   const setClientUsers = useSetClientUsers();
+  const setClientUserMatters = useSetClientUserMatters();
   const updateProfile = useUpdateProfile();
   const updateUserRole = useUpdateUserRole();
   const createAssignment = useCreateAssignment();
@@ -108,6 +112,8 @@ export default function Collaborators() {
     setFormRateCents("");
     setEditingUser(null);
     setSelectedClientIds([]);
+    setSelectedMatterIds({});
+    setExpandedClients([]);
   };
 
   const openUserDialog = (u?: ProfileWithRole) => {
@@ -122,6 +128,16 @@ export default function Collaborators() {
         .filter((cu) => cu.user_id === u.id)
         .map((cu) => cu.client_id);
       setSelectedClientIds(userClientIds);
+      // Pre-load matter associations
+      const matterMap: Record<string, string[]> = {};
+      allClientUserMatters
+        .filter((cum) => cum.user_id === u.id)
+        .forEach((cum) => {
+          if (!matterMap[cum.client_id]) matterMap[cum.client_id] = [];
+          matterMap[cum.client_id].push(cum.matter_id);
+        });
+      setSelectedMatterIds(matterMap);
+      setExpandedClients(userClientIds);
     } else {
       resetUserForm();
     }
@@ -156,9 +172,11 @@ export default function Collaborators() {
         // Save client associations
         if (formRole === 'client') {
           await setClientUsers.mutateAsync({ userId: editingUser.id, clientIds: selectedClientIds });
+          await setClientUserMatters.mutateAsync({ userId: editingUser.id, mattersByClient: selectedMatterIds });
         } else if ((editingUser.role as string) === 'client') {
           // Role changed away from client, remove associations
           await setClientUsers.mutateAsync({ userId: editingUser.id, clientIds: [] });
+          await setClientUserMatters.mutateAsync({ userId: editingUser.id, mattersByClient: {} });
         }
 
         toast.success("Utilisateur modifié");
@@ -198,6 +216,7 @@ export default function Collaborators() {
         // Save client associations for new user
         if (formRole === 'client' && data?.userId && selectedClientIds.length > 0) {
           await setClientUsers.mutateAsync({ userId: data.userId, clientIds: selectedClientIds });
+          await setClientUserMatters.mutateAsync({ userId: data.userId, mattersByClient: selectedMatterIds });
         }
 
         toast.success(`Utilisateur créé. Un email d'invitation a été envoyé à ${formEmail.trim()}`);
@@ -470,26 +489,87 @@ export default function Collaborators() {
               {/* Client selector - only visible when role is 'client' */}
               {formRole === 'client' && (
                 <div className="grid gap-2">
-                  <Label>Clients associés *</Label>
-                  <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
+                  <Label>Clients et dossiers associés *</Label>
+                  <div className="border rounded-md p-3 max-h-64 overflow-y-auto space-y-1">
                     {clients.length === 0 ? (
                       <p className="text-sm text-muted-foreground">Aucun client disponible</p>
                     ) : (
-                      clients.map((client) => (
-                        <label key={client.id} className="flex items-center gap-2 cursor-pointer">
-                          <Checkbox
-                            checked={selectedClientIds.includes(client.id)}
-                            onCheckedChange={(checked) => {
-                              setSelectedClientIds((prev) =>
-                                checked
-                                  ? [...prev, client.id]
-                                  : prev.filter((id) => id !== client.id)
-                              );
-                            }}
-                          />
-                          <span className="text-sm">{client.name}</span>
-                        </label>
-                      ))
+                      clients.map((client) => {
+                        const isClientSelected = selectedClientIds.includes(client.id);
+                        const isExpanded = expandedClients.includes(client.id);
+                        const clientMatters = matters.filter((m) => m.client_id === client.id);
+                        const selectedForClient = selectedMatterIds[client.id] || [];
+
+                        return (
+                          <div key={client.id}>
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                checked={isClientSelected}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedClientIds((prev) => [...prev, client.id]);
+                                    setExpandedClients((prev) => [...prev, client.id]);
+                                  } else {
+                                    setSelectedClientIds((prev) => prev.filter((id) => id !== client.id));
+                                    setExpandedClients((prev) => prev.filter((id) => id !== client.id));
+                                    setSelectedMatterIds((prev) => {
+                                      const next = { ...prev };
+                                      delete next[client.id];
+                                      return next;
+                                    });
+                                  }
+                                }}
+                              />
+                              <button
+                                type="button"
+                                className="flex items-center gap-1 text-sm font-medium hover:underline"
+                                onClick={() => {
+                                  if (isClientSelected) {
+                                    setExpandedClients((prev) =>
+                                      isExpanded ? prev.filter((id) => id !== client.id) : [...prev, client.id]
+                                    );
+                                  }
+                                }}
+                              >
+                                {isClientSelected && clientMatters.length > 0 && (
+                                  isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />
+                                )}
+                                {client.name}
+                              </button>
+                              {selectedForClient.length > 0 && (
+                                <Badge variant="secondary" className="text-xs">{selectedForClient.length} dossier(s)</Badge>
+                              )}
+                            </div>
+
+                            {isClientSelected && isExpanded && clientMatters.length > 0 && (
+                              <div className="ml-8 mt-1 mb-2 space-y-1 border-l pl-3">
+                                {clientMatters.map((matter) => (
+                                  <label key={matter.id} className="flex items-center gap-2 cursor-pointer">
+                                    <Checkbox
+                                      checked={selectedForClient.includes(matter.id)}
+                                      onCheckedChange={(checked) => {
+                                        setSelectedMatterIds((prev) => {
+                                          const current = prev[client.id] || [];
+                                          return {
+                                            ...prev,
+                                            [client.id]: checked
+                                              ? [...current, matter.id]
+                                              : current.filter((id) => id !== matter.id),
+                                          };
+                                        });
+                                      }}
+                                    />
+                                    <span className="text-sm">{matter.code} – {matter.label}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+                            {isClientSelected && isExpanded && clientMatters.length === 0 && (
+                              <p className="ml-8 mt-1 mb-2 text-xs text-muted-foreground">Aucun dossier pour ce client</p>
+                            )}
+                          </div>
+                        );
+                      })
                     )}
                   </div>
                 </div>
