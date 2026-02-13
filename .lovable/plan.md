@@ -1,63 +1,47 @@
 
 
-# Corrections du module Documents et renommage du menu
+# Associer les clients aux utilisateurs de role "Client"
 
-## Resume
+## Probleme identifie
 
-Trois corrections a apporter :
-1. Le module Documents ne montre pas de selecteur de dossier pour les profils internes -- ajouter un filtre optionnel par dossier
-2. Le profil client (ex: abdel@yopmail) voit les documents vides car l'association client_users fonctionne au niveau client, mais la page ne gere pas correctement l'affichage quand il n'y a qu'un seul client lie -- corriger l'auto-selection et s'assurer que le client voit tous les documents de ses clients associes (tous dossiers confondus)
-3. Renommer le menu "Collaborateurs" en "Utilisateurs" dans la navigation
+La table `client_users` est **vide**. Le module Utilisateurs permet de choisir le role "Client" mais **n'offre aucun moyen d'associer un client** a cet utilisateur. Sans cette association, la politique de securite sur `client_documents` (`user_has_client_access`) bloque l'acces et abdel@yopmail.com ne voit aucun document.
+
+## Solution
+
+Ajouter dans le formulaire de creation/edition d'un utilisateur (page Utilisateurs) un selecteur multi-clients qui apparait uniquement quand le role selectionne est "Client". Lors de la sauvegarde, appeler `useSetClientUsers` pour creer les associations dans la table `client_users`.
 
 ---
 
-## Etape 1 -- Ajouter un selecteur de dossier dans Documents.tsx (profils internes)
-
-**Fichier** : `src/pages/Documents.tsx`
-
-- Importer `useMatters` depuis `@/hooks/useMatters`
-- Ajouter un state `selectedMatterId` (string, vide par defaut = tous les dossiers)
-- Apres le selecteur de client, afficher un selecteur de dossier filtre par le client selectionne
-- Option "Tous les dossiers" par defaut
-- Passer le `matterId` optionnel au hook `useDocuments`
-- Passer le `matterId` lors de l'upload
-
-## Etape 2 -- Modifier le hook useDocuments pour filtrer par dossier
-
-**Fichier** : `src/hooks/useDocuments.ts`
-
-- Ajouter un parametre optionnel `matterId` a `useDocuments(clientId, category, matterId?)`
-- Si `matterId` est fourni, ajouter `.eq('matter_id', matterId)` a la requete
-- Inclure `matterId` dans le `queryKey`
-
-## Etape 3 -- Corriger l'affichage pour le profil client
-
-**Fichier** : `src/pages/Documents.tsx`
-
-Le probleme est que quand `availableClients.length === 1`, le selecteur ne s'affiche pas mais `selectedClientId` reste vide. Le `effectiveClientId` devrait fonctionner via le fallback, mais il faut verifier que la requete `useClients` retourne bien les clients pour un profil client (RLS). La politique RLS sur `clients` autorise SELECT pour `auth.uid() IS NOT NULL`, donc ca devrait fonctionner.
-
-Le vrai probleme est probablement que `useClientUsers` ne retourne pas les liens car la RLS sur `client_users` utilise `is_owner() OR user_id = auth.uid()`. Il faut verifier que le user connecte a bien le role client et que les associations existent en base.
-
-Correction : s'assurer que l'auto-selection fonctionne meme avec un seul client, et que le selecteur s'affiche meme avec un seul client (pour clarifier le contexte).
-
-## Etape 4 -- Renommer "Collaborateurs" en "Utilisateurs"
-
-**Fichiers** : `src/i18n/locales/fr.json` et `src/i18n/locales/en.json`
-
-- Changer `nav.collaborators` de "Collaborateurs" a "Utilisateurs" (FR) et "Collaborators" a "Users" (EN)
-- Mettre a jour le titre de la page dans `collaborators.title` : "Utilisateurs" (FR) / "Users" (EN)
+## Etape 1 -- Ajouter le selecteur de clients dans le formulaire utilisateur
 
 **Fichier** : `src/pages/Collaborators.tsx`
 
-- Mettre a jour le titre en dur "Collaborateurs" (ligne 347) en utilisant la cle i18n
+- Importer `useClients` et `useClientUsers`, `useSetClientUsers`
+- Ajouter un state `selectedClientIds: string[]`
+- Dans `openUserDialog`, pre-charger les clients deja associes si le role est "client"
+- Apres le selecteur de role, afficher conditionnellement (quand `formRole === 'client'`) une liste de checkboxes ou un multi-select des clients disponibles
+- Dans `resetUserForm`, reinitialiser `selectedClientIds` a `[]`
+
+## Etape 2 -- Sauvegarder les associations lors de handleSaveUser
+
+**Fichier** : `src/pages/Collaborators.tsx`
+
+- Apres la sauvegarde du profil et du role, si `formRole === 'client'`, appeler `setClientUsers.mutateAsync({ userId, clientIds: selectedClientIds })`
+- Pour la creation d'un nouveau utilisateur, utiliser l'ID retourne par l'edge function
+- Si le role change de "client" vers autre chose, supprimer les associations (appeler avec `clientIds: []`)
+
+## Etape 3 -- Pre-charger les associations existantes a l'edition
+
+**Fichier** : `src/pages/Collaborators.tsx`
+
+- Utiliser `useClientUsers()` (sans filtre) pour avoir toutes les associations
+- Dans `openUserDialog`, filtrer par `user_id` pour pre-cocher les clients associes
 
 ## Fichiers concernes
 
 | Fichier | Action |
 |---|---|
-| `src/pages/Documents.tsx` | Ajouter selecteur dossier, corriger auto-selection client |
-| `src/hooks/useDocuments.ts` | Ajouter filtre optionnel par matter_id |
-| `src/i18n/locales/fr.json` | Renommer Collaborateurs -> Utilisateurs |
-| `src/i18n/locales/en.json` | Renommer Collaborators -> Users |
-| `src/pages/Collaborators.tsx` | Utiliser cle i18n pour le titre |
+| `src/pages/Collaborators.tsx` | Ajouter selecteur multi-clients conditionnel + sauvegarde associations |
+
+Aucune modification de base de donnees ou de hook necessaire : `useClients`, `useClientUsers` et `useSetClientUsers` existent deja.
 
