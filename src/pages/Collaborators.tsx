@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,6 +23,9 @@ import { Plus, Pencil, Users, UserPlus, Trash2, Search, Loader2, Key, Download }
 import { toast } from "sonner";
 import type { UserRole } from "@/types";
 import { exportCollaboratorsCSV } from "@/lib/exports";
+import { useClients } from "@/hooks/useClients";
+import { useClientUsers, useSetClientUsers } from "@/hooks/useClientUsers";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function Collaborators() {
   const { role } = useAuth();
@@ -39,6 +42,7 @@ export default function Collaborators() {
   const [formRole, setFormRole] = useState<UserRole>("collaborator");
   const [formRateCents, setFormRateCents] = useState("");
   const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
 
   // Assignment form state
   const [assignMatterId, setAssignMatterId] = useState("");
@@ -61,6 +65,9 @@ export default function Collaborators() {
   const { data: profiles = [], isLoading: profilesLoading } = useProfiles();
   const { data: matters = [], isLoading: mattersLoading } = useMatters();
   const { data: assignments = [], isLoading: assignmentsLoading } = useAssignments();
+  const { data: clients = [] } = useClients();
+  const { data: allClientUsers = [] } = useClientUsers();
+  const setClientUsers = useSetClientUsers();
   const updateProfile = useUpdateProfile();
   const updateUserRole = useUpdateUserRole();
   const createAssignment = useCreateAssignment();
@@ -100,6 +107,7 @@ export default function Collaborators() {
     setFormRole("collaborator");
     setFormRateCents("");
     setEditingUser(null);
+    setSelectedClientIds([]);
   };
 
   const openUserDialog = (u?: ProfileWithRole) => {
@@ -109,6 +117,11 @@ export default function Collaborators() {
       setFormEmail(u.email);
       setFormRole(u.role || "collaborator");
       setFormRateCents(u.rate_cents ? String(u.rate_cents / 100) : "");
+      // Pre-load client associations
+      const userClientIds = allClientUsers
+        .filter((cu) => cu.user_id === u.id)
+        .map((cu) => cu.client_id);
+      setSelectedClientIds(userClientIds);
     } else {
       resetUserForm();
     }
@@ -138,6 +151,14 @@ export default function Collaborators() {
             userId: editingUser.id,
             role: formRole,
           });
+        }
+
+        // Save client associations
+        if (formRole === 'client') {
+          await setClientUsers.mutateAsync({ userId: editingUser.id, clientIds: selectedClientIds });
+        } else if ((editingUser.role as string) === 'client') {
+          // Role changed away from client, remove associations
+          await setClientUsers.mutateAsync({ userId: editingUser.id, clientIds: [] });
         }
 
         toast.success("Utilisateur modifié");
@@ -173,6 +194,11 @@ export default function Collaborators() {
 
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
+
+        // Save client associations for new user
+        if (formRole === 'client' && data?.userId && selectedClientIds.length > 0) {
+          await setClientUsers.mutateAsync({ userId: data.userId, clientIds: selectedClientIds });
+        }
 
         toast.success(`Utilisateur créé. Un email d'invitation a été envoyé à ${formEmail.trim()}`);
       }
@@ -440,6 +466,34 @@ export default function Collaborators() {
                   />
                 </div>
               </div>
+
+              {/* Client selector - only visible when role is 'client' */}
+              {formRole === 'client' && (
+                <div className="grid gap-2">
+                  <Label>Clients associés *</Label>
+                  <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
+                    {clients.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Aucun client disponible</p>
+                    ) : (
+                      clients.map((client) => (
+                        <label key={client.id} className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox
+                            checked={selectedClientIds.includes(client.id)}
+                            onCheckedChange={(checked) => {
+                              setSelectedClientIds((prev) =>
+                                checked
+                                  ? [...prev, client.id]
+                                  : prev.filter((id) => id !== client.id)
+                              );
+                            }}
+                          />
+                          <span className="text-sm">{client.name}</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>
