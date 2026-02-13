@@ -1,33 +1,41 @@
 
+# Corriger le selecteur de dossier pour les clients
 
-# Ajouter un mode d'affichage "Tous les dossiers" pour les clients
+## Probleme identifie
 
-## Contexte
-
-Actuellement, le client doit selectionner un dossier specifique pour voir ses documents. Il n'a pas la possibilite de voir tous les documents de tous ses dossiers assignes en une seule vue, contrairement au owner.
+Le selecteur de dossier ne s'affiche pas pour les clients car la table `matters` a une politique RLS qui utilise la fonction `user_is_assigned_to_matter()`. Cette fonction verifie la table `assignments` (reservee aux collaborateurs internes), pas la table `client_user_matters`. Resultat : `useMatters()` retourne une liste vide pour un client, donc `clientMatters` est vide et le selecteur n'apparait jamais.
 
 ## Solution
 
-Modifier le selecteur de dossier pour les clients afin d'inclure l'option "Tous les dossiers" (valeur `all`), exactement comme pour les utilisateurs internes.
+### Etape 1 -- Mettre a jour la politique RLS sur `matters`
 
-Le comportement sera :
-- **"Tous les dossiers"** selectionne : affiche les documents de tous les dossiers assignes au client (la politique RLS filtre deja automatiquement cote serveur)
-- **Un dossier specifique** selectionne : affiche uniquement les documents de ce dossier
+Modifier la politique SELECT existante pour inclure les utilisateurs clients qui ont un lien dans `client_user_matters` :
 
-## Details techniques
+```text
+Nouvelle logique :
+  is_owner_or_assistant()
+  OR user_is_assigned_to_matter(id)
+  OR EXISTS (
+    SELECT 1 FROM client_user_matters
+    WHERE matter_id = matters.id
+    AND user_id = auth.uid()
+  )
+```
 
-### Fichier : `src/pages/Documents.tsx`
+Cela permet au client de "voir" les dossiers auxquels il a ete affecte via son profil, sans modifier le comportement pour les utilisateurs internes.
 
-Le selecteur de dossier est deja visible pour les clients (grace au dernier changement). L'option "Tous les dossiers" (`all`) existe deja dans le `Select`. Quand `all` est selectionne, `selectedMatterId` est vide, et `effectiveMatterId` est `undefined`, ce qui fait que la requete ne filtre pas par `matter_id`.
+### Etape 2 -- Aucune modification frontend
 
-La politique RLS existante garantit que le client ne verra que les documents des dossiers auxquels il a acces, meme sans filtre cote frontend.
+Le code frontend est deja correct :
+- `useClientUserMatters` recupere les associations du client
+- `clientMatters` filtre les dossiers par ces associations
+- Le selecteur affiche "Tous les dossiers" + les dossiers individuels
+- Le filtrage par `effectiveMatterId` fonctionne deja
 
-**Changement unique** : quand le client selectionne "Tous les dossiers", ne pas passer de filtre `matterId` a la requete. C'est deja le comportement actuel grace a `effectiveMatterId = selectedMatterId || undefined`.
+Le seul blocage est la politique RLS qui empeche `useMatters()` de retourner les dossiers au client.
 
-Verification necessaire : confirmer que le code actuel fonctionne deja correctement avec l'option "Tous les dossiers" pour les clients, car :
-1. Le selecteur affiche deja "Tous les dossiers" comme premiere option
-2. `effectiveMatterId` est deja `undefined` quand rien n'est selectionne
-3. La RLS filtre deja par dossier cote serveur
+## Fichiers concernes
 
-Si le comportement est deja fonctionnel, aucune modification de code n'est necessaire. Si un probleme est detecte lors du test, il faudra simplement s'assurer que le `Select` demarre avec la valeur `all` par defaut.
-
+| Fichier | Action |
+|---|---|
+| Migration SQL | Modifier la politique SELECT sur `matters` pour autoriser les clients via `client_user_matters` |
