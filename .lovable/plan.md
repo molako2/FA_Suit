@@ -1,57 +1,56 @@
 
 
-# Associer des clients ET des dossiers aux utilisateurs "Client"
+# Restreindre l'acces documents aux dossiers associes
 
-## Objectif
+## Probleme actuel
 
-Quand le role "Client" est selectionne dans le formulaire utilisateur, afficher une interface a deux niveaux :
-1. Liste de checkboxes des clients
-2. Pour chaque client coche, afficher les dossiers (matters) de ce client avec des checkboxes pour en selectionner un ou plusieurs
+La politique RLS sur `client_documents` verifie uniquement l'acces au niveau **client** (`user_has_client_access`), pas au niveau **dossier**. Un utilisateur client voit donc tous les documents de son client, y compris ceux des dossiers non coches.
 
-## Etape 1 -- Creer une table `client_user_matters`
+Cote frontend, le filtre par dossier est egalement desactive pour les clients (`effectiveMatterId = undefined`).
 
-Nouvelle table pour stocker les associations utilisateur-client-dossier :
+## Solution
+
+### Etape 1 -- Creer une fonction de securite `user_has_matter_access`
+
+Nouvelle fonction `SECURITY DEFINER` qui verifie si un utilisateur a acces a un dossier specifique via la table `client_user_matters` :
 
 ```text
-client_user_matters
-- id (uuid, PK)
-- user_id (uuid, NOT NULL)
-- client_id (uuid, NOT NULL)
-- matter_id (uuid, NOT NULL)
-- created_at (timestamptz)
+user_has_matter_access(user_id, matter_id) -> boolean
+  - Retourne TRUE si une ligne existe dans client_user_matters
+    pour ce user_id et matter_id
 ```
 
-Politiques RLS :
-- ALL pour owner/sysadmin (gestion)
-- SELECT pour le user lui-meme (consultation)
+### Etape 2 -- Mettre a jour la politique RLS sur `client_documents`
 
-## Etape 2 -- Creer un hook `useClientUserMatters`
+Modifier la politique SELECT existante pour ajouter la verification au niveau dossier :
 
-**Nouveau fichier** : `src/hooks/useClientUserMatters.ts`
+- Si le document a un `matter_id` : verifier que le client a acces a ce dossier (`user_has_matter_access`)
+- Si le document n'a pas de `matter_id` (NULL) : verifier uniquement l'acces client (`user_has_client_access`)
+- Les utilisateurs internes (owner/assistant/sysadmin) gardent un acces complet
 
-- `useClientUserMatters(userId?)` : query SELECT sur la table
-- `useSetClientUserMatters()` : mutation qui supprime les anciennes associations d'un user puis insere les nouvelles
+Logique RLS :
+```text
+is_owner_or_assistant()
+OR (
+  user_has_client_access(auth.uid(), client_id)
+  AND (
+    matter_id IS NULL
+    OR user_has_matter_access(auth.uid(), matter_id)
+  )
+)
+```
 
-## Etape 3 -- Modifier le formulaire utilisateur
+### Etape 3 -- Filtrer les documents cote frontend
 
-**Fichier** : `src/pages/Collaborators.tsx`
-
-- Ajouter un state `selectedMatterIds: Record<string, string[]>` (cle = client_id, valeur = liste de matter_ids)
-- Remplacer la section des checkboxes clients par une interface hierarchique :
-  - Checkbox client (nom du client)
-  - Quand le client est coche, afficher en dessous (indente) les dossiers de ce client avec des checkboxes
-- Pre-charger les associations existantes a l'ouverture du dialog (depuis `useClientUserMatters`)
-- A la sauvegarde, appeler `setClientUserMatters` avec les associations selectionnees
-
-## Etape 4 -- Mettre a jour la visibilite des documents (optionnel)
-
-La visibilite des documents reste basee sur `client_users` (niveau client). Les associations de dossiers servent a organiser l'acces mais ne bloquent pas la consultation au niveau RLS pour le moment. Cela pourra etre affine plus tard si necessaire.
+Dans `Documents.tsx`, pour les utilisateurs clients :
+- Recuperer les `client_user_matters` de l'utilisateur connecte
+- Filtrer `clientMatters` pour n'afficher que les dossiers associes
+- Permettre au client de naviguer entre ses dossiers associes (selecteur de dossier visible pour les clients aussi)
 
 ## Fichiers concernes
 
 | Fichier | Action |
 |---|---|
-| Migration SQL | Creer table `client_user_matters` avec RLS |
-| `src/hooks/useClientUserMatters.ts` | Nouveau hook query + mutation |
-| `src/pages/Collaborators.tsx` | Interface hierarchique client > dossiers |
+| Migration SQL | Creer `user_has_matter_access`, modifier politique RLS SELECT sur `client_documents` |
+| `src/pages/Documents.tsx` | Ajouter import `useClientUserMatters`, filtrer les dossiers affiches, activer le selecteur de dossier pour les clients |
 
