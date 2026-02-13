@@ -1,56 +1,33 @@
 
 
-# Restreindre l'acces documents aux dossiers associes
+# Ajouter un mode d'affichage "Tous les dossiers" pour les clients
 
-## Probleme actuel
+## Contexte
 
-La politique RLS sur `client_documents` verifie uniquement l'acces au niveau **client** (`user_has_client_access`), pas au niveau **dossier**. Un utilisateur client voit donc tous les documents de son client, y compris ceux des dossiers non coches.
-
-Cote frontend, le filtre par dossier est egalement desactive pour les clients (`effectiveMatterId = undefined`).
+Actuellement, le client doit selectionner un dossier specifique pour voir ses documents. Il n'a pas la possibilite de voir tous les documents de tous ses dossiers assignes en une seule vue, contrairement au owner.
 
 ## Solution
 
-### Etape 1 -- Creer une fonction de securite `user_has_matter_access`
+Modifier le selecteur de dossier pour les clients afin d'inclure l'option "Tous les dossiers" (valeur `all`), exactement comme pour les utilisateurs internes.
 
-Nouvelle fonction `SECURITY DEFINER` qui verifie si un utilisateur a acces a un dossier specifique via la table `client_user_matters` :
+Le comportement sera :
+- **"Tous les dossiers"** selectionne : affiche les documents de tous les dossiers assignes au client (la politique RLS filtre deja automatiquement cote serveur)
+- **Un dossier specifique** selectionne : affiche uniquement les documents de ce dossier
 
-```text
-user_has_matter_access(user_id, matter_id) -> boolean
-  - Retourne TRUE si une ligne existe dans client_user_matters
-    pour ce user_id et matter_id
-```
+## Details techniques
 
-### Etape 2 -- Mettre a jour la politique RLS sur `client_documents`
+### Fichier : `src/pages/Documents.tsx`
 
-Modifier la politique SELECT existante pour ajouter la verification au niveau dossier :
+Le selecteur de dossier est deja visible pour les clients (grace au dernier changement). L'option "Tous les dossiers" (`all`) existe deja dans le `Select`. Quand `all` est selectionne, `selectedMatterId` est vide, et `effectiveMatterId` est `undefined`, ce qui fait que la requete ne filtre pas par `matter_id`.
 
-- Si le document a un `matter_id` : verifier que le client a acces a ce dossier (`user_has_matter_access`)
-- Si le document n'a pas de `matter_id` (NULL) : verifier uniquement l'acces client (`user_has_client_access`)
-- Les utilisateurs internes (owner/assistant/sysadmin) gardent un acces complet
+La politique RLS existante garantit que le client ne verra que les documents des dossiers auxquels il a acces, meme sans filtre cote frontend.
 
-Logique RLS :
-```text
-is_owner_or_assistant()
-OR (
-  user_has_client_access(auth.uid(), client_id)
-  AND (
-    matter_id IS NULL
-    OR user_has_matter_access(auth.uid(), matter_id)
-  )
-)
-```
+**Changement unique** : quand le client selectionne "Tous les dossiers", ne pas passer de filtre `matterId` a la requete. C'est deja le comportement actuel grace a `effectiveMatterId = selectedMatterId || undefined`.
 
-### Etape 3 -- Filtrer les documents cote frontend
+Verification necessaire : confirmer que le code actuel fonctionne deja correctement avec l'option "Tous les dossiers" pour les clients, car :
+1. Le selecteur affiche deja "Tous les dossiers" comme premiere option
+2. `effectiveMatterId` est deja `undefined` quand rien n'est selectionne
+3. La RLS filtre deja par dossier cote serveur
 
-Dans `Documents.tsx`, pour les utilisateurs clients :
-- Recuperer les `client_user_matters` de l'utilisateur connecte
-- Filtrer `clientMatters` pour n'afficher que les dossiers associes
-- Permettre au client de naviguer entre ses dossiers associes (selecteur de dossier visible pour les clients aussi)
-
-## Fichiers concernes
-
-| Fichier | Action |
-|---|---|
-| Migration SQL | Creer `user_has_matter_access`, modifier politique RLS SELECT sur `client_documents` |
-| `src/pages/Documents.tsx` | Ajouter import `useClientUserMatters`, filtrer les dossiers affiches, activer le selecteur de dossier pour les clients |
+Si le comportement est deja fonctionnel, aucune modification de code n'est necessaire. Si un probleme est detecte lors du test, il faudra simplement s'assurer que le `Select` demarre avec la valeur `all` par defaut.
 
