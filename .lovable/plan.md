@@ -1,47 +1,57 @@
 
 
-# Associer les clients aux utilisateurs de role "Client"
+# Associer des clients ET des dossiers aux utilisateurs "Client"
 
-## Probleme identifie
+## Objectif
 
-La table `client_users` est **vide**. Le module Utilisateurs permet de choisir le role "Client" mais **n'offre aucun moyen d'associer un client** a cet utilisateur. Sans cette association, la politique de securite sur `client_documents` (`user_has_client_access`) bloque l'acces et abdel@yopmail.com ne voit aucun document.
+Quand le role "Client" est selectionne dans le formulaire utilisateur, afficher une interface a deux niveaux :
+1. Liste de checkboxes des clients
+2. Pour chaque client coche, afficher les dossiers (matters) de ce client avec des checkboxes pour en selectionner un ou plusieurs
 
-## Solution
+## Etape 1 -- Creer une table `client_user_matters`
 
-Ajouter dans le formulaire de creation/edition d'un utilisateur (page Utilisateurs) un selecteur multi-clients qui apparait uniquement quand le role selectionne est "Client". Lors de la sauvegarde, appeler `useSetClientUsers` pour creer les associations dans la table `client_users`.
+Nouvelle table pour stocker les associations utilisateur-client-dossier :
 
----
+```text
+client_user_matters
+- id (uuid, PK)
+- user_id (uuid, NOT NULL)
+- client_id (uuid, NOT NULL)
+- matter_id (uuid, NOT NULL)
+- created_at (timestamptz)
+```
 
-## Etape 1 -- Ajouter le selecteur de clients dans le formulaire utilisateur
+Politiques RLS :
+- ALL pour owner/sysadmin (gestion)
+- SELECT pour le user lui-meme (consultation)
+
+## Etape 2 -- Creer un hook `useClientUserMatters`
+
+**Nouveau fichier** : `src/hooks/useClientUserMatters.ts`
+
+- `useClientUserMatters(userId?)` : query SELECT sur la table
+- `useSetClientUserMatters()` : mutation qui supprime les anciennes associations d'un user puis insere les nouvelles
+
+## Etape 3 -- Modifier le formulaire utilisateur
 
 **Fichier** : `src/pages/Collaborators.tsx`
 
-- Importer `useClients` et `useClientUsers`, `useSetClientUsers`
-- Ajouter un state `selectedClientIds: string[]`
-- Dans `openUserDialog`, pre-charger les clients deja associes si le role est "client"
-- Apres le selecteur de role, afficher conditionnellement (quand `formRole === 'client'`) une liste de checkboxes ou un multi-select des clients disponibles
-- Dans `resetUserForm`, reinitialiser `selectedClientIds` a `[]`
+- Ajouter un state `selectedMatterIds: Record<string, string[]>` (cle = client_id, valeur = liste de matter_ids)
+- Remplacer la section des checkboxes clients par une interface hierarchique :
+  - Checkbox client (nom du client)
+  - Quand le client est coche, afficher en dessous (indente) les dossiers de ce client avec des checkboxes
+- Pre-charger les associations existantes a l'ouverture du dialog (depuis `useClientUserMatters`)
+- A la sauvegarde, appeler `setClientUserMatters` avec les associations selectionnees
 
-## Etape 2 -- Sauvegarder les associations lors de handleSaveUser
+## Etape 4 -- Mettre a jour la visibilite des documents (optionnel)
 
-**Fichier** : `src/pages/Collaborators.tsx`
-
-- Apres la sauvegarde du profil et du role, si `formRole === 'client'`, appeler `setClientUsers.mutateAsync({ userId, clientIds: selectedClientIds })`
-- Pour la creation d'un nouveau utilisateur, utiliser l'ID retourne par l'edge function
-- Si le role change de "client" vers autre chose, supprimer les associations (appeler avec `clientIds: []`)
-
-## Etape 3 -- Pre-charger les associations existantes a l'edition
-
-**Fichier** : `src/pages/Collaborators.tsx`
-
-- Utiliser `useClientUsers()` (sans filtre) pour avoir toutes les associations
-- Dans `openUserDialog`, filtrer par `user_id` pour pre-cocher les clients associes
+La visibilite des documents reste basee sur `client_users` (niveau client). Les associations de dossiers servent a organiser l'acces mais ne bloquent pas la consultation au niveau RLS pour le moment. Cela pourra etre affine plus tard si necessaire.
 
 ## Fichiers concernes
 
 | Fichier | Action |
 |---|---|
-| `src/pages/Collaborators.tsx` | Ajouter selecteur multi-clients conditionnel + sauvegarde associations |
-
-Aucune modification de base de donnees ou de hook necessaire : `useClients`, `useClientUsers` et `useSetClientUsers` existent deja.
+| Migration SQL | Creer table `client_user_matters` avec RLS |
+| `src/hooks/useClientUserMatters.ts` | Nouveau hook query + mutation |
+| `src/pages/Collaborators.tsx` | Interface hierarchique client > dossiers |
 
