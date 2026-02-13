@@ -18,6 +18,7 @@ import {
   ShoppingCart,
   CheckSquare,
   MessageSquare,
+  FileArchive,
 } from 'lucide-react';
 import { usePendingTodosCount, useInProgressTodosCount, useBlockedTodosCount } from '@/hooks/useTodos';
 import { useUnreadMessagesCount } from '@/hooks/useMessages';
@@ -52,7 +53,7 @@ interface NavItemConfig {
   labelKey: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  roles: ('sysadmin' | 'owner' | 'assistant' | 'collaborator')[];
+  roles: ('sysadmin' | 'owner' | 'assistant' | 'collaborator' | 'client')[];
 }
 
 const navItemsConfig: NavItemConfig[] = [
@@ -123,10 +124,16 @@ const navItemsConfig: NavItemConfig[] = [
     roles: ['sysadmin', 'owner', 'assistant', 'collaborator'],
   },
   {
+    labelKey: 'nav.documents',
+    href: '/documents',
+    icon: FileArchive,
+    roles: ['sysadmin', 'owner', 'assistant', 'client'],
+  },
+  {
     labelKey: 'nav.messages',
     href: '/messages',
     icon: MessageSquare,
-    roles: ['sysadmin', 'owner', 'assistant', 'collaborator'],
+    roles: ['sysadmin', 'owner', 'assistant', 'collaborator', 'client'],
   },
   {
     labelKey: 'nav.settings',
@@ -136,11 +143,12 @@ const navItemsConfig: NavItemConfig[] = [
   },
 ];
 
-const roleColors = {
+const roleColors: Record<string, string> = {
   sysadmin: 'bg-destructive text-destructive-foreground',
   owner: 'bg-accent text-accent-foreground',
   assistant: 'bg-primary text-primary-foreground',
   collaborator: 'bg-secondary text-secondary-foreground',
+  client: 'bg-muted text-muted-foreground',
 };
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -165,6 +173,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     owner: t('collaborators.owner'),
     assistant: t('collaborators.assistant'),
     collaborator: t('collaborators.collaborator'),
+    client: t('collaborators.client'),
   };
 
   const getRedBadgeCount = (href: string) => {

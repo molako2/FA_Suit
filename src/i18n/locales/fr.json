@@ -78,7 +78,8 @@
     "collaborators": "Collaborateurs",
     "settings": "Paramètres",
     "todos": "To Do",
-    "messages": "Messages"
+    "messages": "Messages",
+    "documents": "Vos Documents"
   },
   "charts": {
     "title": "Dashboard Graphique",
@@ -332,6 +333,7 @@
     "assistant": "Assistant",
     "collaborator": "Collaborateur",
     "sysadmin": "Administrateur système",
+    "client": "Client",
     "resetPassword": "Réinitialiser le mot de passe"
   },
   "settings": {
@@ -411,5 +413,27 @@
     "saveError": "Erreur lors de la sauvegarde",
     "deleteError": "Erreur lors de la suppression",
     "noDataToExport": "Aucune donnée à exporter"
+  },
+  "documents": {
+    "title": "Vos Documents",
+    "subtitle": "Espace de partage de documents",
+    "selectClient": "Sélectionner un client",
+    "noClients": "Aucun client disponible",
+    "noClientLinked": "Aucun client associé à votre compte",
+    "noDocuments": "Aucun document dans cette rubrique",
+    "upload": "Importer un fichier",
+    "uploadSuccess": "Document importé avec succès",
+    "deleteSuccess": "Document supprimé",
+    "confirmDelete": "Supprimer ce document ?",
+    "fileTooLarge": "Le fichier dépasse la taille maximale de 10 Mo",
+    "invalidFormat": "Format de fichier non autorisé",
+    "quotaExceeded": "Quota de stockage dépassé (100 Mo par client)",
+    "quota": "Espace utilisé",
+    "catFactures": "Factures",
+    "catComptable": "Comptable",
+    "catFiscal": "Fiscal",
+    "catJuridique": "Juridique",
+    "catSocial": "Social",
+    "catDivers": "Divers"
   }
 }
