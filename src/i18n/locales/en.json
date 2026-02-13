@@ -75,7 +75,7 @@
     "invoices": "Invoices",
     "creditNotes": "Credit Notes",
     "purchases": "Purchases",
-    "collaborators": "Collaborators",
+    "collaborators": "Users",
     "settings": "Settings",
     "todos": "To Do",
     "messages": "Messages",
@@ -317,7 +317,7 @@
     "noCreditNotes": "No credit notes"
   },
   "collaborators": {
-    "title": "Collaborators",
+    "title": "Users",
     "subtitle": "Manage users",
     "newCollaborator": "New collaborator",
     "editCollaborator": "Edit collaborator",
@@ -434,6 +434,7 @@
     "catFiscal": "Tax",
     "catJuridique": "Legal",
     "catSocial": "Social",
-    "catDivers": "Miscellaneous"
+    "catDivers": "Miscellaneous",
+    "allMatters": "All matters"
   }
 }

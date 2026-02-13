@@ -35,9 +35,9 @@ export interface ClientDocument {
   created_at: string;
 }
 
-export function useDocuments(clientId: string | null, category?: DocumentCategory) {
+export function useDocuments(clientId: string | null, category?: DocumentCategory, matterId?: string) {
   return useQuery({
-    queryKey: ['client-documents', clientId, category],
+    queryKey: ['client-documents', clientId, category, matterId],
     queryFn: async () => {
       if (!clientId) return [];
       let query = supabase
@@ -48,6 +48,10 @@ export function useDocuments(clientId: string | null, category?: DocumentCategor
 
       if (category) {
         query = query.eq('category', category);
+      }
+
+      if (matterId) {
+        query = query.eq('matter_id', matterId);
       }
 
       const { data, error } = await query;

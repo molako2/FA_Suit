@@ -75,7 +75,7 @@
     "invoices": "Factures",
     "creditNotes": "Avoirs",
     "purchases": "Achats",
-    "collaborators": "Collaborateurs",
+    "collaborators": "Utilisateurs",
     "settings": "Paramètres",
     "todos": "To Do",
     "messages": "Messages",
@@ -317,7 +317,7 @@
     "noCreditNotes": "Aucun avoir"
   },
   "collaborators": {
-    "title": "Collaborateurs",
+    "title": "Utilisateurs",
     "subtitle": "Gérez les utilisateurs",
     "newCollaborator": "Nouveau collaborateur",
     "editCollaborator": "Modifier le collaborateur",
@@ -434,6 +434,7 @@
     "catFiscal": "Fiscal",
     "catJuridique": "Juridique",
     "catSocial": "Social",
-    "catDivers": "Divers"
+    "catDivers": "Divers",
+    "allMatters": "Tous les dossiers"
   }
 }
