@@ -1,83 +1,55 @@
 
 
-# Module de Gestion Documentaire par Dossier (multi-metier)
+# Ameliorations du module documentaire : Visionnage, Telechargement et Versioning automatique par nom
 
-## Contexte
+## Objectif
 
-Le module de gestion documentaire est rattache a chaque dossier (matter). Il doit couvrir tous les types de cabinets : audit, expertise comptable, conseil fiscal, conseil financier, juridique, et autres. Les categories de documents sont donc universelles et non exclusivement juridiques.
+Trois ameliorations demandees :
+1. **Visionnage** : Previsualiser les fichiers (PDF, images) directement dans le panneau sans les telecharger
+2. **Telechargement** : Ajouter un vrai telechargement (actuellement le fichier s'ouvre dans un nouvel onglet, pas de download force)
+3. **Versioning automatique par nom** : Si un fichier uploade a le meme nom qu'un document existant dans le dossier, il est automatiquement traite comme une nouvelle version
 
-## Categories retenues (14 categories multi-metier)
+## Modifications prevues
 
-Au lieu des 12 categories juridiques, les categories couvrent l'ensemble des activites d'un cabinet :
+### 1. Hook `src/hooks/useMatterDocuments.ts`
 
-| Categorie | Usage principal |
-|---|---|
-| `rapport` | Rapports d'audit, rapports de mission, rapports d'expertise |
-| `lettre_mission` | Lettres de mission, contrats d'engagement |
-| `contrat` | Contrats divers, conventions, accords |
-| `correspondance` | Courriers, emails importants, echanges formels |
-| `fiscal` | Declarations fiscales, liasses, rescrits |
-| `comptable` | Bilans, situations intermediaires, balances, journaux |
-| `social` | Bulletins de paie, declarations sociales, contrats de travail |
-| `juridique` | PV d'AG, statuts, decisions, actes juridiques |
-| `audit` | Programmes de travail, feuilles de travail, confirmations |
-| `conseil` | Notes de conseil, memorandums, recommandations |
-| `piece_justificative` | Factures, releves bancaires, pieces comptables |
-| `presentation` | Supports de presentation, rapports destines aux clients |
-| `formulaire` | Formulaires administratifs, declarations, demandes |
-| `divers` | Tout document ne rentrant pas dans les autres categories |
+**Visionnage** : Ajouter un hook `usePreviewMatterDocument()` qui genere une URL signee et retourne l'URL + le type MIME pour affichage inline.
 
-## Architecture
+**Telechargement** : Modifier `useDownloadMatterDocument()` pour forcer le telechargement reel du fichier (fetch du blob + creation d'un lien `<a>` avec `download` attribute) au lieu de simplement ouvrir dans un nouvel onglet.
 
-Identique au plan precedent avec les ajustements suivants :
+**Versioning auto par nom** : Modifier `useUploadMatterDocument()` pour :
+- Avant l'upload, chercher dans `matter_documents` un document avec le meme `file_name` et `is_current = true` dans le meme dossier
+- Si un document existant est trouve, basculer automatiquement vers la logique de nouvelle version (`is_current = false` sur l'ancien, `parent_id` et `version_number` incrementes sur le nouveau)
+- Sinon, proceder a un upload normal (v1)
 
-### 1. Base de donnees - Migration SQL
+### 2. Composant `src/components/matters/MatterDocumentsSheet.tsx`
 
-**Bucket** : `matter-documents` (prive)
+**Bouton Visionnage** : Ajouter un bouton oeil (`Eye` icon) sur chaque document pour ouvrir un dialog de previsualisation :
+- PDF : affiche dans un `<iframe>` avec l'URL signee
+- Images (jpeg, png) : affiche dans un `<img>`
+- Autres types : message indiquant que la previsualisation n'est pas disponible, avec option de telecharger
 
-**Table** : `matter_documents`
-- id, matter_id (FK CASCADE), category (text), tags (text[]), file_name, file_path, file_size, mime_type, uploaded_by
-- parent_id (FK self-reference, pour versioning), is_current (boolean, default true), version_number (integer, default 1)
-- created_at (timestamptz)
+**Bouton Telechargement** : Le bouton `Download` existant declenchera desormais un vrai telechargement force.
 
-**RLS** : SELECT/INSERT/UPDATE/DELETE restreints a `is_owner_or_assistant()`
+**Indicateur de version** : Toujours afficher le numero de version (`v1`, `v2`...) meme pour la v1, et afficher un badge "versions" cliquable des qu'il y a plus d'une version.
 
-**Storage RLS** : upload/download/delete pour les roles internes authentifies
+**Dialog de previsualisation** : Nouveau dialog plein ecran (ou large) avec :
+- Le nom du fichier en titre
+- Le contenu (iframe pour PDF, img pour images)
+- Boutons telecharger et fermer
 
-### 2. Hook - `src/hooks/useMatterDocuments.ts`
+### 3. Traductions `src/i18n/locales/fr.json` et `en.json`
 
-- `useMatterDocuments(matterId, category?, tags?)` -- documents courants
-- `useMatterDocumentVersions(parentId)` -- historique versions
-- `useUploadMatterDocument()` -- upload avec validation 10 Mo, types autorises
-- `useNewVersion()` -- nouvelle version d'un document existant
-- `useDeleteMatterDocument()` -- suppression fichier + metadonnees
-- `useDownloadMatterDocument()` -- URL signee
-
-### 3. Composant - `src/components/matters/MatterDocumentsSheet.tsx`
-
-Panneau lateral (Sheet) depuis la page Dossiers :
-- En-tete avec code et libelle du dossier
-- Filtre par categorie (Select) + recherche par nom
-- Bouton upload avec choix categorie et tags optionnels
-- Liste des documents courants avec icone, nom, categorie, taille, date, tags en badges
-- Actions : telecharger, versions, supprimer
-- Dialog de confirmation pour suppression
-
-### 4. Integration - `src/pages/Matters.tsx`
-
-- Bouton icone sur chaque ligne du tableau
-- Ouverture du Sheet avec le matterId
-- Visible pour owner/assistant/sysadmin uniquement
-
-### 5. Traductions - `fr.json` et `en.json`
-
-Cles pour les 14 categories, messages d'upload/suppression/erreurs, labels du panneau
+Ajouter les cles :
+- `matterDocuments.preview` : "Apercu" / "Preview"
+- `matterDocuments.previewNotAvailable` : "Apercu non disponible pour ce type de fichier" / "Preview not available for this file type"
+- `matterDocuments.download` : "Telecharger" / "Download"
+- `matterDocuments.autoVersionDetected` : "Version existante detectee, nouvelle version creee automatiquement" / "Existing version detected, new version created automatically"
 
 ## Details techniques
 
-- Bucket `matter-documents` separe de `client-documents`
-- Chemin stockage : `{matter_id}/{category}/{timestamp}_{filename}`
-- Versioning : ancien record passe a `is_current = false`, nouveau pointe via `parent_id`
-- Pas de quota par dossier (ajout possible ulterieurement)
-- Acces restreint aux profils internes (owner/assistant/sysadmin)
+- Le visionnage utilise `createSignedUrl` avec une duree de 300 secondes pour les previews
+- Le telechargement force utilise `fetch()` + `URL.createObjectURL()` + lien `<a download="filename">`
+- La detection de meme nom compare `file_name` en minuscules pour etre insensible a la casse
+- Le versioning automatique est transparent : l'utilisateur uploade un fichier, si le nom existe deja le systeme gere la version automatiquement avec un toast d'information
 
