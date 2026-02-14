@@ -472,6 +472,7 @@
     "preview": "Preview",
     "previewNotAvailable": "Preview not available for this file type",
     "download": "Download",
+    "delete": "Delete",
     "autoVersionDetected": "Existing version detected, new version created automatically"
   }
 }

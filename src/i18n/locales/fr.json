@@ -472,6 +472,7 @@
     "preview": "Aperçu",
     "previewNotAvailable": "Aperçu non disponible pour ce type de fichier",
     "download": "Télécharger",
+    "delete": "Supprimer",
     "autoVersionDetected": "Version existante détectée, nouvelle version créée automatiquement"
   }
 }
