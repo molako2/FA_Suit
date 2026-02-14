@@ -90,6 +90,7 @@ export function useUploadDocument() {
       matterId,
       uploadedBy,
       currentQuota,
+      clientEmail,
     }: {
       file: File;
       clientId: string;
@@ -97,6 +98,7 @@ export function useUploadDocument() {
       matterId?: string;
       uploadedBy: string;
       currentQuota: number;
+      clientEmail?: string | null;
     }) => {
       // Validate file size
       if (file.size > MAX_FILE_SIZE) {
@@ -139,6 +141,30 @@ export function useUploadDocument() {
         // Cleanup uploaded file
         await supabase.storage.from('client-documents').remove([filePath]);
         throw insertError;
+      }
+
+      // Send email notification to client (silent - don't block upload)
+      if (clientEmail) {
+        try {
+          const categoryLabels: Record<DocumentCategory, string> = {
+            factures: 'Factures',
+            comptable: 'Comptable',
+            fiscal: 'Fiscal',
+            juridique: 'Juridique',
+            social: 'Social',
+            divers: 'Divers',
+          };
+          const dateStr = new Date().toLocaleDateString('fr-FR');
+          await supabase.functions.invoke('send-email', {
+            body: {
+              to: clientEmail,
+              subject: `Nouveau document disponible - ${categoryLabels[category]}`,
+              html: `<h2>Nouveau document disponible</h2><p>Un nouveau document a été mis à disposition dans votre espace :</p><ul><li><strong>Fichier :</strong> ${file.name}</li><li><strong>Rubrique :</strong> ${categoryLabels[category]}</li><li><strong>Date :</strong> ${dateStr}</li></ul><p>Connectez-vous à votre espace FlowAssist pour le consulter.</p><p>Cordialement,<br/>L'équipe FlowAssist</p>`,
+            },
+          });
+        } catch (emailError) {
+          console.warn('Email notification failed (non-blocking):', emailError);
+        }
       }
     },
     onSuccess: () => {
