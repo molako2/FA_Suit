@@ -79,7 +79,8 @@
     "settings": "Settings",
     "todos": "To Do",
     "messages": "Messages",
-    "documents": "Documents"
+    "documents": "Documents",
+    "agenda": "Agenda"
   },
   "charts": {
     "title": "Charts Dashboard",
