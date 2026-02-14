@@ -158,8 +158,8 @@ export function useUploadDocument() {
           await supabase.functions.invoke('send-email', {
             body: {
               to: clientEmail,
-              subject: `Nouveau document disponible - ${categoryLabels[category]}`,
-              html: `<h2>Nouveau document disponible</h2><p>Un nouveau document a été mis à disposition dans votre espace :</p><ul><li><strong>Fichier :</strong> ${file.name}</li><li><strong>Rubrique :</strong> ${categoryLabels[category]}</li><li><strong>Date :</strong> ${dateStr}</li></ul><p>Connectez-vous à votre espace FlowAssist pour le consulter.</p><p>Cordialement,<br/>L'équipe FlowAssist</p>`,
+              subject: `FlowAssist Suite - Nouveau document disponible - ${categoryLabels[category]}`,
+              html: `<h2>Nouveau document disponible</h2><p>Un nouveau document a été mis à disposition dans votre espace :</p><ul><li><strong>Fichier :</strong> ${file.name}</li><li><strong>Rubrique :</strong> ${categoryLabels[category]}</li><li><strong>Date :</strong> ${dateStr}</li></ul><p>Connectez-vous à votre espace FlowAssist pour le consulter : <a href="https://www.flowassist.cloud">www.flowassist.cloud</a></p><p>Cordialement,<br/>L'équipe FlowAssist</p>`,
             },
           });
         } catch (emailError) {
