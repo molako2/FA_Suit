@@ -468,6 +468,10 @@
     "cat_piece_justificative": "Supporting document",
     "cat_presentation": "Presentation",
     "cat_formulaire": "Form",
-    "cat_divers": "Miscellaneous"
+    "cat_divers": "Miscellaneous",
+    "preview": "Preview",
+    "previewNotAvailable": "Preview not available for this file type",
+    "download": "Download",
+    "autoVersionDetected": "Existing version detected, new version created automatically"
   }
 }

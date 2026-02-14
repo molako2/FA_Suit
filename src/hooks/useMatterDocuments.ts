@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
+import { useState } from 'react';
 
 export type MatterDocumentCategory =
   | 'rapport' | 'lettre_mission' | 'contrat' | 'correspondance'
@@ -114,6 +115,60 @@ export function useUploadMatterDocument() {
         throw new Error(t('matterDocuments.invalidFormat'));
       }
 
+      // Check for existing document with same name (auto-versioning)
+      const { data: existing } = await supabase
+        .from('matter_documents' as any)
+        .select('*')
+        .eq('matter_id', matterId)
+        .eq('is_current', true)
+        .ilike('file_name', file.name);
+
+      const existingDoc = (existing && existing.length > 0) ? existing[0] as unknown as MatterDocument : null;
+
+      if (existingDoc) {
+        // Auto-version: treat as new version of existing document
+        const rootId = existingDoc.parent_id || existingDoc.id;
+
+        await supabase
+          .from('matter_documents' as any)
+          .update({ is_current: false })
+          .eq('id', existingDoc.id);
+
+        const filePath = `${matterId}/${existingDoc.category}/${Date.now()}_${file.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('matter-documents')
+          .upload(filePath, file);
+        if (uploadError) {
+          // Revert
+          await supabase.from('matter_documents' as any).update({ is_current: true }).eq('id', existingDoc.id);
+          throw uploadError;
+        }
+
+        const { error: insertError } = await supabase
+          .from('matter_documents' as any)
+          .insert({
+            matter_id: matterId,
+            category: existingDoc.category,
+            tags: existingDoc.tags,
+            file_name: file.name,
+            file_path: filePath,
+            file_size: file.size,
+            mime_type: file.type,
+            uploaded_by: uploadedBy,
+            parent_id: rootId,
+            version_number: existingDoc.version_number + 1,
+          });
+
+        if (insertError) {
+          await supabase.storage.from('matter-documents').remove([filePath]);
+          await supabase.from('matter_documents' as any).update({ is_current: true }).eq('id', existingDoc.id);
+          throw insertError;
+        }
+
+        return { autoVersioned: true };
+      }
+
+      // Normal upload (v1)
       const filePath = `${matterId}/${category}/${Date.now()}_${file.name}`;
       const { error: uploadError } = await supabase.storage
         .from('matter-documents')
@@ -137,10 +192,16 @@ export function useUploadMatterDocument() {
         await supabase.storage.from('matter-documents').remove([filePath]);
         throw insertError;
       }
+
+      return { autoVersioned: false };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['matter-documents'] });
-      toast.success(t('matterDocuments.uploadSuccess'));
+      if (result?.autoVersioned) {
+        toast.success(t('matterDocuments.autoVersionDetected'));
+      } else {
+        toast.success(t('matterDocuments.uploadSuccess'));
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -171,7 +232,6 @@ export function useNewVersion() {
 
       const rootId = existingDoc.parent_id || existingDoc.id;
 
-      // Mark old as not current
       await supabase
         .from('matter_documents' as any)
         .update({ is_current: false })
@@ -200,7 +260,6 @@ export function useNewVersion() {
 
       if (insertError) {
         await supabase.storage.from('matter-documents').remove([filePath]);
-        // Revert old doc
         await supabase
           .from('matter_documents' as any)
           .update({ is_current: true })
@@ -252,10 +311,51 @@ export function useDownloadMatterDocument() {
         .from('matter-documents')
         .createSignedUrl(doc.file_path, 60);
       if (error) throw error;
-      window.open(data.signedUrl, '_blank');
+
+      // Force download via fetch + blob
+      const response = await fetch(data.signedUrl);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.file_name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     },
     onError: () => {
       toast.error('Erreur lors du téléchargement');
     },
   });
+}
+
+export function usePreviewMatterDocument() {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<MatterDocument | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const openPreview = async (doc: MatterDocument) => {
+    setLoading(true);
+    setPreviewDoc(doc);
+    try {
+      const { data, error } = await supabase.storage
+        .from('matter-documents')
+        .createSignedUrl(doc.file_path, 300);
+      if (error) throw error;
+      setPreviewUrl(data.signedUrl);
+    } catch {
+      toast.error('Erreur lors de la prévisualisation');
+      setPreviewDoc(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const closePreview = () => {
+    setPreviewUrl(null);
+    setPreviewDoc(null);
+  };
+
+  return { previewUrl, previewDoc, loading, openPreview, closePreview };
 }
