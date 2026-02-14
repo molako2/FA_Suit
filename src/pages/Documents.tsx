@@ -89,6 +89,10 @@ export default function Documents() {
     const file = e.target.files?.[0];
     if (!file || !user || !effectiveClientId) return;
 
+    // Get client billing email
+    const selectedClient = availableClients.find(c => c.id === effectiveClientId);
+    const clientEmail = selectedClient?.billing_email || null;
+
     uploadDoc.mutate({
       file,
       clientId: effectiveClientId,
@@ -96,6 +100,7 @@ export default function Documents() {
       matterId: selectedMatterId || undefined,
       uploadedBy: user.id,
       currentQuota,
+      clientEmail,
     });
 
     // Reset input

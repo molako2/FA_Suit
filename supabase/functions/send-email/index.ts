@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
     const resend = new Resend(resendApiKey);
 
     const { data, error: sendError } = await resend.emails.send({
-      from: from || 'FlowAssist <onboarding@resend.dev>',
+      from: from || 'FlowAssist <noreply@FlowAssist.cloud>',
       to: Array.isArray(to) ? to : [to],
       subject,
       html,

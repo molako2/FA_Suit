@@ -435,6 +435,8 @@
     "catJuridique": "Juridique",
     "catSocial": "Social",
     "catDivers": "Divers",
-    "allMatters": "Tous les dossiers"
+    "allMatters": "Tous les dossiers",
+    "emailSubject": "Nouveau document disponible - {{category}}",
+    "emailBody": "<h2>Nouveau document disponible</h2><p>Un nouveau document a été mis à disposition dans votre espace :</p><ul><li><strong>Fichier :</strong> {{fileName}}</li><li><strong>Rubrique :</strong> {{category}}</li><li><strong>Date :</strong> {{date}}</li></ul><p>Connectez-vous à votre espace FlowAssist pour le consulter.</p><p>Cordialement,<br/>L'équipe FlowAssist</p>"
   }
 }
