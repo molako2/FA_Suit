@@ -1,0 +1,1 @@
+DROP POLICY "Owner view all agenda entries" ON public.agenda_entries;
