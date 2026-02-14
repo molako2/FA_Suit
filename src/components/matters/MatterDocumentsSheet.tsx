@@ -11,6 +11,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -18,11 +21,12 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Upload, Download, Trash2, Search, FileText, FileSpreadsheet,
-  FileImage, File, History, Loader2,
+  FileImage, File, History, Loader2, Eye,
 } from 'lucide-react';
 import {
   useMatterDocuments, useUploadMatterDocument, useDeleteMatterDocument,
   useDownloadMatterDocument, useNewVersion, useMatterDocumentVersions,
+  usePreviewMatterDocument,
   MATTER_DOC_CATEGORIES, type MatterDocumentCategory, type MatterDocument,
 } from '@/hooks/useMatterDocuments';
 
@@ -48,6 +52,10 @@ function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
 }
 
+function canPreview(mime: string) {
+  return mime === 'application/pdf' || mime.startsWith('image/');
+}
+
 export default function MatterDocumentsSheet({ open, onOpenChange, matterId, matterCode, matterLabel }: Props) {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -71,6 +79,7 @@ export default function MatterDocumentsSheet({ open, onOpenChange, matterId, mat
   const deleteMutation = useDeleteMatterDocument();
   const downloadMutation = useDownloadMatterDocument();
   const newVersionMutation = useNewVersion();
+  const { previewUrl, previewDoc, loading: previewLoading, openPreview, closePreview } = usePreviewMatterDocument();
 
   const filtered = documents.filter(d =>
     d.file_name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -220,6 +229,9 @@ export default function MatterDocumentsSheet({ open, onOpenChange, matterId, mat
                         <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                           {t(`matterDocuments.cat_${doc.category}`)}
                         </Badge>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                          v{doc.version_number}
+                        </Badge>
                         {doc.tags?.map(tag => (
                           <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0">
                             {tag}
@@ -228,11 +240,15 @@ export default function MatterDocumentsSheet({ open, onOpenChange, matterId, mat
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
                         {formatFileSize(doc.file_size)} · {new Date(doc.created_at).toLocaleDateString('fr-FR')}
-                        {doc.version_number > 1 && ` · v${doc.version_number}`}
                       </p>
                     </div>
                     <div className="flex items-center gap-0.5 shrink-0">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => downloadMutation.mutate(doc)}>
+                      {canPreview(doc.mime_type) && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPreview(doc)} title={t('matterDocuments.preview')}>
+                          <Eye className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => downloadMutation.mutate(doc)} title={t('matterDocuments.download')}>
                         <Download className="w-3.5 h-3.5" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
@@ -266,6 +282,41 @@ export default function MatterDocumentsSheet({ open, onOpenChange, matterId, mat
           />
         </SheetContent>
       </Sheet>
+
+      {/* Preview dialog */}
+      <Dialog open={!!previewDoc} onOpenChange={open => !open && closePreview()}>
+        <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0">
+          <DialogHeader className="px-6 pt-6 pb-3 border-b">
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              {previewDoc && getFileIcon(previewDoc.mime_type)}
+              <span className="truncate">{previewDoc?.file_name}</span>
+              {previewDoc && (
+                <Button variant="outline" size="sm" className="ml-auto" onClick={() => previewDoc && downloadMutation.mutate(previewDoc)}>
+                  <Download className="w-3.5 h-3.5 mr-1" />
+                  {t('matterDocuments.download')}
+                </Button>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden p-4">
+            {previewLoading ? (
+              <div className="flex justify-center items-center h-full">
+                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : previewUrl && previewDoc ? (
+              previewDoc.mime_type === 'application/pdf' ? (
+                <iframe src={previewUrl} className="w-full h-full rounded border" title={previewDoc.file_name} />
+              ) : previewDoc.mime_type.startsWith('image/') ? (
+                <div className="flex justify-center items-center h-full">
+                  <img src={previewUrl} alt={previewDoc.file_name} className="max-w-full max-h-full object-contain rounded" />
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-8">{t('matterDocuments.previewNotAvailable')}</p>
+              )
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete confirmation */}
       <AlertDialog open={!!deleteDoc} onOpenChange={open => !open && setDeleteDoc(null)}>

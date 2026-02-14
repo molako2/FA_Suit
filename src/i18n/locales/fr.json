@@ -468,6 +468,10 @@
     "cat_piece_justificative": "Pièce justificative",
     "cat_presentation": "Présentation",
     "cat_formulaire": "Formulaire",
-    "cat_divers": "Divers"
+    "cat_divers": "Divers",
+    "preview": "Aperçu",
+    "previewNotAvailable": "Aperçu non disponible pour ce type de fichier",
+    "download": "Télécharger",
+    "autoVersionDetected": "Version existante détectée, nouvelle version créée automatiquement"
   }
 }
