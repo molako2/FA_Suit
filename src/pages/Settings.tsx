@@ -34,7 +34,7 @@ import {
 import { useCabinetSettings, useUpdateCabinetSettings } from '@/hooks/useCabinetSettings';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useAuditLogs, useCreateAuditLog } from '@/hooks/useAuditLog';
-import { Save, Building2, Shield, FileText, LogOut, Loader2 } from 'lucide-react';
+import { Save, Building2, Shield, FileText, LogOut, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Format cents to MAD
@@ -159,6 +159,7 @@ export default function Settings() {
       create_assignment: 'Création affectation',
       delete_assignment: 'Suppression affectation',
       close_matter: 'Clôture dossier',
+      delete_matter_document: 'Suppression document',
     };
     return labels[action] || action;
   };
@@ -437,14 +438,50 @@ export default function Settings() {
 
           {/* Audit Logs */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Journal d'audit
-              </CardTitle>
-              <CardDescription>
-                Historique des actions sensibles effectuées dans l'application.
-              </CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Journal d'audit
+                </CardTitle>
+                <CardDescription>
+                  Historique des actions sensibles effectuées dans l'application.
+                </CardDescription>
+              </div>
+              {auditLogs.length > 0 && (
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {
+                  const rows = auditLogs.map(log => {
+                    const d = log.details as Record<string, unknown> | null;
+                    const detailRows = d ? Object.entries(d).map(([k, v]) =>
+                      `<tr><td style="padding:4px 12px;color:#64748b;font-size:13px;">${k}</td><td style="padding:4px 12px;font-size:13px;">${String(v ?? '')}</td></tr>`
+                    ).join('') : '<tr><td colspan="2" style="padding:4px 12px;color:#94a3b8;font-size:13px;">—</td></tr>';
+                    return `<tr>
+                      <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${new Date(log.created_at).toLocaleString('fr-FR')}</td>
+                      <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:600;">${getProfileName(log.user_id)}</td>
+                      <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;"><span style="border:1px solid #cbd5e1;border-radius:4px;padding:2px 8px;font-size:13px;">${formatAuditAction(log.action)}</span></td>
+                      <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${log.entity_type} ${log.entity_id ? `(${log.entity_id.substring(0, 8)}…)` : ''}</td>
+                      <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;"><table style="font-size:12px;">${detailRows}</table></td>
+                    </tr>`;
+                  }).join('');
+                  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Journal d'audit – ${new Date().toLocaleDateString('fr-FR')}</title>
+                    <style>body{font-family:system-ui,sans-serif;margin:2rem;color:#1e293b}h1{font-size:1.4rem}table{border-collapse:collapse;width:100%}th{text-align:left;padding:10px 12px;background:#f1f5f9;border-bottom:2px solid #cbd5e1;font-size:13px}td{vertical-align:top}</style>
+                  </head><body><h1>📋 Journal d'audit détaillé</h1><p style="color:#64748b;margin-bottom:1.5rem">Exporté le ${new Date().toLocaleString('fr-FR')}</p>
+                  <table><thead><tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Entité</th><th>Détails</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+                  const blob = new Blob([html], { type: 'text/html' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `journal-audit-${new Date().toISOString().slice(0, 10)}.html`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                  toast.success('Journal d\'audit exporté en HTML');
+                }}>
+                  <Download className="w-4 h-4" />
+                  Télécharger HTML
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               {auditLogs.length === 0 ? (
