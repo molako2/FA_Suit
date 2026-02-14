@@ -79,7 +79,8 @@
     "settings": "Paramètres",
     "todos": "To Do",
     "messages": "Messages",
-    "documents": "Vos Documents"
+    "documents": "Vos Documents",
+    "agenda": "Agenda"
   },
   "charts": {
     "title": "Dashboard Graphique",
