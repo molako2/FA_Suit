@@ -78,6 +78,8 @@ async function checkBudgetAlert(matterId: string) {
             <li>Plafond : ${max} MAD HT</li>
           </ul>
           <p>Veuillez prendre les mesures nécessaires.</p>
+          <p>Connectez-vous à votre espace FlowAssist pour le consulter : <a href="https://www.flowassist.cloud">www.flowassist.cloud</a></p>
+          <p>Cordialement,<br/>L'équipe FlowAssist</p>
         `,
       },
     });
