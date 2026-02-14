@@ -108,7 +108,7 @@ export default function MatterDocumentsSheet({ open, onOpenChange, matterId, mat
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:max-w-xl flex flex-col p-0">
+        <SheetContent side="right" className="w-full sm:max-w-2xl flex flex-col p-0">
           <SheetHeader className="px-6 pt-6 pb-4 border-b">
             <SheetTitle className="flex items-center gap-2">
               <Badge variant="outline">{matterCode}</Badge>
@@ -244,7 +244,7 @@ export default function MatterDocumentsSheet({ open, onOpenChange, matterId, mat
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 justify-end border-t pt-2">
+                    <div className="flex flex-wrap items-center gap-1 justify-end border-t pt-2">
                       {canPreview(doc.mime_type) && (
                         <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => openPreview(doc)} title={t('matterDocuments.preview')}>
                           <Eye className="w-3.5 h-3.5" />
