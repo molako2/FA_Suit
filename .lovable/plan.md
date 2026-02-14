@@ -1,32 +1,41 @@
 
 
-# Bouton Supprimer visible + Trace d'audit pour la suppression de documents
+# Agenda prive : acces restreint par utilisateur
+
+## Probleme actuel
+
+La politique RLS actuelle permet aux **owners et assistants** de voir **toutes** les notes d'agenda de tous les utilisateurs via la politique "Owner view all agenda entries". L'utilisateur souhaite que chaque personne ne voie que ses propres notes, sans exception.
 
 ## Modifications prevues
 
-### 1. Hook `src/hooks/useMatterDocuments.ts` - `useDeleteMatterDocument`
+### 1. Base de donnees - Politique RLS
 
-Modifier la mutation de suppression pour enregistrer automatiquement une entree dans la table `audit_logs` avant de supprimer le document. Les details enregistres incluront :
-- `action` : `"delete_matter_document"`
-- `entity_type` : `"matter_document"`
-- `entity_id` : l'ID du document supprime
-- `details` : objet JSON contenant `file_name`, `matter_id`, `category`, `version_number`, `file_size`, `mime_type`
+Supprimer la politique "Owner view all agenda entries" qui donne acces a tous les owner/assistant, et ne conserver que la politique "View own agenda entries" qui limite la visibilite aux propres notes de chaque utilisateur.
 
-Le hook utilisera directement `supabase.from('audit_logs').insert(...)` au sein de la mutation (pas besoin d'importer le hook audit separement car on est deja dans un contexte mutation).
+Resultat : chaque utilisateur ne pourra lire, modifier et supprimer que ses propres notes, quel que soit son role.
 
-### 2. Composant `src/components/matters/MatterDocumentsSheet.tsx`
+### 2. Frontend - Filtrage cote client (securite en profondeur)
 
-- Rendre le bouton Supprimer plus visible en ajoutant un label texte "Supprimer" a cote de l'icone Trash2, comme les boutons Apercu et Telecharger
-- Le comportement reste identique : clic ouvre la confirmation AlertDialog, puis suppression effective
+Ajouter un filtre `.eq('user_id', user.id)` dans la requete du hook `useAgendaEntries` pour s'assurer que seules les notes de l'utilisateur connecte sont demandees (meme si le RLS le garantit deja cote serveur).
 
-### 3. Traductions `fr.json` et `en.json`
+---
 
-- Ajouter `matterDocuments.delete` : "Supprimer" / "Delete"
-- Ajouter `matterDocuments.deleteAuditSuccess` (optionnel, pour le toast) si necessaire
+### Details techniques
 
-## Details techniques
+**Migration SQL :**
+```sql
+DROP POLICY "Owner view all agenda entries" ON public.agenda_entries;
+```
 
-- L'audit log est insere **avant** la suppression physique du fichier pour garantir la tracabilite meme en cas d'echec partiel
-- Le `user_id` est recupere via `auth.uid()` cote client (transmis dans l'insert audit_logs)
-- La table `audit_logs` a deja une politique RLS INSERT pour tout utilisateur authentifie, donc pas de migration necessaire
+**Hook `useAgenda.ts` :**
+```typescript
+// Avant
+.select('*')
+.order('entry_date', { ascending: true });
+
+// Apres
+.select('*')
+.eq('user_id', user.id)
+.order('entry_date', { ascending: true });
+```
 
