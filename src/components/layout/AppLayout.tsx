@@ -19,6 +19,7 @@ import {
   CheckSquare,
   MessageSquare,
   FileArchive,
+  CalendarDays,
 } from 'lucide-react';
 import { usePendingTodosCount, useInProgressTodosCount, useBlockedTodosCount } from '@/hooks/useTodos';
 import { useUnreadMessagesCount } from '@/hooks/useMessages';
@@ -121,6 +122,12 @@ const navItemsConfig: NavItemConfig[] = [
     labelKey: 'nav.todos',
     href: '/todos',
     icon: CheckSquare,
+    roles: ['sysadmin', 'owner', 'assistant', 'collaborator'],
+  },
+  {
+    labelKey: 'nav.agenda',
+    href: '/agenda',
+    icon: CalendarDays,
     roles: ['sysadmin', 'owner', 'assistant', 'collaborator'],
   },
   {

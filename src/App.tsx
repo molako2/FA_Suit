@@ -24,6 +24,7 @@ import Settings from "./pages/Settings";
 import Todos from "./pages/Todos";
 import Messages from "./pages/Messages";
 import Documents from "./pages/Documents";
+import Agenda from "./pages/Agenda";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -148,6 +149,15 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <AppLayout><Messages /></AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/agenda"
+        element={
+          <ProtectedRoute>
+            <AppLayout><Agenda /></AppLayout>
           </ProtectedRoute>
         }
       />
