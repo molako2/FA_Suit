@@ -108,7 +108,7 @@ export default function MatterDocumentsSheet({ open, onOpenChange, matterId, mat
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0">
+        <SheetContent side="right" className="w-full sm:max-w-xl flex flex-col p-0">
           <SheetHeader className="px-6 pt-6 pb-4 border-b">
             <SheetTitle className="flex items-center gap-2">
               <Badge variant="outline">{matterCode}</Badge>
@@ -221,35 +221,39 @@ export default function MatterDocumentsSheet({ open, onOpenChange, matterId, mat
             ) : (
               <div className="space-y-2 py-3">
                 {filtered.map(doc => (
-                  <div key={doc.id} className="flex items-start gap-3 p-3 rounded-md border hover:bg-muted/30 transition-colors">
-                    <div className="mt-0.5">{getFileIcon(doc.mime_type)}</div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{doc.file_name}</p>
-                      <div className="flex flex-wrap items-center gap-1 mt-1">
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                          {t(`matterDocuments.cat_${doc.category}`)}
-                        </Badge>
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                          v{doc.version_number}
-                        </Badge>
-                        {doc.tags?.map(tag => (
-                          <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0">
-                            {tag}
+                  <div key={doc.id} className="flex flex-col gap-2 p-3 rounded-md border hover:bg-muted/30 transition-colors">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5">{getFileIcon(doc.mime_type)}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{doc.file_name}</p>
+                        <div className="flex flex-wrap items-center gap-1 mt-1">
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                            {t(`matterDocuments.cat_${doc.category}`)}
                           </Badge>
-                        ))}
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                            v{doc.version_number}
+                          </Badge>
+                          {doc.tags?.map(tag => (
+                            <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {formatFileSize(doc.file_size)} · {new Date(doc.created_at).toLocaleDateString('fr-FR')}
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {formatFileSize(doc.file_size)} · {new Date(doc.created_at).toLocaleDateString('fr-FR')}
-                      </p>
                     </div>
-                    <div className="flex items-center gap-0.5 shrink-0">
+                    <div className="flex items-center gap-1 justify-end border-t pt-2">
                       {canPreview(doc.mime_type) && (
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPreview(doc)} title={t('matterDocuments.preview')}>
+                        <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => openPreview(doc)} title={t('matterDocuments.preview')}>
                           <Eye className="w-3.5 h-3.5" />
+                          {t('matterDocuments.preview')}
                         </Button>
                       )}
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => downloadMutation.mutate(doc)} title={t('matterDocuments.download')}>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => downloadMutation.mutate(doc)} title={t('matterDocuments.download')}>
                         <Download className="w-3.5 h-3.5" />
+                        {t('matterDocuments.download')}
                       </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
                         setNewVersionDoc(doc);
