@@ -20,6 +20,7 @@ export function useAgendaEntries() {
       const { data, error } = await supabase
         .from('agenda_entries')
         .select('*')
+        .eq('user_id', user!.id)
         .order('entry_date', { ascending: true });
       if (error) throw error;
       return data as AgendaEntry[];
