@@ -1,55 +1,83 @@
 
 
-# Alerte email au owner quand un dossier atteint 80% du budget
+# Module de Gestion Documentaire par Dossier (multi-metier)
 
 ## Contexte
 
-Les dossiers "temps passe" peuvent avoir un plafond de facturation (`max_amount_ht_cents`). Lorsque la consommation (heures saisies x taux) atteint 80% de ce plafond, le owner doit recevoir un email d'alerte.
+Le module de gestion documentaire est rattache a chaque dossier (matter). Il doit couvrir tous les types de cabinets : audit, expertise comptable, conseil fiscal, conseil financier, juridique, et autres. Les categories de documents sont donc universelles et non exclusivement juridiques.
 
-## Approche
+## Categories retenues (14 categories multi-metier)
 
-Le declenchement se fera cote frontend, apres chaque saisie de temps (creation d'une entree timesheet). Apres insertion reussie, on calculera la consommation totale du dossier et on verifiera si le seuil de 80% est franchi.
+Au lieu des 12 categories juridiques, les categories couvrent l'ensemble des activites d'un cabinet :
 
-## Modifications
+| Categorie | Usage principal |
+|---|---|
+| `rapport` | Rapports d'audit, rapports de mission, rapports d'expertise |
+| `lettre_mission` | Lettres de mission, contrats d'engagement |
+| `contrat` | Contrats divers, conventions, accords |
+| `correspondance` | Courriers, emails importants, echanges formels |
+| `fiscal` | Declarations fiscales, liasses, rescrits |
+| `comptable` | Bilans, situations intermediaires, balances, journaux |
+| `social` | Bulletins de paie, declarations sociales, contrats de travail |
+| `juridique` | PV d'AG, statuts, decisions, actes juridiques |
+| `audit` | Programmes de travail, feuilles de travail, confirmations |
+| `conseil` | Notes de conseil, memorandums, recommandations |
+| `piece_justificative` | Factures, releves bancaires, pieces comptables |
+| `presentation` | Supports de presentation, rapports destines aux clients |
+| `formulaire` | Formulaires administratifs, declarations, demandes |
+| `divers` | Tout document ne rentrant pas dans les autres categories |
 
-### 1. Fichier : `src/hooks/useTimesheet.ts`
+## Architecture
 
-Dans `useCreateTimesheetEntry`, apres l'insertion reussie (`onSuccess`), ajouter une logique de verification :
+Identique au plan precedent avec les ajustements suivants :
 
-- Recuperer le dossier concerne et verifier s'il a un `max_amount_ht_cents` defini
-- Recuperer toutes les entrees timesheet billable du dossier
-- Calculer la consommation totale en cents (minutes x taux / 60)
-- Si la consommation >= 80% du plafond, envoyer un email au owner via `send-email`
+### 1. Base de donnees - Migration SQL
 
-### 2. Logique de calcul
+**Bucket** : `matter-documents` (prive)
 
-Le calcul reprend la meme formule que dans `src/pages/Matters.tsx` :
+**Table** : `matter_documents`
+- id, matter_id (FK CASCADE), category (text), tags (text[]), file_name, file_path, file_size, mime_type, uploaded_by
+- parent_id (FK self-reference, pour versioning), is_current (boolean, default true), version_number (integer, default 1)
+- created_at (timestamptz)
 
-```text
-consumedCents = somme de (minutes_rounded x rate_cents / 60) pour chaque entree billable
-percentage = consumedCents / max_amount_ht_cents * 100
-```
+**RLS** : SELECT/INSERT/UPDATE/DELETE restreints a `is_owner_or_assistant()`
 
-Si `percentage >= 80`, declenchement de l'alerte.
+**Storage RLS** : upload/download/delete pour les roles internes authentifies
 
-### 3. Contenu de l'email
+### 2. Hook - `src/hooks/useMatterDocuments.ts`
 
-- **Destinataire** : email du/des owner(s) (recupere via `user_roles` + `profiles`)
-- **Objet** : `FlowAssist Suite - Alerte budget dossier {code}`
-- **Corps** : Message indiquant le code du dossier, le libelle, le pourcentage atteint, le montant consomme et le plafond
+- `useMatterDocuments(matterId, category?, tags?)` -- documents courants
+- `useMatterDocumentVersions(parentId)` -- historique versions
+- `useUploadMatterDocument()` -- upload avec validation 10 Mo, types autorises
+- `useNewVersion()` -- nouvelle version d'un document existant
+- `useDeleteMatterDocument()` -- suppression fichier + metadonnees
+- `useDownloadMatterDocument()` -- URL signee
 
-### 4. Anti-spam
+### 3. Composant - `src/components/matters/MatterDocumentsSheet.tsx`
 
-Pour eviter d'envoyer un email a chaque saisie de temps une fois le seuil franchi, on utilisera `sessionStorage` avec une cle par dossier (`budget-alert-{matter_id}`) pour ne declencher l'alerte qu'une seule fois par session.
+Panneau lateral (Sheet) depuis la page Dossiers :
+- En-tete avec code et libelle du dossier
+- Filtre par categorie (Select) + recherche par nom
+- Bouton upload avec choix categorie et tags optionnels
+- Liste des documents courants avec icone, nom, categorie, taille, date, tags en badges
+- Actions : telecharger, versions, supprimer
+- Dialog de confirmation pour suppression
+
+### 4. Integration - `src/pages/Matters.tsx`
+
+- Bouton icone sur chaque ligne du tableau
+- Ouverture du Sheet avec le matterId
+- Visible pour owner/assistant/sysadmin uniquement
+
+### 5. Traductions - `fr.json` et `en.json`
+
+Cles pour les 14 categories, messages d'upload/suppression/erreurs, labels du panneau
 
 ## Details techniques
 
-- La verification et l'envoi sont effectues de maniere non-bloquante (silencieux, dans un `try/catch`)
-- Les requetes Supabase necessaires :
-  - `matters` pour recuperer `max_amount_ht_cents` et `rate_cents`
-  - `timesheet_entries` filtrees par `matter_id` et `billable = true`
-  - `profiles` pour le `rate_cents` du collaborateur
-  - `user_roles` + `profiles` pour trouver l'email du owner
-- Aucune modification de base de donnees necessaire
-- Aucune nouvelle Edge Function necessaire (reutilisation de `send-email`)
+- Bucket `matter-documents` separe de `client-documents`
+- Chemin stockage : `{matter_id}/{category}/{timestamp}_{filename}`
+- Versioning : ancien record passe a `is_current = false`, nouveau pointe via `parent_id`
+- Pas de quota par dossier (ajout possible ulterieurement)
+- Acces restreint aux profils internes (owner/assistant/sysadmin)
 
