@@ -1,1 +1,4 @@
 project_id = "frffkdxgvbhxavntfvzt"
+
+[functions.agenda-reminder]
+verify_jwt = false
