@@ -283,6 +283,23 @@ export function useDeleteMatterDocument() {
 
   return useMutation({
     mutationFn: async (doc: MatterDocument) => {
+      // Insert audit log BEFORE deletion to guarantee traceability
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.from('audit_logs').insert({
+        action: 'delete_matter_document',
+        entity_type: 'matter_document',
+        entity_id: doc.id,
+        user_id: user?.id || null,
+        details: {
+          file_name: doc.file_name,
+          matter_id: doc.matter_id,
+          category: doc.category,
+          version_number: doc.version_number,
+          file_size: doc.file_size,
+          mime_type: doc.mime_type,
+        },
+      });
+
       const { error: storageError } = await supabase.storage
         .from('matter-documents')
         .remove([doc.file_path]);

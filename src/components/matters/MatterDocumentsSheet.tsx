@@ -266,8 +266,9 @@ export default function MatterDocumentsSheet({ open, onOpenChange, matterId, mat
                           <FileText className="w-3.5 h-3.5" />
                         </Button>
                       )}
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteDoc(doc)}>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-destructive hover:text-destructive" onClick={() => setDeleteDoc(doc)}>
                         <Trash2 className="w-3.5 h-3.5" />
+                        {t('matterDocuments.delete')}
                       </Button>
                     </div>
                   </div>
