@@ -287,24 +287,20 @@ export default function Collaborators() {
     if (!deleteTargetUser) return;
     setIsDeletingCollaborator(true);
     try {
-      // Delete the user's profile
-      const { error: profileError } = await supabase.from("profiles").delete().eq("id", deleteTargetUser.id);
+      const { data, error } = await supabase.functions.invoke("admin-delete-user", {
+        body: { userId: deleteTargetUser.id },
+      });
 
-      if (profileError) throw profileError;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      // Delete from user_roles
-      const { error: roleError } = await supabase.from("user_roles").delete().eq("user_id", deleteTargetUser.id);
-
-      if (roleError) throw roleError;
-
-      toast.success("Collaborateur supprimé avec succès");
+      toast.success("Utilisateur supprimé avec succès");
       setIsDeleteDialogOpen(false);
       setDeleteTargetUser(null);
-      // Refresh profiles list
       window.location.reload();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast.error("Erreur lors de la suppression du collaborateur");
+      toast.error(error.message || "Erreur lors de la suppression de l'utilisateur");
     } finally {
       setIsDeletingCollaborator(false);
     }
