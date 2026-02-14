@@ -42,9 +42,10 @@ import { useClients } from '@/hooks/useClients';
 import { useTimesheetEntries, formatMinutesToHours } from '@/hooks/useTimesheet';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useCabinetSettings } from '@/hooks/useCabinetSettings';
-import { Plus, Pencil, FolderOpen, Search, Loader2, Download } from 'lucide-react';
+import { Plus, Pencil, FolderOpen, Search, Loader2, Download, FileArchive } from 'lucide-react';
 import { toast } from 'sonner';
 import { exportMattersCSV } from '@/lib/exports';
+import MatterDocumentsSheet from '@/components/matters/MatterDocumentsSheet';
 import { ColumnHeaderFilter, useColumnFilters, type FilterOption } from '@/components/ColumnHeaderFilter';
 
 // Format cents to MAD
@@ -57,6 +58,7 @@ export default function Matters() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMatter, setEditingMatter] = useState<Matter | null>(null);
+  const [docsMatter, setDocsMatter] = useState<Matter | null>(null);
 
   // Form state
   const [formLabel, setFormLabel] = useState('');
@@ -764,6 +766,14 @@ export default function Matters() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            onClick={() => setDocsMatter(matter)}
+                            title="Documents"
+                          >
+                            <FileArchive className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => openDialog(matter)}
                           >
                             <Pencil className="w-4 h-4" />
@@ -785,6 +795,15 @@ export default function Matters() {
           </Table>
         </CardContent>
       </Card>
+      {docsMatter && (
+        <MatterDocumentsSheet
+          open={!!docsMatter}
+          onOpenChange={open => !open && setDocsMatter(null)}
+          matterId={docsMatter.id}
+          matterCode={docsMatter.code}
+          matterLabel={docsMatter.label}
+        />
+      )}
     </div>
   );
 }

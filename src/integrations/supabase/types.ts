@@ -451,6 +451,69 @@ export type Database = {
           },
         ]
       }
+      matter_documents: {
+        Row: {
+          category: string
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          is_current: boolean
+          matter_id: string
+          mime_type: string
+          parent_id: string | null
+          tags: string[] | null
+          uploaded_by: string
+          version_number: number
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size: number
+          id?: string
+          is_current?: boolean
+          matter_id: string
+          mime_type: string
+          parent_id?: string | null
+          tags?: string[] | null
+          uploaded_by: string
+          version_number?: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          is_current?: boolean
+          matter_id?: string
+          mime_type?: string
+          parent_id?: string | null
+          tags?: string[] | null
+          uploaded_by?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matter_documents_matter_id_fkey"
+            columns: ["matter_id"]
+            isOneToOne: false
+            referencedRelation: "matters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matter_documents_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "matter_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       matters: {
         Row: {
           billing_type: string
