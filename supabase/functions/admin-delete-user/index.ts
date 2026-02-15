@@ -4,11 +4,20 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  // Only allow POST
+  if (req.method !== "POST") {
+    return new Response(
+      JSON.stringify({ error: "Method not allowed" }),
+      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 
   try {
@@ -61,6 +70,26 @@ serve(async (req) => {
     if (userId === caller.id) {
       return new Response(JSON.stringify({ error: "Vous ne pouvez pas supprimer votre propre compte" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Prevent non-sysadmin from deleting sysadmin users
+    const { data: targetRole } = await adminClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .single();
+
+    if (targetRole?.role === "sysadmin" && callerRole.role !== "sysadmin") {
+      return new Response(JSON.stringify({ error: "Seul un sysadmin peut supprimer un autre sysadmin" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Prevent owner from deleting another owner (only sysadmin can)
+    if (targetRole?.role === "owner" && callerRole.role !== "sysadmin") {
+      return new Response(JSON.stringify({ error: "Seul un sysadmin peut supprimer un associé" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 

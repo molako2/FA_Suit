@@ -3,12 +3,21 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Only allow POST
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 
   try {
@@ -63,11 +72,35 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Validate password length (consistent with all other password checks)
+    if (password.length < 8) {
+      return new Response(
+        JSON.stringify({ error: 'Password must be at least 8 characters' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate name length
+    if (name.trim().length < 2 || name.trim().length > 100) {
+      return new Response(
+        JSON.stringify({ error: 'Name must be between 2 and 100 characters' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return new Response(
         JSON.stringify({ error: 'Invalid email format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate rateCents if provided
+    if (rateCents !== undefined && rateCents !== null && (typeof rateCents !== 'number' || rateCents < 0)) {
+      return new Response(
+        JSON.stringify({ error: 'Rate must be a non-negative number' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -78,6 +111,14 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Invalid role' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Prevent role escalation: only sysadmin can create sysadmin users
+    if (role === 'sysadmin' && callerRole.role !== 'sysadmin') {
+      return new Response(
+        JSON.stringify({ error: 'Only sysadmin can assign sysadmin role' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

@@ -26,8 +26,14 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
 
   if (allowedRoles) {
     if (!role) {
-      // Role hasn't loaded yet — deny access until it resolves
-      return <Navigate to="/login" state={{ from: location }} replace />;
+      // User is authenticated but has no role — show loading spinner
+      // rather than redirecting to /login (which would cause a loop
+      // since Login redirects authenticated users back to /).
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      );
     }
     if (!allowedRoles.includes(role)) {
       // Redirect to appropriate home based on role
