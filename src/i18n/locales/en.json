@@ -383,6 +383,7 @@
     "totalSizeLimit": "Limit: 15 MB total per task",
     "fileTooLarge": "Total size exceeds 15 MB",
     "attachmentUploaded": "File(s) uploaded",
+    "saveToAddAttachments": "Save the task to add attachments",
     "attachmentDeleted": "Attachment deleted"
   },
   "messages": {
