@@ -63,6 +63,24 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid email format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate role if provided
+    const validRoles = ['sysadmin', 'owner', 'assistant', 'collaborator', 'client'];
+    if (role && !validRoles.includes(role)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid role' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Create admin client with service role key
     const adminClient = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {

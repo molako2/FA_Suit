@@ -54,25 +54,31 @@ export default function ResetPasswordPage() {
     }
 
     setIsLoading(true);
-    const { error } = await updatePassword(password);
-    
-    if (error) {
-      toast.error(error.message || (i18n.language === 'fr' 
-        ? 'Erreur lors de la modification du mot de passe' 
-        : 'Error updating password'));
-    } else {
-      setIsSuccess(true);
-      toast.success(i18n.language === 'fr' 
-        ? 'Mot de passe modifié avec succès' 
-        : 'Password updated successfully');
-      
-      // Redirect to login after a short delay
-      setTimeout(() => {
-        navigate('/login');
-      }, 2000);
+    try {
+      const { error } = await updatePassword(password);
+
+      if (error) {
+        toast.error(error.message || (i18n.language === 'fr'
+          ? 'Erreur lors de la modification du mot de passe'
+          : 'Error updating password'));
+      } else {
+        setIsSuccess(true);
+        toast.success(i18n.language === 'fr'
+          ? 'Mot de passe modifié avec succès'
+          : 'Password updated successfully');
+
+        // Redirect to login after a short delay
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000);
+      }
+    } catch {
+      toast.error(i18n.language === 'fr'
+        ? 'Erreur réseau inattendue'
+        : 'Unexpected network error');
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   if (isSuccess) {

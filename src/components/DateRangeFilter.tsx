@@ -53,7 +53,7 @@ export default function DateRangeFilter({
               )}
             >
               <CalendarIcon className="mr-2 w-3.5 h-3.5" />
-              {dateFrom
+              {dateFrom && parseDate(dateFrom)
                 ? format(parseDate(dateFrom)!, 'dd MMM yyyy', { locale })
                 : (isFr ? 'Sélectionner' : 'Select')}
             </Button>
@@ -82,7 +82,7 @@ export default function DateRangeFilter({
               )}
             >
               <CalendarIcon className="mr-2 w-3.5 h-3.5" />
-              {dateTo
+              {dateTo && parseDate(dateTo)
                 ? format(parseDate(dateTo)!, 'dd MMM yyyy', { locale })
                 : (isFr ? 'Sélectionner' : 'Select')}
             </Button>

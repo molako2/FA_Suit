@@ -150,7 +150,15 @@ export default function Collaborators() {
       return;
     }
 
-    const rateCents = formRateCents ? Math.round(parseFloat(formRateCents) * 100) : null;
+    let rateCents: number | null = null;
+    if (formRateCents) {
+      const parsed = parseFloat(formRateCents);
+      if (isNaN(parsed) || parsed < 0) {
+        toast.error("Le taux horaire doit être un nombre positif");
+        return;
+      }
+      rateCents = Math.round(parsed * 100);
+    }
 
     try {
       if (editingUser) {
@@ -196,8 +204,10 @@ export default function Collaborators() {
 
         setIsCreatingUser(true);
 
-        // Generate a random password for the new user
-        const tempPassword = Math.random().toString(36).slice(-12) + "A1!";
+        // Generate a cryptographically random password for the new user
+        const array = new Uint8Array(16);
+        crypto.getRandomValues(array);
+        const tempPassword = Array.from(array, b => b.toString(36).padStart(2, '0')).join('').slice(0, 16) + "A1!";
 
         // Create user via Supabase Auth (requires edge function with admin privileges)
         const { data, error } = await supabase.functions.invoke("admin-create-user", {

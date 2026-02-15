@@ -129,17 +129,29 @@ export default function Purchases() {
   };
   
   const handleSave = async () => {
+    // Prevent double-submit
+    if (createPurchase.isPending || updatePurchase.isPending) return;
+
     if (!formInvoiceNumber.trim() || !formDesignation.trim() || !formSupplier.trim() || !formInvoiceDate) {
       toast.error(isFr ? 'Veuillez remplir les champs obligatoires' : 'Please fill required fields');
       return;
     }
-    
+
+    // Validate numeric amounts
+    const htVal = parseFloat(formAmountHT || '0');
+    const tvaVal = parseFloat(formAmountTVA || '0');
+    const ttcVal = parseFloat(formAmountTTC || '0');
+    if (isNaN(htVal) || isNaN(tvaVal) || isNaN(ttcVal) || htVal < 0 || tvaVal < 0 || ttcVal < 0) {
+      toast.error(isFr ? 'Les montants doivent être des nombres positifs' : 'Amounts must be positive numbers');
+      return;
+    }
+
     const purchaseData = {
       invoice_number: formInvoiceNumber.trim(),
       designation: formDesignation.trim(),
-      amount_ht_cents: Math.round(parseFloat(formAmountHT || '0') * 100),
-      amount_tva_cents: Math.round(parseFloat(formAmountTVA || '0') * 100),
-      amount_ttc_cents: Math.round(parseFloat(formAmountTTC || '0') * 100),
+      amount_ht_cents: Math.round(htVal * 100),
+      amount_tva_cents: Math.round(tvaVal * 100),
+      amount_ttc_cents: Math.round(ttcVal * 100),
       num_if: formNumIF.trim() || null,
       supplier: formSupplier.trim(),
       ice: formICE.trim() || null,

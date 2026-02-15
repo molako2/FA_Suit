@@ -36,6 +36,7 @@ import { useProfiles } from '@/hooks/useProfiles';
 import { useAuditLogs, useCreateAuditLog } from '@/hooks/useAuditLog';
 import { Save, Building2, Shield, FileText, LogOut, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import { escapeHtml } from '@/lib/utils';
 
 // Format cents to MAD
 function formatCents(cents: number): string {
@@ -453,13 +454,13 @@ export default function Settings() {
                   const rows = auditLogs.map(log => {
                     const d = log.details as Record<string, unknown> | null;
                     const detailRows = d ? Object.entries(d).map(([k, v]) =>
-                      `<tr><td style="padding:4px 12px;color:#64748b;font-size:13px;">${k}</td><td style="padding:4px 12px;font-size:13px;">${String(v ?? '')}</td></tr>`
+                      `<tr><td style="padding:4px 12px;color:#64748b;font-size:13px;">${escapeHtml(k)}</td><td style="padding:4px 12px;font-size:13px;">${escapeHtml(String(v ?? ''))}</td></tr>`
                     ).join('') : '<tr><td colspan="2" style="padding:4px 12px;color:#94a3b8;font-size:13px;">—</td></tr>';
                     return `<tr>
-                      <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${new Date(log.created_at).toLocaleString('fr-FR')}</td>
-                      <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:600;">${getProfileName(log.user_id)}</td>
-                      <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;"><span style="border:1px solid #cbd5e1;border-radius:4px;padding:2px 8px;font-size:13px;">${formatAuditAction(log.action)}</span></td>
-                      <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${log.entity_type} ${log.entity_id ? `(${log.entity_id.substring(0, 8)}…)` : ''}</td>
+                      <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${escapeHtml(new Date(log.created_at).toLocaleString('fr-FR'))}</td>
+                      <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:600;">${escapeHtml(getProfileName(log.user_id))}</td>
+                      <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;"><span style="border:1px solid #cbd5e1;border-radius:4px;padding:2px 8px;font-size:13px;">${escapeHtml(formatAuditAction(log.action))}</span></td>
+                      <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${escapeHtml(log.entity_type)} ${log.entity_id ? `(${escapeHtml(log.entity_id.substring(0, 8))}…)` : ''}</td>
                       <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;"><table style="font-size:12px;">${detailRows}</table></td>
                     </tr>`;
                   }).join('');

@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('Authenticated user:', user.id);
+    // Caller authenticated successfully
 
     // Check if user is sysadmin
     const { data: roleData, error: roleError } = await supabaseUser
@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('User confirmed as sysadmin');
+    // Caller confirmed as sysadmin
 
     // Parse request body
     const { userId, newPassword } = await req.json();
@@ -70,14 +70,23 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (newPassword.length < 6) {
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(userId)) {
       return new Response(
-        JSON.stringify({ error: 'Password must be at least 6 characters' }),
+        JSON.stringify({ error: 'Invalid userId format' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Updating password for user:', userId);
+    if (newPassword.length < 8) {
+      return new Response(
+        JSON.stringify({ error: 'Password must be at least 8 characters' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Proceeding with password update
 
     // Create admin client with service role key
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
@@ -100,7 +109,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('Password updated successfully for user:', userId);
+    // Password updated successfully
 
     return new Response(
       JSON.stringify({ success: true, message: 'Password updated successfully' }),

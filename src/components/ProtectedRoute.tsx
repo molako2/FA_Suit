@@ -24,10 +24,16 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (allowedRoles && role && !allowedRoles.includes(role)) {
-    // Redirect to appropriate home based on role
-    const homeRoute = role === 'client' ? '/documents' : (role === 'collaborator') ? '/timesheet' : '/';
-    return <Navigate to={homeRoute} replace />;
+  if (allowedRoles) {
+    if (!role) {
+      // Role hasn't loaded yet — deny access until it resolves
+      return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+    if (!allowedRoles.includes(role)) {
+      // Redirect to appropriate home based on role
+      const homeRoute = role === 'client' ? '/documents' : (role === 'collaborator') ? '/timesheet' : '/';
+      return <Navigate to={homeRoute} replace />;
+    }
   }
 
   return <>{children}</>;

@@ -2,6 +2,7 @@
 // Uses browser print capabilities for PDF generation
 
 import type { Invoice, CreditNote, InvoiceLine, CabinetSettings, Client, Matter } from '@/types';
+import { escapeHtml } from '@/lib/utils';
 
 // Local formatCents function
 function formatCents(cents: number): string {
@@ -426,9 +427,9 @@ function generateInvoiceHTML(data: InvoicePDFData, logoBase64: string): string {
           <!-- Client -->
           <div class="client-section">
             <div class="client-label">A l'aimable attention de</div>
-            <div class="client-name">${client.name}</div>
-            ${client.address ? `<div>${client.address}</div>` : ''}
-            ${client.vatNumber ? `<div>ICE: ${client.vatNumber}</div>` : ''}
+            <div class="client-name">${escapeHtml(client.name)}</div>
+            ${client.address ? `<div>${escapeHtml(client.address)}</div>` : ''}
+            ${client.vatNumber ? `<div>ICE: ${escapeHtml(client.vatNumber)}</div>` : ''}
           </div>
           
           <!-- Date -->
@@ -463,7 +464,7 @@ function generateInvoiceHTML(data: InvoicePDFData, logoBase64: string): string {
                 <tbody>
                   ${invoice.lines.map(line => `
                     <tr>
-                      <td>${line.label}</td>
+                      <td>${escapeHtml(line.label)}</td>
                       <td class="right">${line.label.startsWith('Frais -') ? '-' : formatMinutesToHours(line.minutes)}</td>
                       <td class="right">${line.label.startsWith('Frais -') ? '-' : formatCents(line.rateCents)}</td>
                       <td class="right">${formatCents(line.amountHtCents)}</td>
@@ -473,7 +474,7 @@ function generateInvoiceHTML(data: InvoicePDFData, logoBase64: string): string {
               </table>
             ` : `
               <div class="description-title">Service professionnels rendus</div>
-              <p><strong>Dossier:</strong> ${matter.code} - ${matter.label}</p>
+              <p><strong>Dossier:</strong> ${escapeHtml(matter.code)} - ${escapeHtml(matter.label)}</p>
               <p><strong>Période:</strong> ${formatDate(invoice.periodFrom)} au ${formatDate(invoice.periodTo)}</p>
             `}
           </div>
@@ -815,9 +816,9 @@ function generateCreditNoteHTML(data: CreditNotePDFData, logoBase64: string): st
           <!-- Client -->
           <div class="client-section">
             <div class="client-label">A l'aimable attention de</div>
-            <div class="client-name">${client.name}</div>
-            ${client.address ? `<div>${client.address}</div>` : ''}
-            ${client.vatNumber ? `<div>ICE: ${client.vatNumber}</div>` : ''}
+            <div class="client-name">${escapeHtml(client.name)}</div>
+            ${client.address ? `<div>${escapeHtml(client.address)}</div>` : ''}
+            ${client.vatNumber ? `<div>ICE: ${escapeHtml(client.vatNumber)}</div>` : ''}
           </div>
           
           <!-- Date -->
@@ -840,7 +841,7 @@ function generateCreditNoteHTML(data: CreditNotePDFData, logoBase64: string): st
           ${creditNote.reason ? `
             <div class="reason-section">
               <div class="reason-label">Motif de l'avoir</div>
-              <div>${creditNote.reason}</div>
+              <div>${escapeHtml(creditNote.reason)}</div>
             </div>
           ` : ''}
           
