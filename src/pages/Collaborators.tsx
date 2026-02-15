@@ -23,6 +23,8 @@ import { Plus, Pencil, Users, UserPlus, Trash2, Search, Loader2, Key, Download, 
 import { toast } from "sonner";
 import type { UserRole } from "@/types";
 import { exportCollaboratorsCSV } from "@/lib/exports";
+import { validatePassword, getPasswordErrorMessage } from "@/lib/password";
+import { PasswordRequirements } from "@/components/PasswordRequirements";
 import { useClients } from "@/hooks/useClients";
 import { useClientUsers, useSetClientUsers } from "@/hooks/useClientUsers";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -335,8 +337,8 @@ export default function Collaborators() {
       return;
     }
 
-    if (newPassword.length < 8) {
-      toast.error("Le mot de passe doit contenir au moins 8 caractères");
+    if (!validatePassword(newPassword).isValid) {
+      toast.error(getPasswordErrorMessage('fr'));
       return;
     }
 
@@ -674,10 +676,11 @@ export default function Collaborators() {
                 <Input
                   id="newPassword"
                   type="password"
-                  placeholder="Au moins 8 caractères"
+                  placeholder="Mot de passe sécurisé"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                 />
+                <PasswordRequirements password={newPassword} lang="fr" />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>

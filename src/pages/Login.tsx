@@ -20,6 +20,8 @@ import { Loader2, Eye, EyeOff, Globe, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import cm2aBanner from '@/assets/cm2a-banner.png';
 import appLogo from '@/assets/flowassist-logo.png';
+import { validatePassword, getPasswordErrorMessage } from '@/lib/password';
+import { PasswordRequirements } from '@/components/PasswordRequirements';
 import {
   Select,
   SelectContent,
@@ -74,10 +76,8 @@ export default function LoginPage() {
     e.preventDefault();
     if (!email || !password || !name) return;
 
-    if (password.length < 8) {
-      toast.error(i18n.language === 'fr'
-        ? 'Le mot de passe doit contenir au moins 8 caractères'
-        : 'Password must be at least 8 characters');
+    if (!validatePassword(password).isValid) {
+      toast.error(getPasswordErrorMessage(i18n.language));
       return;
     }
 
@@ -315,9 +315,7 @@ export default function LoginPage() {
                         )}
                       </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {i18n.language === 'fr' ? 'Minimum 8 caractères' : 'Minimum 8 characters'}
-                    </p>
+                    <PasswordRequirements password={password} lang={i18n.language} />
                   </div>
                   <Button
                     type="submit"

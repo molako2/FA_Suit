@@ -88,9 +88,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (newPassword.length < 8) {
+    // Validate password complexity
+    const hasMinLength = newPassword.length >= 8;
+    const hasUppercase = /[A-Z]/.test(newPassword);
+    const hasLowercase = /[a-z]/.test(newPassword);
+    const hasNumber = /[0-9]/.test(newPassword);
+    const hasSpecial = /[^A-Za-z0-9]/.test(newPassword);
+
+    if (!hasMinLength || !hasUppercase || !hasLowercase || !hasNumber || !hasSpecial) {
       return new Response(
-        JSON.stringify({ error: 'Password must be at least 8 characters' }),
+        JSON.stringify({ error: 'Password must be at least 8 characters and include uppercase, lowercase, number, and special character' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

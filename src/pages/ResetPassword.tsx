@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Eye, EyeOff, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import appLogo from '@/assets/flowassist-logo.png';
+import { validatePassword, getPasswordErrorMessage } from '@/lib/password';
+import { PasswordRequirements } from '@/components/PasswordRequirements';
 
 export default function ResetPasswordPage() {
   const { i18n } = useTranslation();
@@ -39,10 +41,8 @@ export default function ResetPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (password.length < 8) {
-      toast.error(i18n.language === 'fr'
-        ? 'Le mot de passe doit contenir au moins 8 caractères'
-        : 'Password must be at least 8 characters');
+    if (!validatePassword(password).isValid) {
+      toast.error(getPasswordErrorMessage(i18n.language));
       return;
     }
 
@@ -155,9 +155,7 @@ export default function ResetPasswordPage() {
                     )}
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {i18n.language === 'fr' ? 'Minimum 8 caractères' : 'Minimum 8 characters'}
-                </p>
+                <PasswordRequirements password={password} lang={i18n.language} />
               </div>
 
               <div className="space-y-2">
