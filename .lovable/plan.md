@@ -1,41 +1,71 @@
 
-
-# Agenda prive : acces restreint par utilisateur
+# Pieces jointes lors de la creation d'une tache
 
 ## Probleme actuel
 
-La politique RLS actuelle permet aux **owners et assistants** de voir **toutes** les notes d'agenda de tous les utilisateurs via la politique "Owner view all agenda entries". L'utilisateur souhaite que chaque personne ne voie que ses propres notes, sans exception.
+Le composant `TodoAttachmentManager` n'est affiche que lors de la modification d'une tache (`editingTodo` doit exister), car les pieces jointes necessitent un `todo_id` pour etre enregistrees. Lors de la creation, la tache n'existe pas encore, donc pas de `todo_id` disponible.
+
+## Solution
+
+Modifier le flux de creation pour qu'il se fasse en deux etapes :
+
+1. A la sauvegarde d'une **nouvelle** tache, creer d'abord la tache en base
+2. Si la creation reussit, **rouvrir automatiquement le dialog en mode edition** avec la tache fraichement creee, pour que l'utilisateur puisse immediatement ajouter des pieces jointes
+
+Cela permet de reutiliser le `TodoAttachmentManager` existant sans changer la logique de stockage.
+
+En complement, ajouter un **indicateur visuel** dans le dialog de creation pour informer l'admin qu'il pourra ajouter des PJ apres l'enregistrement.
 
 ## Modifications prevues
 
-### 1. Base de donnees - Politique RLS
+### 1. `src/pages/Todos.tsx` - Flux de creation
 
-Supprimer la politique "Owner view all agenda entries" qui donne acces a tous les owner/assistant, et ne conserver que la politique "View own agenda entries" qui limite la visibilite aux propres notes de chaque utilisateur.
+Modifier la fonction `handleSave` : apres la creation d'une nouvelle tache (`createTodo.mutateAsync`), recuperer l'objet retourne et ouvrir immediatement le dialog en mode edition avec cette tache.
 
-Resultat : chaque utilisateur ne pourra lire, modifier et supprimer que ses propres notes, quel que soit son role.
+### 2. `src/pages/Todos.tsx` - Dialog
 
-### 2. Frontend - Filtrage cote client (securite en profondeur)
+Supprimer la condition `{editingTodo && ...}` autour du `TodoAttachmentManager`. A la place :
+- Si `editingTodo` existe : afficher le gestionnaire de PJ normalement
+- Sinon (creation) : afficher un message informatif indiquant que les PJ pourront etre ajoutees apres l'enregistrement
 
-Ajouter un filtre `.eq('user_id', user.id)` dans la requete du hook `useAgendaEntries` pour s'assurer que seules les notes de l'utilisateur connecte sont demandees (meme si le RLS le garantit deja cote serveur).
+### 3. Traductions
+
+Ajouter une cle pour le message informatif :
+- FR : "Enregistrez la tache pour ajouter des pieces jointes"
+- EN : "Save the task to add attachments"
 
 ---
 
 ### Details techniques
 
-**Migration SQL :**
-```sql
-DROP POLICY "Owner view all agenda entries" ON public.agenda_entries;
-```
-
-**Hook `useAgenda.ts` :**
+**`handleSave` modifie :**
 ```typescript
-// Avant
-.select('*')
-.order('entry_date', { ascending: true });
-
-// Apres
-.select('*')
-.eq('user_id', user.id)
-.order('entry_date', { ascending: true });
+if (editingTodo) {
+  await updateTodo.mutateAsync({ ... });
+  toast({ title: t('todos.taskUpdated') });
+  setDialogOpen(false);
+} else {
+  const newTodo = await createTodo.mutateAsync({ ... });
+  toast({ title: t('todos.taskCreated') });
+  // Rouvrir en mode edition pour permettre l'ajout de PJ
+  setEditingTodo({
+    id: newTodo.id,
+    title: newTodo.title,
+    deadline: newTodo.deadline,
+    assigned_to: newTodo.assigned_to,
+  });
+  // Le dialog reste ouvert, maintenant en mode edition avec PJ disponible
+}
 ```
 
+**Zone PJ dans le dialog :**
+```tsx
+{editingTodo ? (
+  <TodoAttachmentManager todoId={editingTodo.id} userId={user!.id} isAdmin={isAdmin} />
+) : (
+  <p className="text-sm text-muted-foreground flex items-center gap-1">
+    <Paperclip className="w-4 h-4" />
+    {t('todos.saveToAddAttachments')}
+  </p>
+)}
+```
