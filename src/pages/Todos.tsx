@@ -5,7 +5,7 @@ import { useProfiles } from '@/hooks/useProfiles';
 import { useTodos, useCreateTodo, useUpdateTodo, useDeleteTodo } from '@/hooks/useTodos';
 import { format, isPast, parseISO } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
-import { CheckSquare, Plus, Pencil, Trash2, AlertCircle, Download, Unlock } from 'lucide-react';
+import { CheckSquare, Plus, Pencil, Trash2, AlertCircle, Download, Unlock, Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -22,6 +22,8 @@ import { cn } from '@/lib/utils';
 import { CalendarIcon } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { exportTodosCSV, type TodoExport } from '@/lib/exports';
+import { useTodoAttachmentCounts } from '@/hooks/useTodoAttachments';
+import { TodoAttachmentManager, TodoAttachmentList } from '@/components/todos/TodoAttachments';
 
 type TodoStatus = 'pending' | 'in_progress' | 'done' | 'blocked';
 
@@ -50,6 +52,9 @@ export default function Todos() {
   const createTodo = useCreateTodo();
   const updateTodo = useUpdateTodo();
   const deleteTodo = useDeleteTodo();
+
+  const todoIds = todos?.map(t => t.id) || [];
+  const { data: attachmentCounts } = useTodoAttachmentCounts(todoIds);
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -258,7 +263,13 @@ export default function Todos() {
                         </TableCell>
                       )}
                       <TableCell className="max-w-xs">
-                        <span className="break-words">{todo.title}</span>
+                        <div className="flex items-center gap-1">
+                          <span className="break-words">{todo.title}</span>
+                          {attachmentCounts?.get(todo.id) && (
+                            <Paperclip className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          )}
+                        </div>
+                        {!isAdmin && <TodoAttachmentList todoId={todo.id} />}
                       </TableCell>
                       <TableCell>
                         <span className={cn(isOverdue && 'text-destructive font-semibold')}>
@@ -392,6 +403,10 @@ export default function Todos() {
                 </PopoverContent>
               </Popover>
             </div>
+            {/* Attachment manager - only for existing todos */}
+            {editingTodo && (
+              <TodoAttachmentManager todoId={editingTodo.id} userId={user!.id} isAdmin={isAdmin} />
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t('common.cancel')}</Button>

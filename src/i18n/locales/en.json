@@ -377,7 +377,13 @@
     "export": "Export",
     "exportDownloaded": "Tasks export downloaded",
     "unblock": "Unblock",
-    "taskUnblocked": "Task unblocked"
+    "taskUnblocked": "Task unblocked",
+    "attachments": "Attachments",
+    "addAttachment": "Add files",
+    "totalSizeLimit": "Limit: 15 MB total per task",
+    "fileTooLarge": "Total size exceeds 15 MB",
+    "attachmentUploaded": "File(s) uploaded",
+    "attachmentDeleted": "Attachment deleted"
   },
   "messages": {
     "title": "Messages",

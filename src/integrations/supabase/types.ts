@@ -807,6 +807,44 @@ export type Database = {
           },
         ]
       }
+      todo_attachments: {
+        Row: {
+          created_at: string
+          created_by: string
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          todo_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          file_name: string
+          file_path: string
+          file_size: number
+          id?: string
+          todo_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          todo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "todo_attachments_todo_id_fkey"
+            columns: ["todo_id"]
+            isOneToOne: false
+            referencedRelation: "todos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       todos: {
         Row: {
           assigned_to: string
