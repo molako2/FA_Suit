@@ -343,6 +343,7 @@ All 15 tables have Row Level Security enabled. Key rules:
 - **Method:** POST
 - **Auth:** Requires owner or sysadmin role
 - **Body:** `{ email, password, name, role?, rateCents? }`
+- **Validation:** Password must be at least 8 characters and include uppercase, lowercase, number, and special character
 - **Logic:** Uses service_role_key to call `auth.admin.createUser()`, auto-confirms email, creates profile + user_role records
 - **Returns:** `{ success, userId, message }`
 
@@ -350,7 +351,7 @@ All 15 tables have Row Level Security enabled. Key rules:
 - **Method:** POST
 - **Auth:** Requires sysadmin role only
 - **Body:** `{ userId, newPassword }`
-- **Validation:** Password min 6 chars
+- **Validation:** Password must be at least 8 characters and include uppercase, lowercase, number, and special character
 - **Logic:** Uses service_role_key to call `auth.admin.updateUserById()`
 - **Returns:** `{ success, message }`
 
@@ -359,7 +360,7 @@ All 15 tables have Row Level Security enabled. Key rules:
 ## 5. AUTHENTICATION FLOW
 
 ### 5.1 Sign Up
-1. User enters name, email, password (min 6 chars)
+1. User enters name, email, password (must meet complexity requirements: min 8 chars, uppercase, lowercase, number, special character)
 2. Supabase `auth.signUp()` called
 3. DB trigger `handle_new_user()` auto-creates profile
 4. DB trigger `handle_new_user_role()` assigns role (owner if first user, else collaborator)
@@ -375,7 +376,7 @@ All 15 tables have Row Level Security enabled. Key rules:
 1. User clicks "Forgot password" on login page
 2. Enters email → Supabase `auth.resetPasswordForEmail()`
 3. Email sent with reset link to `/reset-password`
-4. User enters new password (min 6 chars, must match confirmation)
+4. User enters new password (must meet complexity requirements, must match confirmation)
 5. Supabase `auth.updateUser({ password })` called
 6. Redirect to login after 2 seconds
 
@@ -400,11 +401,11 @@ All 15 tables have Row Level Security enabled. Key rules:
 - **Fields (Sign In):** email, password (with show/hide toggle)
 - **Fields (Sign Up):** name, email, password
 - **Features:** Forgot password dialog, language selector (FR/EN), CM2A branding banner
-- **Validation:** Email regex, password min 6 chars
+- **Validation:** Email regex, password complexity (min 8 chars, uppercase, lowercase, number, special character) with real-time visual requirements indicator
 
 ### 6.2 Reset Password Page (`/reset-password`)
 - **Fields:** New password, confirm password (both with show/hide)
-- **Validation:** min 6 chars, must match
+- **Validation:** Password complexity (min 8 chars, uppercase, lowercase, number, special character) with real-time visual requirements indicator, must match
 - **Flow:** Validates recovery session → update → success screen → redirect to login after 2s
 
 ### 6.3 Dashboard (`/`) — owner/sysadmin only
@@ -559,7 +560,7 @@ TTC: amount_ht + vat
   - Shows current assignments
   - Add new: Matter dropdown (open only) + Start Date + End Date
   - Delete existing assignments
-- **Password Reset** (sysadmin only): Calls Edge Function `admin-reset-password`
+- **Password Reset** (sysadmin only): Dialog with real-time complexity requirements indicator, calls Edge Function `admin-reset-password`
 - **Delete User** (sysadmin only): Cascading delete from profiles + user_roles + auth
 - **Toggle active/inactive**
 - **CSV export**
@@ -812,22 +813,23 @@ All data hooks use TanStack React Query with query keys for cache invalidation o
 
 ## 14. COMPONENT INVENTORY
 
-### 14.1 Custom Feature Components (15)
+### 14.1 Custom Feature Components (16)
 1. `AppLayout` — Main layout with sidebar + header + content
 2. `ProtectedRoute` — Role-based route guard with loading spinner
 3. `NavLink` — Enhanced React Router NavLink
 4. `ColumnHeaderFilter` — Multi-select column filter popover + `useColumnFilters` hook
 5. `DateRangeFilter` — Date from/to picker with calendars
-6. `KPIAnalytics` — Timesheet KPI with grouping, filtering, CSV export
-7. `KPIAnalyticsFlatFee` — Flat fee KPI analytics
-8. `WIPAgingAnalysis` — WIP aging buckets table
-9. `UnpaidInvoicesKPI` — Unpaid invoices aging analysis
-10. `TimesheetExport` — Timesheet CSV exporter with preview
-11. `TimesheetEntrySelector` — Entry selection table for invoicing with overrides
-12. `TimesheetEntryDialog` — Create/edit timesheet entry modal
-13. `MessageItem` — Single message display with reply/delete
-14. `EmojiPicker` — 65-emoji picker in 3 categories
-15. `InlineReplyForm` — Reply textarea with emoji support
+6. `PasswordRequirements` — Real-time password complexity checklist (checkmarks for each rule: min 8 chars, uppercase, lowercase, number, special character)
+7. `KPIAnalytics` — Timesheet KPI with grouping, filtering, CSV export
+8. `KPIAnalyticsFlatFee` — Flat fee KPI analytics
+9. `WIPAgingAnalysis` — WIP aging buckets table
+10. `UnpaidInvoicesKPI` — Unpaid invoices aging analysis
+11. `TimesheetExport` — Timesheet CSV exporter with preview
+12. `TimesheetEntrySelector` — Entry selection table for invoicing with overrides
+13. `TimesheetEntryDialog` — Create/edit timesheet entry modal
+14. `MessageItem` — Single message display with reply/delete
+15. `EmojiPicker` — 65-emoji picker in 3 categories
+16. `InlineReplyForm` — Reply textarea with emoji support
 
 ### 14.2 shadcn/ui Components (60+)
 Full set: Accordion, Alert, AlertDialog, AspectRatio, Avatar, Badge, Breadcrumb, Button, Calendar, Card, Carousel, Chart, Checkbox, Collapsible, Command, ContextMenu, Currency, Dialog, Drawer, DropdownMenu, Form, HoverCard, Input, InputOTP, Label, Menubar, NavigationMenu, Pagination, Popover, Progress, RadioGroup, ResizablePanel, ScrollArea, Select, Separator, Sheet, Sidebar (18 sub-components), Skeleton, Slider, Sonner, Switch, Table, Tabs, Textarea, Toast, Toggle, ToggleGroup, Tooltip
@@ -861,6 +863,7 @@ src/
 │   │   ├── MessageItem.tsx
 │   │   ├── EmojiPicker.tsx
 │   │   └── InlineReplyForm.tsx
+│   ├── PasswordRequirements.tsx      # Real-time password rules checklist
 │   └── ui/                          # 60+ shadcn/ui components
 ├── contexts/
 │   └── AuthContext.tsx               # Auth state + methods
@@ -890,6 +893,7 @@ src/
 │       └── en.json                  # English translations
 ├── lib/
 │   ├── utils.ts                     # cn() class merge
+│   ├── password.ts                  # Password complexity validation
 │   ├── pdf.ts                       # PDF generation (invoice + credit note)
 │   ├── word.ts                      # Word .docx generation
 │   ├── invoicing.ts                 # Rate calc + line generation
