@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-FlowAssist Suite is a professional services firm management SaaS application for consulting, law, accounting, tax advisory, and other business consulting firms. It manages clients, matters, invoices, timesheets, expenses, and team collaboration. It was bootstrapped with the Lovable platform.
+FlowAssist Suite is a professional services firm management SaaS application for consulting, law, accounting, tax advisory, and other business consulting firms. It manages clients, matters, invoices, timesheets, expenses, and team collaboration.
 
 **Tech stack:** React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui + Supabase (PostgreSQL + Auth + Edge Functions)
 
@@ -142,7 +142,7 @@ Flat config format. `@typescript-eslint/no-unused-vars` is turned **off**. React
 
 ### Vite
 
-Dev server on port 8080 with IPv6 (`::`) host binding. HMR overlay disabled. `lovable-tagger` plugin active in dev mode.
+Dev server on port 8080 with IPv6 (`::`) host binding. HMR overlay disabled.
 
 ### Testing
 
