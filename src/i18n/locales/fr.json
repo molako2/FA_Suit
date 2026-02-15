@@ -377,7 +377,13 @@
     "export": "Exporter",
     "exportDownloaded": "Export tâches téléchargé",
     "unblock": "Débloquer",
-    "taskUnblocked": "Tâche débloquée"
+    "taskUnblocked": "Tâche débloquée",
+    "attachments": "Pièces jointes",
+    "addAttachment": "Ajouter des fichiers",
+    "totalSizeLimit": "Limite : 15 Mo au total par tâche",
+    "fileTooLarge": "La taille totale dépasse 15 Mo",
+    "attachmentUploaded": "Fichier(s) ajouté(s)",
+    "attachmentDeleted": "Pièce jointe supprimée"
   },
   "messages": {
     "title": "Messages",
