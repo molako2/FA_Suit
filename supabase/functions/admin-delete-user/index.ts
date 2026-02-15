@@ -49,6 +49,14 @@ serve(async (req) => {
       });
     }
 
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(userId)) {
+      return new Response(JSON.stringify({ error: "Format userId invalide" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Prevent self-deletion
     if (userId === caller.id) {
       return new Response(JSON.stringify({ error: "Vous ne pouvez pas supprimer votre propre compte" }), {

@@ -1,73 +1,64 @@
-# Welcome to your Lovable project
+# FlowAssist Suite
 
-## Project info
+## Professional Services Firm Management Platform
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+FlowAssist Suite is a full-stack SaaS web application designed for professional services firms — including consulting, law, accounting, tax advisory, and other business consulting firms. It provides comprehensive management of clients, matters, invoicing, timesheets, expenses, and team collaboration.
 
-## How can I edit this code?
+**Company:** CM2A Consulting
+**Currency:** MAD (Moroccan Dirham)
+**Languages:** French (default), English
 
-There are several ways of editing your application.
+## Tech Stack
 
-**Use Lovable**
+- **Frontend:** React 18 + TypeScript + Vite
+- **UI:** shadcn/ui + Tailwind CSS
+- **State:** TanStack React Query
+- **Backend:** Supabase (PostgreSQL + Auth + RLS + Edge Functions + Realtime)
+- **i18n:** i18next (FR/EN)
+- **Charts:** Recharts
+- **Exports:** PDF (print), Word (.docx), CSV
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Features
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Timesheet Tracking** — Time entries with 15-minute rounding, billable/non-billable, locking
+- **Client & Matter Management** — Client records, matters/engagements with budget ceilings
+- **Invoicing** — Draft/issue workflow, time-based and flat-fee billing, sequential numbering
+- **Credit Notes** — Full or partial credit notes on issued invoices
+- **Expense Tracking** — Per-matter expenses, billable flag, locking on invoice
+- **Purchases** — Supplier purchase records with VAT tracking
+- **Task Management** — Assignable todos with deadlines, status tracking, attachments
+- **Internal Messaging** — Direct and broadcast messages with threading and read tracking
+- **Dashboard & Analytics** — KPIs, WIP aging, revenue charts, budget consumption
+- **Role-Based Access** — Four roles: sysadmin, owner, assistant, collaborator
+- **Multi-language** — French and English with browser detection
 
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+## Getting Started
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Install dependencies
+npm install
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Commands
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+npm run dev          # Start dev server on http://localhost:8080
+npm run build        # Production build (vite build)
+npm run build:dev    # Development mode build
+npm run lint         # Run ESLint
+npm run test         # Run tests once (vitest run)
+npm run test:watch   # Run tests in watch mode (vitest)
+npm run preview      # Preview production build
+```
 
-**Use GitHub Codespaces**
+## Environment Variables
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Required in `.env`:
+```
+VITE_SUPABASE_PROJECT_ID
+VITE_SUPABASE_PUBLISHABLE_KEY
+VITE_SUPABASE_URL
+```

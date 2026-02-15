@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-FlowAssist Suite is a legal/accounting cabinet management SaaS application for managing clients, matters, invoices, timesheets, expenses, and team collaboration. It was bootstrapped with the Lovable platform.
+FlowAssist Suite is a professional services firm management SaaS application for consulting, law, accounting, tax advisory, and other business consulting firms. It manages clients, matters, invoices, timesheets, expenses, and team collaboration. It was bootstrapped with the Lovable platform.
 
 **Tech stack:** React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui + Supabase (PostgreSQL + Auth + Edge Functions)
 
@@ -155,7 +155,7 @@ Vitest with jsdom environment. Setup file mocks `window.matchMedia`. Test files 
 | `profiles` | User profiles (id, email, name, rate_cents, active) |
 | `user_roles` | Role assignments (owner/assistant/collaborator) |
 | `clients` | Client records (code, name, address, billing info) |
-| `matters` | Legal matters linked to clients (code, label, status, rate) |
+| `matters` | Matters/engagements linked to clients (code, label, status, rate) |
 | `assignments` | User-to-matter assignments with date ranges |
 | `timesheet_entries` | Time logs (user, matter, date, minutes, billable, locked) |
 | `invoices` | Invoice records with JSONB lines |

@@ -274,7 +274,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   >
                     <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
                       <span className="text-sm font-medium text-primary">
-                        {displayName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        {(displayName.split(' ').filter(Boolean).map(n => n[0]).join('') || '?').toUpperCase().slice(0, 2)}
                       </span>
                     </div>
                     <div className="grid flex-1 text-left text-sm leading-tight">
@@ -296,7 +296,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                       <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
                         <span className="text-sm font-medium text-primary">
-                          {displayName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                          {(displayName.split(' ').filter(Boolean).map(n => n[0]).join('') || '?').toUpperCase().slice(0, 2)}
                         </span>
                       </div>
                       <div className="grid flex-1 text-left text-sm leading-tight">

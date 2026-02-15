@@ -5,8 +5,17 @@ import type { TimesheetEntry, Invoice, CreditNote, KPIByUser, KPIByMatter, Matte
 function escapeCSV(value: string | number | boolean | undefined | null): string {
   if (value === null || value === undefined) return '';
   const str = String(value);
-  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes(';')) {
-    return `"${str.replace(/"/g, '""')}"`;
+  // Prevent CSV formula injection: wrap and neutralize cells starting with =, +, -, @, tab, CR
+  const needsQuoting =
+    str.includes(',') || str.includes('"') || str.includes('\n') || str.includes(';') ||
+    /^[=+\-@\t\r]/.test(str);
+  if (needsQuoting) {
+    const escaped = str.replace(/"/g, '""');
+    // Neutralize formula injection by prepending a single quote inside the quotes
+    if (/^[=+\-@]/.test(escaped)) {
+      return `"'${escaped}"`;
+    }
+    return `"${escaped}"`;
   }
   return str;
 }

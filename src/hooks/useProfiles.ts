@@ -28,9 +28,11 @@ export function useProfiles() {
       if (error) throw error;
 
       // Fetch roles for all profiles
-      const { data: roles } = await supabase
+      const { data: roles, error: rolesError } = await supabase
         .from('user_roles')
         .select('user_id, role');
+
+      if (rolesError) throw rolesError;
 
       const roleMap = new Map(roles?.map(r => [r.user_id, r.role as UserRole]) || []);
 
@@ -56,11 +58,13 @@ export function useProfile(userId: string | undefined) {
       
       if (error) throw error;
 
-      const { data: roleData } = await supabase
+      const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
+
+      if (roleError) throw roleError;
 
       return {
         ...data,

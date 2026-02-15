@@ -108,7 +108,7 @@ export interface CabinetSettings {
   vatDefault: 0 | 20;
   logoUrl?: string;
   address?: string;
-  mentions?: string; // legal mentions
+  mentions?: string; // invoice footer mentions
   iban?: string;
   invoiceSeqYear: number;
   invoiceSeqNext: number;

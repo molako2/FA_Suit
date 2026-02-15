@@ -77,14 +77,16 @@ export function useIncrementInvoiceSeq() {
       
       const invoiceNumber = `${seqYear}-${String(nextSeq).padStart(4, '0')}`;
       
-      await supabase
+      const { error: updateError } = await supabase
         .from('cabinet_settings')
         .update({
           invoice_seq_year: seqYear,
           invoice_seq_next: nextSeq + 1
         })
         .eq('id', 'default');
-      
+
+      if (updateError) throw updateError;
+
       return invoiceNumber;
     },
     onSuccess: () => {
@@ -117,14 +119,16 @@ export function useIncrementCreditSeq() {
       
       const creditNoteNumber = `AV-${seqYear}-${String(nextSeq).padStart(4, '0')}`;
       
-      await supabase
+      const { error: updateError } = await supabase
         .from('cabinet_settings')
         .update({
           credit_seq_year: seqYear,
           credit_seq_next: nextSeq + 1
         })
         .eq('id', 'default');
-      
+
+      if (updateError) throw updateError;
+
       return creditNoteNumber;
     },
     onSuccess: () => {

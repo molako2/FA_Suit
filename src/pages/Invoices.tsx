@@ -450,7 +450,7 @@ export default function Invoices() {
       lines = [
         {
           id: crypto.randomUUID(),
-          label: `Prestations juridiques - ${matter.label}`,
+          label: `Prestations de services - ${matter.label}`,
           minutes: totalMinutes,
           rate_cents: avgRate,
           vat_rate: vatRate,
@@ -492,7 +492,7 @@ export default function Invoices() {
     const calculatedHt = lines.reduce((sum, l) => sum + l.amount_ht_cents, 0);
     const finalHt = customAmountHtCents !== null ? customAmountHtCents : calculatedHt;
 
-    // If custom amount, adjust the first line proportionally
+    // If custom amount, adjust lines proportionally and fix rounding remainder on last line
     if (customAmountHtCents !== null && calculatedHt > 0 && lines.length > 0) {
       const ratio = customAmountHtCents / calculatedHt;
       lines = lines.map(l => {
@@ -500,6 +500,15 @@ export default function Invoices() {
         const newVat = Math.round((newHt * l.vat_rate) / 100);
         return { ...l, amount_ht_cents: newHt, vat_cents: newVat, amount_ttc_cents: newHt + newVat };
       });
+      // Fix rounding remainder: adjust last line so total HT matches exactly
+      const currentHtSum = lines.reduce((sum, l) => sum + l.amount_ht_cents, 0);
+      const remainder = customAmountHtCents - currentHtSum;
+      if (remainder !== 0) {
+        const last = lines[lines.length - 1];
+        last.amount_ht_cents += remainder;
+        last.vat_cents = Math.round((last.amount_ht_cents * last.vat_rate) / 100);
+        last.amount_ttc_cents = last.amount_ht_cents + last.vat_cents;
+      }
     }
 
     const totalHt = lines.reduce((sum, l) => sum + l.amount_ht_cents, 0);

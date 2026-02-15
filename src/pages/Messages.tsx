@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { Plus, MessageSquare } from 'lucide-react';
 import { EmojiPicker } from '@/components/messages/EmojiPicker';
 import { MessageItem } from '@/components/messages/MessageItem';
@@ -36,7 +36,6 @@ const MAX_CHARS = 256;
 export default function Messages() {
   const { t } = useTranslation();
   const { user, role } = useAuth();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: messages = [], isLoading } = useMessages(user?.id);
@@ -123,11 +122,11 @@ export default function Messages() {
   const handleSend = async () => {
     if (!user?.id) return;
     if (!content.trim()) {
-      toast({ title: t('messages.contentRequired'), variant: 'destructive' });
+      toast.error(t('messages.contentRequired'));
       return;
     }
     if (!recipientId) {
-      toast({ title: t('messages.recipientRequired'), variant: 'destructive' });
+      toast.error(t('messages.recipientRequired'));
       return;
     }
 
@@ -139,21 +138,21 @@ export default function Messages() {
         recipientId: actualRecipient,
         content: content.trim(),
       });
-      toast({ title: t('messages.messageSent') });
+      toast.success(t('messages.messageSent'));
       setContent('');
       setRecipientId('');
       setDialogOpen(false);
     } catch {
-      toast({ title: t('errors.generic'), variant: 'destructive' });
+      toast.error(t('errors.generic'));
     }
   };
 
   const handleDelete = async (id: string) => {
     try {
       await deleteMessage.mutateAsync(id);
-      toast({ title: t('messages.messageDeleted') });
+      toast.success(t('messages.messageDeleted'));
     } catch {
-      toast({ title: t('errors.deleteError'), variant: 'destructive' });
+      toast.error(t('errors.deleteError'));
     }
   };
 
@@ -174,10 +173,10 @@ export default function Messages() {
         content: replyContent,
         replyTo: topLevelId,
       });
-      toast({ title: t('messages.replySent') });
+      toast.success(t('messages.replySent'));
       setReplyingTo(null);
     } catch {
-      toast({ title: t('errors.generic'), variant: 'destructive' });
+      toast.error(t('errors.generic'));
     }
   };
 

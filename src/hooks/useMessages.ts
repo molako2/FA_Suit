@@ -28,10 +28,12 @@ export function useMessages(userId: string | undefined) {
 
       // Fetch sender profiles
       const senderIds = [...new Set((data || []).map(m => m.sender_id))];
-      const { data: profiles } = await supabase
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, name')
         .in('id', senderIds);
+
+      if (profilesError) throw profilesError;
 
       const profileMap = new Map(profiles?.map(p => [p.id, p.name]) || []);
 

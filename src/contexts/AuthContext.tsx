@@ -33,27 +33,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchProfileAndRole = async (userId: string) => {
-    // Fetch profile
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    
-    if (profileData) {
-      setProfile(profileData);
-    }
+  const validRoles: UserRole[] = ['sysadmin', 'owner', 'assistant', 'collaborator', 'client'];
 
-    // Fetch role
-    const { data: roleData } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .maybeSingle();
-    
-    if (roleData) {
-      setRole(roleData.role as UserRole);
+  const fetchProfileAndRole = async (userId: string) => {
+    try {
+      // Fetch profile
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (profileError) {
+        console.error('Failed to fetch profile:', profileError.message);
+      } else if (profileData) {
+        setProfile(profileData);
+      }
+
+      // Fetch role
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (roleError) {
+        console.error('Failed to fetch role:', roleError.message);
+      } else if (roleData) {
+        // Validate role value from database
+        if (validRoles.includes(roleData.role as UserRole)) {
+          setRole(roleData.role as UserRole);
+        } else {
+          console.error('Invalid role value from database:', roleData.role);
+          setRole(null);
+        }
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching profile/role:', err);
     }
   };
 
