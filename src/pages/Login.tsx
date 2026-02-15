@@ -74,8 +74,10 @@ export default function LoginPage() {
     e.preventDefault();
     if (!email || !password || !name) return;
 
-    if (password.length < 6) {
-      toast.error(t('errors.fillRequired'));
+    if (password.length < 8) {
+      toast.error(i18n.language === 'fr'
+        ? 'Le mot de passe doit contenir au moins 8 caractères'
+        : 'Password must be at least 8 characters');
       return;
     }
 
@@ -297,7 +299,7 @@ export default function LoginPage() {
                         required
                         disabled={isLoading}
                         className="h-11 pr-10"
-                        minLength={6}
+                        minLength={8}
                       />
                       <Button
                         type="button"
@@ -314,7 +316,7 @@ export default function LoginPage() {
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {i18n.language === 'fr' ? 'Minimum 6 caractères' : 'Minimum 6 characters'}
+                      {i18n.language === 'fr' ? 'Minimum 8 caractères' : 'Minimum 8 characters'}
                     </p>
                   </div>
                   <Button

@@ -39,10 +39,10 @@ export default function ResetPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (password.length < 6) {
-      toast.error(i18n.language === 'fr' 
-        ? 'Le mot de passe doit contenir au moins 6 caractères' 
-        : 'Password must be at least 6 characters');
+    if (password.length < 8) {
+      toast.error(i18n.language === 'fr'
+        ? 'Le mot de passe doit contenir au moins 8 caractères'
+        : 'Password must be at least 8 characters');
       return;
     }
 
@@ -139,7 +139,7 @@ export default function ResetPasswordPage() {
                     required
                     disabled={isLoading}
                     className="h-11 pr-10"
-                    minLength={6}
+                    minLength={8}
                   />
                   <Button
                     type="button"
@@ -156,7 +156,7 @@ export default function ResetPasswordPage() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {i18n.language === 'fr' ? 'Minimum 6 caractères' : 'Minimum 6 characters'}
+                  {i18n.language === 'fr' ? 'Minimum 8 caractères' : 'Minimum 8 characters'}
                 </p>
               </div>
 
@@ -173,7 +173,7 @@ export default function ResetPasswordPage() {
                   required
                   disabled={isLoading}
                   className="h-11"
-                  minLength={6}
+                  minLength={8}
                 />
               </div>
 

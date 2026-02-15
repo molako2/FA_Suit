@@ -335,8 +335,8 @@ export default function Collaborators() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      toast.error("Le mot de passe doit contenir au moins 6 caractères");
+    if (newPassword.length < 8) {
+      toast.error("Le mot de passe doit contenir au moins 8 caractères");
       return;
     }
 
@@ -674,7 +674,7 @@ export default function Collaborators() {
                 <Input
                   id="newPassword"
                   type="password"
-                  placeholder="Au moins 6 caractères"
+                  placeholder="Au moins 8 caractères"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                 />
