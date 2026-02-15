@@ -80,6 +80,8 @@ export default function CreditNotes() {
   const getSelectedInvoice = () => invoices.find(i => i.id === selectedInvoiceId);
 
   const handleCreateCreditNote = async () => {
+    if (isCreating) return;
+
     if (!selectedInvoiceId) {
       toast.error('Veuillez sélectionner une facture');
       return;

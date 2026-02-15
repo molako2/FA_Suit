@@ -20,7 +20,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { CalendarIcon } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { exportTodosCSV, type TodoExport } from '@/lib/exports';
 import { useTodoAttachmentCounts } from '@/hooks/useTodoAttachments';
 import { TodoAttachmentManager, TodoAttachmentList } from '@/components/todos/TodoAttachments';
@@ -88,11 +88,11 @@ export default function Todos() {
 
   const handleSave = async () => {
     if (!formTitle.trim() || !formDeadline || !formAssignedTo) {
-      toast({ title: t('errors.fillRequired'), variant: 'destructive' });
+      toast.error(t('errors.fillRequired'));
       return;
     }
     if (formTitle.length > 500) {
-      toast({ title: t('errors.maxCharacters', { max: 500 }), variant: 'destructive' });
+      toast.error(t('errors.maxCharacters', { max: 500 }));
       return;
     }
 
@@ -100,11 +100,11 @@ export default function Todos() {
       const deadlineStr = format(formDeadline, 'yyyy-MM-dd');
       if (editingTodo) {
         await updateTodo.mutateAsync({ id: editingTodo.id, title: formTitle, deadline: deadlineStr, assigned_to: formAssignedTo });
-        toast({ title: t('todos.taskUpdated') });
+        toast.success(t('todos.taskUpdated'));
         setDialogOpen(false);
       } else {
         const newTodo = await createTodo.mutateAsync({ assigned_to: formAssignedTo, created_by: user!.id, title: formTitle, deadline: deadlineStr });
-        toast({ title: t('todos.taskCreated') });
+        toast.success(t('todos.taskCreated'));
         // Rouvrir en mode édition pour permettre l'ajout de PJ
         setEditingTodo({
           id: newTodo.id,
@@ -114,16 +114,16 @@ export default function Todos() {
         });
       }
     } catch {
-      toast({ title: t('errors.saveError'), variant: 'destructive' });
+      toast.error(t('errors.saveError'));
     }
   };
 
   const handleDelete = async (id: string) => {
     try {
       await deleteTodo.mutateAsync(id);
-      toast({ title: t('todos.taskDeleted') });
+      toast.success(t('todos.taskDeleted'));
     } catch {
-      toast({ title: t('errors.deleteError'), variant: 'destructive' });
+      toast.error(t('errors.deleteError'));
     }
   };
 
@@ -136,36 +136,36 @@ export default function Todos() {
     }
     try {
       await updateTodo.mutateAsync({ id: todoId, status: newStatus, blocked_reason: null });
-      toast({ title: t('todos.taskUpdated') });
+      toast.success(t('todos.taskUpdated'));
     } catch {
-      toast({ title: t('errors.saveError'), variant: 'destructive' });
+      toast.error(t('errors.saveError'));
     }
   };
 
   const handleUnblock = async (todoId: string) => {
     try {
       await updateTodo.mutateAsync({ id: todoId, status: 'in_progress', blocked_reason: null });
-      toast({ title: t('todos.taskUnblocked') });
+      toast.success(t('todos.taskUnblocked'));
     } catch {
-      toast({ title: t('errors.saveError'), variant: 'destructive' });
+      toast.error(t('errors.saveError'));
     }
   };
 
   const handleBlockedSubmit = async () => {
     if (!blockedReason.trim()) {
-      toast({ title: t('todos.blockedReasonRequired'), variant: 'destructive' });
+      toast.error(t('todos.blockedReasonRequired'));
       return;
     }
     if (blockedReason.length > 128) {
-      toast({ title: t('todos.maxChars'), variant: 'destructive' });
+      toast.error(t('todos.maxChars'));
       return;
     }
     try {
       await updateTodo.mutateAsync({ id: blockedTodoId!, status: 'blocked', blocked_reason: blockedReason });
-      toast({ title: t('todos.taskUpdated') });
+      toast.success(t('todos.taskUpdated'));
       setBlockedDialogOpen(false);
     } catch {
-      toast({ title: t('errors.saveError'), variant: 'destructive' });
+      toast.error(t('errors.saveError'));
     }
   };
 
@@ -181,7 +181,7 @@ export default function Todos() {
 
   const handleExport = () => {
     if (!todos?.length) {
-      toast({ title: t('errors.noDataToExport'), variant: 'destructive' });
+      toast.error(t('errors.noDataToExport'));
       return;
     }
     const exportData: TodoExport[] = todos.map(todo => ({
@@ -192,7 +192,7 @@ export default function Todos() {
       blocked_reason: todo.blocked_reason,
     }));
     exportTodosCSV(exportData);
-    toast({ title: t('todos.exportDownloaded') });
+    toast.success(t('todos.exportDownloaded'));
   };
 
   return (

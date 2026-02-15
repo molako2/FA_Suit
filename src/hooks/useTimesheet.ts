@@ -36,7 +36,7 @@ async function checkBudgetAlert(matterId: string) {
     // Calculate consumed cents
     const consumedCents = entries.reduce((sum, e) => {
       const rate = profileMap.get(e.user_id) ?? matter.rate_cents ?? 0;
-      return sum + (e.minutes_rounded * rate / 60);
+      return sum + Math.round(e.minutes_rounded * rate / 60);
     }, 0);
 
     const percentage = (consumedCents / matter.max_amount_ht_cents) * 100;

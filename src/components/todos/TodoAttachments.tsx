@@ -11,7 +11,7 @@ import {
   MAX_ATTACHMENT_SIZE,
   type TodoAttachment,
 } from '@/hooks/useTodoAttachments';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} o`;
@@ -41,18 +41,18 @@ export function TodoAttachmentManager({ todoId, userId, isAdmin }: TodoAttachmen
 
     const newSize = files.reduce((s, f) => s + f.size, 0);
     if (existingSize + newSize > MAX_ATTACHMENT_SIZE) {
-      toast({ title: t('todos.fileTooLarge'), variant: 'destructive' });
+      toast.error(t('todos.fileTooLarge'));
       return;
     }
 
     try {
       await uploadMut.mutateAsync({ todoId, files, userId, existingSize });
-      toast({ title: t('todos.attachmentUploaded') });
+      toast.success(t('todos.attachmentUploaded'));
     } catch (err: any) {
       if (err.message === 'SIZE_EXCEEDED') {
-        toast({ title: t('todos.fileTooLarge'), variant: 'destructive' });
+        toast.error(t('todos.fileTooLarge'));
       } else {
-        toast({ title: t('errors.saveError'), variant: 'destructive' });
+        toast.error(t('errors.saveError'));
       }
     }
 
@@ -62,9 +62,9 @@ export function TodoAttachmentManager({ todoId, userId, isAdmin }: TodoAttachmen
   const handleDelete = async (att: TodoAttachment) => {
     try {
       await deleteMut.mutateAsync({ id: att.id, filePath: att.file_path, todoId });
-      toast({ title: t('todos.attachmentDeleted') });
+      toast.success(t('todos.attachmentDeleted'));
     } catch {
-      toast({ title: t('errors.deleteError'), variant: 'destructive' });
+      toast.error(t('errors.deleteError'));
     }
   };
 
@@ -72,7 +72,7 @@ export function TodoAttachmentManager({ todoId, userId, isAdmin }: TodoAttachmen
     try {
       await downloadTodoAttachment(att.file_path, att.file_name);
     } catch {
-      toast({ title: t('errors.generic'), variant: 'destructive' });
+      toast.error(t('errors.generic'));
     }
   };
 
@@ -164,7 +164,7 @@ export function TodoAttachmentList({ todoId }: TodoAttachmentListProps) {
     try {
       await downloadTodoAttachment(att.file_path, att.file_name);
     } catch {
-      toast({ title: t('errors.generic'), variant: 'destructive' });
+      toast.error(t('errors.generic'));
     }
   };
 
