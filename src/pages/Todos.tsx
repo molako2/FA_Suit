@@ -101,11 +101,18 @@ export default function Todos() {
       if (editingTodo) {
         await updateTodo.mutateAsync({ id: editingTodo.id, title: formTitle, deadline: deadlineStr, assigned_to: formAssignedTo });
         toast({ title: t('todos.taskUpdated') });
+        setDialogOpen(false);
       } else {
-        await createTodo.mutateAsync({ assigned_to: formAssignedTo, created_by: user!.id, title: formTitle, deadline: deadlineStr });
+        const newTodo = await createTodo.mutateAsync({ assigned_to: formAssignedTo, created_by: user!.id, title: formTitle, deadline: deadlineStr });
         toast({ title: t('todos.taskCreated') });
+        // Rouvrir en mode édition pour permettre l'ajout de PJ
+        setEditingTodo({
+          id: newTodo.id,
+          title: newTodo.title,
+          deadline: newTodo.deadline,
+          assigned_to: newTodo.assigned_to,
+        });
       }
-      setDialogOpen(false);
     } catch {
       toast({ title: t('errors.saveError'), variant: 'destructive' });
     }
@@ -403,9 +410,14 @@ export default function Todos() {
                 </PopoverContent>
               </Popover>
             </div>
-            {/* Attachment manager - only for existing todos */}
-            {editingTodo && (
+            {/* Attachment manager */}
+            {editingTodo ? (
               <TodoAttachmentManager todoId={editingTodo.id} userId={user!.id} isAdmin={isAdmin} />
+            ) : (
+              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                <Paperclip className="w-4 h-4" />
+                {t('todos.saveToAddAttachments')}
+              </p>
             )}
           </div>
           <DialogFooter>

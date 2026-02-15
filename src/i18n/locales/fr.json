@@ -383,6 +383,7 @@
     "totalSizeLimit": "Limite : 15 Mo au total par tâche",
     "fileTooLarge": "La taille totale dépasse 15 Mo",
     "attachmentUploaded": "Fichier(s) ajouté(s)",
+    "saveToAddAttachments": "Enregistrez la tâche pour ajouter des pièces jointes",
     "attachmentDeleted": "Pièce jointe supprimée"
   },
   "messages": {
