@@ -159,7 +159,7 @@ export default function LoginPage() {
         <img 
           src={cm2aBanner} 
           alt="CM2A Consulting" 
-          className="h-16 md:h-20 object-contain"
+          className="h-32 md:h-40 object-contain"
         />
       </a>
 
