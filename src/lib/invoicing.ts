@@ -73,7 +73,7 @@ export function createInvoiceLines(
     lines.push({
       id: generateId(),
       invoiceId: '', // Will be set when saving
-      label: 'Prestations juridiques',
+      label: 'Prestations de services',
       minutes: totalMinutes,
       rateCents: avgRateCents,
       vatRate,

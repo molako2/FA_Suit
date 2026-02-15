@@ -1,5 +1,5 @@
 # PRODUCT REQUIREMENTS DOCUMENT (PRD)
-## Solo Cabinet Flow — Law Firm Management Platform
+## Solo Cabinet Flow — Professional Services Firm Management Platform
 
 **Version:** 1.0
 **Date:** 2025-02-10
@@ -13,7 +13,7 @@
 ## 1. PRODUCT OVERVIEW
 
 ### 1.1 What It Is
-A full-stack SaaS web application for small/solo law firms (cabinets d'avocats) in Morocco. It handles timesheet tracking, client/matter management, invoicing, credit notes, expense tracking, supplier purchase management, task management, internal messaging, and business analytics — all behind a role-based access control system.
+A full-stack SaaS web application for small/solo professional services firms (consulting, law, accounting, tax advisory, and other business consulting firms) in Morocco. It handles timesheet tracking, client/matter management, invoicing, credit notes, expense tracking, supplier purchase management, task management, internal messaging, and business analytics — all behind a role-based access control system.
 
 ### 1.2 Tech Stack
 
@@ -52,7 +52,7 @@ react-day-picker: 8.10, file-saver: 2.0, class-variance-authority: 0.7
 | `sysadmin` | Super admin — full access to everything, can reset passwords, delete users |
 | `owner` | Firm owner — full access except password reset |
 | `assistant` | Office assistant — manages clients, matters, invoices, expenses; cannot manage collaborators or settings |
-| `collaborator` | Lawyer/worker — can only manage own timesheet, expenses, todos, messages; read-only on assigned matters |
+| `collaborator` | Team member/consultant — can only manage own timesheet, expenses, todos, messages; read-only on assigned matters |
 
 ### 2.2 Role Assignment Logic
 - First user to sign up → `owner`

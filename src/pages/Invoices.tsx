@@ -450,7 +450,7 @@ export default function Invoices() {
       lines = [
         {
           id: crypto.randomUUID(),
-          label: `Prestations juridiques - ${matter.label}`,
+          label: `Prestations de services - ${matter.label}`,
           minutes: totalMinutes,
           rate_cents: avgRate,
           vat_rate: vatRate,
