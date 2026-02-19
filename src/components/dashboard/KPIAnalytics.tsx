@@ -79,6 +79,7 @@ interface KPIAnalyticsProps {
   clients: Client[];
   invoices: Invoice[];
   defaultRateCents: number;
+  currency?: string;
 }
 
 type GroupByOption = 'collaborator' | 'client' | 'matter';
@@ -98,9 +99,7 @@ interface KPIRow {
   invoicedRevenueCents: number;
 }
 
-function formatCents(cents: number): string {
-  return (cents / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' MAD';
-}
+// formatCents is defined inside the component to capture the currency prop
 
 function formatMinutes(minutes: number): string {
   const h = Math.floor(minutes / 60);
@@ -136,8 +135,10 @@ export function KPIAnalytics({
   matters, 
   clients, 
   invoices,
-  defaultRateCents 
+  defaultRateCents,
+  currency = 'MAD',
 }: KPIAnalyticsProps) {
+  const formatCents = (cents: number) => (cents / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency;
   const [periodFrom, setPeriodFrom] = useState<Date>(() => {
     const d = new Date();
     d.setDate(1);
@@ -345,7 +346,7 @@ export function KPIAnalytics({
     if (groupByCollaborator) headers.push('Collaborateur');
     if (groupByClient) headers.push('Code Client', 'Nom Client');
     if (groupByMatter) headers.push('Code Dossier', 'Libellé Dossier');
-    headers.push('Minutes Facturables', 'Heures', 'CA Facturable (MAD)', 'CA Facturé (MAD)');
+    headers.push('Minutes Facturables', 'Heures', `CA Facturable (${currency})`, `CA Facturé (${currency})`);
     
     const rows = kpiData.map(row => {
       const r: (string | number)[] = [];
