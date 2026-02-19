@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { TenantProvider, useTenant } from "@/contexts/TenantContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 
@@ -11,9 +12,10 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
+import Index from "./pages/Index";
 import DashboardCharts from "./pages/DashboardCharts";
 import Timesheet from "./pages/Timesheet";
- import Expenses from "./pages/Expenses";
+import Expenses from "./pages/Expenses";
 import Clients from "./pages/Clients";
 import Matters from "./pages/Matters";
 import Collaborators from "./pages/Collaborators";
@@ -25,161 +27,134 @@ import Todos from "./pages/Todos";
 import Messages from "./pages/Messages";
 import Documents from "./pages/Documents";
 import Agenda from "./pages/Agenda";
+import Tenants from "./pages/Tenants";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-function AppRoutes() {
-  const { user, role } = useAuth();
+function TenantRoutes() {
+  const { user } = useAuth();
+  const { tenantRole, isGlobalSysadmin } = useTenant();
 
-  // Redirect based on role for root path
-  const getHomeRoute = () => {
+  const effectiveRole = isGlobalSysadmin ? 'sysadmin' : tenantRole;
+
+  const getHomeComponent = () => {
     if (!user) return <Navigate to="/login" replace />;
-    if (role === 'owner' || role === 'sysadmin') return <Dashboard />;
-    if (role === 'client') return <Navigate to="/documents" replace />;
-    return <Navigate to="/timesheet" replace />;
+    if (effectiveRole === 'client') return <Navigate to="documents" replace />;
+    return <Index />;
   };
 
+  return (
+    <Routes>
+      <Route index element={
+        <ProtectedRoute>
+          <AppLayout>{getHomeComponent()}</AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="dashboard" element={
+        <ProtectedRoute allowedRoles={['sysadmin', 'owner']}>
+          <AppLayout><Dashboard /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="dashboard-charts" element={
+        <ProtectedRoute allowedRoles={['sysadmin', 'owner']}>
+          <AppLayout><DashboardCharts /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="timesheet" element={
+        <ProtectedRoute>
+          <AppLayout><Timesheet /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="expenses" element={
+        <ProtectedRoute>
+          <AppLayout><Expenses /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="clients" element={
+        <ProtectedRoute allowedRoles={['sysadmin', 'owner', 'assistant']}>
+          <AppLayout><Clients /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="matters" element={
+        <ProtectedRoute allowedRoles={['sysadmin', 'owner', 'assistant']}>
+          <AppLayout><Matters /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="collaborators" element={
+        <ProtectedRoute allowedRoles={['sysadmin', 'owner']}>
+          <AppLayout><Collaborators /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="invoices" element={
+        <ProtectedRoute allowedRoles={['sysadmin', 'owner', 'assistant']}>
+          <AppLayout><Invoices /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="credit-notes" element={
+        <ProtectedRoute allowedRoles={['sysadmin', 'owner', 'assistant']}>
+          <AppLayout><CreditNotes /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="purchases" element={
+        <ProtectedRoute allowedRoles={['sysadmin', 'owner', 'assistant']}>
+          <AppLayout><Purchases /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="todos" element={
+        <ProtectedRoute>
+          <AppLayout><Todos /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="messages" element={
+        <ProtectedRoute>
+          <AppLayout><Messages /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="agenda" element={
+        <ProtectedRoute>
+          <AppLayout><Agenda /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="documents" element={
+        <ProtectedRoute allowedRoles={['sysadmin', 'owner', 'assistant', 'collaborator', 'client']}>
+          <AppLayout><Documents /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="settings" element={
+        <ProtectedRoute allowedRoles={['sysadmin']}>
+          <AppLayout><Settings /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="tenants" element={
+        <ProtectedRoute allowedRoles={['sysadmin']}>
+          <AppLayout><Tenants /></AppLayout>
+        </ProtectedRoute>
+      } />
+    </Routes>
+  );
+}
+
+function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <AppLayout>{getHomeRoute()}</AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      
-      <Route
-        path="/dashboard-charts"
-        element={
-          <ProtectedRoute allowedRoles={['sysadmin', 'owner']}>
-            <AppLayout><DashboardCharts /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      
-      <Route
-        path="/timesheet"
-        element={
-          <ProtectedRoute>
-            <AppLayout><Timesheet /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      
-       <Route
-         path="/expenses"
-         element={
-           <ProtectedRoute>
-             <AppLayout><Expenses /></AppLayout>
-           </ProtectedRoute>
-         }
-       />
-       
-      <Route
-        path="/clients"
-        element={
-          <ProtectedRoute allowedRoles={['sysadmin', 'owner', 'assistant']}>
-            <AppLayout><Clients /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      
-      <Route
-        path="/matters"
-        element={
-          <ProtectedRoute allowedRoles={['sysadmin', 'owner', 'assistant']}>
-            <AppLayout><Matters /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      
-      <Route
-        path="/collaborators"
-        element={
-          <ProtectedRoute allowedRoles={['sysadmin', 'owner']}>
-            <AppLayout><Collaborators /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      
-      <Route
-        path="/invoices"
-        element={
-          <ProtectedRoute allowedRoles={['sysadmin', 'owner', 'assistant']}>
-            <AppLayout><Invoices /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      
-      <Route
-        path="/credit-notes"
-        element={
-          <ProtectedRoute allowedRoles={['sysadmin', 'owner', 'assistant']}>
-            <AppLayout><CreditNotes /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      
-      <Route
-        path="/purchases"
-        element={
-          <ProtectedRoute allowedRoles={['sysadmin', 'owner', 'assistant']}>
-            <AppLayout><Purchases /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      
-      <Route
-        path="/todos"
-        element={
-          <ProtectedRoute>
-            <AppLayout><Todos /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      
-      <Route
-        path="/messages"
-        element={
-          <ProtectedRoute>
-            <AppLayout><Messages /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      
-      <Route
-        path="/agenda"
-        element={
-          <ProtectedRoute>
-            <AppLayout><Agenda /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      
-      <Route
-        path="/documents"
-        element={
-          <ProtectedRoute allowedRoles={['sysadmin', 'owner', 'assistant', 'client']}>
-            <AppLayout><Documents /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      
-      <Route
-        path="/settings"
-        element={
-          <ProtectedRoute allowedRoles={['sysadmin', 'owner']}>
-            <AppLayout><Settings /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      
+      {/* Root redirect — TenantProvider will redirect to /:slug/ */}
+      <Route path="/" element={
+        <TenantProvider>
+          <TenantRoutes />
+        </TenantProvider>
+      } />
+
+      {/* Tenant-scoped routes */}
+      <Route path="/:tenantSlug/*" element={
+        <TenantProvider>
+          <TenantRoutes />
+        </TenantProvider>
+      } />
+
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
