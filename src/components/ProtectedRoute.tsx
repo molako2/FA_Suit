@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTenant } from '@/contexts/TenantContext';
 import type { UserRole } from '@/types';
 import { Loader2 } from 'lucide-react';
 
@@ -9,10 +10,11 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { user, role, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
+  const { tenantRole, isLoadingTenant, isGlobalSysadmin, tenantSlug } = useTenant();
   const location = useLocation();
 
-  if (isLoading) {
+  if (isLoading || isLoadingTenant) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -24,20 +26,23 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  const effectiveRole = (isGlobalSysadmin ? 'sysadmin' : tenantRole) as UserRole | null;
+
   if (allowedRoles) {
-    if (!role) {
-      // User is authenticated but has no role — show loading spinner
-      // rather than redirecting to /login (which would cause a loop
-      // since Login redirects authenticated users back to /).
+    if (!effectiveRole) {
       return (
         <div className="min-h-screen flex items-center justify-center bg-background">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       );
     }
-    if (!allowedRoles.includes(role)) {
-      // Redirect to appropriate home based on role
-      const homeRoute = role === 'client' ? '/documents' : (role === 'collaborator') ? '/timesheet' : '/';
+    if (!allowedRoles.includes(effectiveRole)) {
+      const slug = tenantSlug || '';
+      const homeRoute = effectiveRole === 'client'
+        ? `/${slug}/documents`
+        : effectiveRole === 'collaborator'
+          ? `/${slug}/timesheet`
+          : `/${slug}/`;
       return <Navigate to={homeRoute} replace />;
     }
   }
